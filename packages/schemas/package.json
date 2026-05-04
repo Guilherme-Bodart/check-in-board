@@ -1,0 +1,20 @@
+{
+  "name": "@check-in-board/schemas",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "echo \"No lint configured for schemas yet\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured for schemas yet\"",
+    "format": "prettier --check \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@check-in-board/tsconfig": "workspace:*",
+    "typescript": "^5.9.3"
+  }
+}
