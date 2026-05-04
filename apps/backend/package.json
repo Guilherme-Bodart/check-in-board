@@ -11,6 +11,7 @@
     "lint": "echo \"No lint configured for backend yet\"",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",
+    "db:push": "prisma db push",
     "db:validate": "prisma validate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -19,6 +20,7 @@
   "dependencies": {
     "@prisma/client": "^6.8.2",
     "fastify": "^5.6.2",
+    "jose": "^6.1.2",
     "pino": "^10.1.0",
     "zod": "^4.1.13"
   },

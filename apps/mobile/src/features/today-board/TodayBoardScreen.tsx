@@ -5,6 +5,7 @@ import {
   RefreshCw,
   TriangleAlert,
 } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppText, Button, Screen } from "@/components";
@@ -16,7 +17,11 @@ import { todayBoardPreviewState, todayBoardScenarios } from "./mock-data";
 const currentScenario = todayBoardScenarios[todayBoardPreviewState];
 const handleMockAction = () => undefined;
 
-export function TodayBoardScreen() {
+type TodayBoardScreenProps = {
+  headerAccessory?: ReactNode;
+};
+
+export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
   const todayLabel = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     day: "numeric",
@@ -45,15 +50,18 @@ export function TodayBoardScreen() {
             <AppText color="textSecondary">{todayLabel}</AppText>
           </View>
         </View>
-        <Button
-          accessibilityHint="Triggers a refresh of the today board data."
-          accessibilityLabel="Sync today board"
-          fullWidth={false}
-          icon={<RefreshCw color={theme.colors.textPrimary} size={16} />}
-          label="Sync"
-          onPress={handleMockAction}
-          variant="secondary"
-        />
+        <View style={styles.headerActions}>
+          {headerAccessory}
+          <Button
+            accessibilityHint="Triggers a refresh of the today board data."
+            accessibilityLabel="Sync today board"
+            fullWidth={false}
+            icon={<RefreshCw color={theme.colors.textPrimary} size={16} />}
+            label="Sync"
+            onPress={handleMockAction}
+            variant="secondary"
+          />
+        </View>
       </View>
 
       <View style={styles.filters}>
@@ -168,6 +176,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: theme.spacing[3],
     justifyContent: "space-between",
+  },
+  headerActions: {
+    alignItems: "flex-end",
+    gap: theme.spacing[2],
   },
   headerText: {
     flex: 1,

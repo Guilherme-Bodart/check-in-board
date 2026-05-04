@@ -2,7 +2,7 @@ import { buildApp } from "./app.js";
 import { env } from "./shared/env.js";
 import { logger } from "./shared/logger.js";
 
-const app = buildApp();
+const app = buildApp({ env });
 
 async function startServer(): Promise<void> {
   await app.listen({

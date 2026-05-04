@@ -1,25 +1,51 @@
 import { z } from "zod";
 
-const envSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-  HOST: z.string().min(1).default("0.0.0.0"),
-  PORT: z.coerce.number().int().min(1).max(65535).default(3333),
-  SERVICE_NAME: z.string().min(1).default("check-in-board-backend"),
-  LOG_LEVEL: z
-    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
-    .default("info"),
-});
+const nodeEnvSchema = z
+  .enum(["development", "test", "production"])
+  .default("development");
 
-const parsedEnv = envSchema.safeParse(process.env);
+const defaultDatabaseUrl =
+  "postgresql://postgres:postgres@localhost:5432/check_in_board?schema=public";
+const defaultAuthJwtSecret = "dev-auth-local-secret-not-for-production";
 
-if (!parsedEnv.success) {
-  throw new Error(
-    `Invalid environment variables: ${JSON.stringify(parsedEnv.error.flatten().fieldErrors)}`,
-  );
+export function parseEnv(input: NodeJS.ProcessEnv = process.env): {
+  NODE_ENV: "development" | "test" | "production";
+  HOST: string;
+  PORT: number;
+  SERVICE_NAME: string;
+  LOG_LEVEL: "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
+  DATABASE_URL: string;
+  AUTH_JWT_SECRET: string;
+} {
+  const nodeEnv = nodeEnvSchema.parse(input.NODE_ENV);
+  const envSchema = z.object({
+    NODE_ENV: nodeEnvSchema,
+    HOST: z.string().min(1).default("0.0.0.0"),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3333),
+    SERVICE_NAME: z.string().min(1).default("check-in-board-backend"),
+    LOG_LEVEL: z
+      .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+      .default("info"),
+    DATABASE_URL:
+      nodeEnv === "production"
+        ? z.string().min(1)
+        : z.string().min(1).default(defaultDatabaseUrl),
+    AUTH_JWT_SECRET:
+      nodeEnv === "production"
+        ? z.string().min(32)
+        : z.string().min(1).default(defaultAuthJwtSecret),
+  });
+  const parsedEnv = envSchema.safeParse(input);
+
+  if (!parsedEnv.success) {
+    throw new Error(
+      `Invalid environment variables: ${JSON.stringify(parsedEnv.error.flatten().fieldErrors)}`,
+    );
+  }
+
+  return parsedEnv.data;
 }
 
-export const env = parsedEnv.data;
+export const env = parseEnv();
 
 export type Env = typeof env;
