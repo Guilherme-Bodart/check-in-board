@@ -3,6 +3,12 @@ import type { FastifyRequest } from "fastify";
 import type { Env } from "../../shared/env.js";
 import { verifyAccessToken } from "./token.js";
 
+export class AuthError extends Error {
+  constructor(message = "Authentication is required.") {
+    super(message);
+  }
+}
+
 export async function authenticateRequest(
   request: FastifyRequest,
   env: Env,
@@ -10,13 +16,13 @@ export async function authenticateRequest(
   const authorization = request.headers.authorization;
 
   if (!authorization) {
-    throw new Error("UNAUTHORIZED");
+    throw new AuthError();
   }
 
   const [scheme, token] = authorization.split(" ");
 
   if (scheme !== "Bearer" || !token) {
-    throw new Error("UNAUTHORIZED");
+    throw new AuthError();
   }
 
   const payload = await verifyAccessToken(token, env);

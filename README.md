@@ -24,4 +24,27 @@ The first MVP focuses on:
 
 ## Current Status
 
-The project is in planning and foundation mode. Implementation should start only after the initial planning documents are aligned and committed.
+The project has a planning foundation, mobile app foundation, backend foundation, Prisma data model, and development auth flow.
+
+## Local Development
+
+Start Postgres:
+
+```bash
+docker compose up -d postgres
+```
+
+Prepare the backend database:
+
+```bash
+cp apps/backend/.env.example apps/backend/.env
+pnpm --filter @check-in-board/backend db:generate
+pnpm --filter @check-in-board/backend db:push
+```
+
+Run the apps:
+
+```bash
+pnpm dev:backend
+pnpm dev:mobile
+```

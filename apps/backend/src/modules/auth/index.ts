@@ -6,9 +6,9 @@ import {
   signUpRequestSchema,
   signUpResponseSchema,
 } from "./schemas.js";
+import { AuthError, authenticateRequest } from "./guard.js";
 import { getAuthenticatedUser, signUpWithDevAuth } from "./service.js";
 import type { AuthRepository } from "./repository.js";
-import { authenticateRequest } from "./guard.js";
 
 export type AuthModuleOptions = {
   authRepository?: AuthRepository;
@@ -95,7 +95,11 @@ export const authModule: FastifyPluginAsync<AuthModuleOptions> =
         });
 
         return reply.code(200).send(responseBody);
-      } catch {
+      } catch (error) {
+        if (!(error instanceof AuthError)) {
+          throw error;
+        }
+
         return reply
           .code(401)
           .send(sendError("UNAUTHORIZED", "Authentication is required."));
