@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Check-In Board",
+    "slug": "check-in-board-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "checkinboard",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

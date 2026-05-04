@@ -25,6 +25,8 @@ Dono de:
 - hooks de API;
 - estados de loading, erro e vazio.
 
+Atua como especialista senior de Mobile. Deve tomar decisoes com criterio proprio da area, preservando design system, ergonomia, acessibilidade e qualidade de experiencia.
+
 Nao deve editar backend, Prisma ou scripts de deploy sem combinacao previa.
 
 ### Agente Backend
@@ -39,6 +41,8 @@ Dono de:
 - autorizacao;
 - sync iCal;
 - observabilidade backend.
+
+Atua como especialista senior de Backend. Deve tomar decisoes com criterio proprio da area, preservando seguranca, autorizacao, confiabilidade, observabilidade e evolucao do dominio.
 
 Nao deve editar telas mobile ou componentes de UI sem combinacao previa.
 
@@ -136,6 +140,18 @@ Preferir rodadas curtas:
 - Rodada 4: reservas e sync.
 - Rodada 5: tarefas e permissoes.
 
+## Marcos Testaveis
+
+Sempre que uma entrega gerar algo que o usuario consiga abrir, clicar ou validar visualmente, o lider deve avisar explicitamente que existe uma versao testavel.
+
+Para cada marco testavel, informar:
+
+- o que ja da para testar;
+- o que ainda e mockado;
+- comando ou URL para abrir;
+- checks executados;
+- principais pontos para olhar no design e na usabilidade.
+
 ## Checklist Do Lider Antes De Aceitar Entrega
 
 - A entrega respeita o escopo?
@@ -144,4 +160,29 @@ Preferir rodadas curtas:
 - O design usa tokens?
 - O backend valida inputs?
 - A autorizacao futura nao foi bloqueada?
+- Testes automatizados foram criados quando havia comportamento relevante?
+- Quando nao houve teste, a justificativa e razoavel?
 - O backlog precisa ser atualizado?
+
+## Padrao De Testes
+
+Testes nao devem existir apenas para aumentar cobertura.
+
+Cada teste deve proteger um comportamento real, reduzir risco concreto ou documentar uma regra importante do produto.
+
+Prioridades:
+
+- regras de permissao;
+- contratos compartilhados;
+- parser iCal;
+- jobs idempotentes;
+- services de dominio;
+- componentes com comportamento condicional;
+- hooks de API com estados de loading, erro e sucesso.
+
+Evitar:
+
+- snapshots amplos sem valor;
+- testes que apenas repetem implementacao;
+- mocks excessivos que escondem bugs;
+- testar biblioteca externa em vez da regra do produto.

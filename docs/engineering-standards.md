@@ -188,6 +188,14 @@ MVP minimo:
 - mobile: testes leves de componentes criticos quando houver regra;
 - validar manualmente fluxos de onboarding, sync e tarefas no app.
 
+Padrao de qualidade:
+
+- todo teste deve proteger uma regra ou comportamento real;
+- nao criar teste apenas por cobertura numerica;
+- preferir poucos testes de alto sinal a muitos testes frageis;
+- quando uma entrega nao incluir teste, justificar por que o risco ainda e baixo;
+- regras de permissao, parser iCal, jobs e contratos devem ter testes assim que forem implementados.
+
 Ferramentas sugeridas:
 
 - `Vitest` no backend e packages;
