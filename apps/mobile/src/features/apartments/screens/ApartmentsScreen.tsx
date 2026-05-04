@@ -194,7 +194,13 @@ export function ApartmentsScreen() {
       ) : (
         <View style={styles.list}>
           {apartments.map((apartment) => (
-            <ApartmentCard apartment={apartment} key={apartment.id} />
+            <ApartmentCard
+              apartment={apartment}
+              key={apartment.id}
+              onOpenPress={() =>
+                router.push(`/apartment/${apartment.id}` as Href)
+              }
+            />
           ))}
         </View>
       )}

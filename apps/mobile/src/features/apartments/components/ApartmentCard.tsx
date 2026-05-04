@@ -1,16 +1,17 @@
-import { Building2, Clock3 } from "lucide-react-native";
+import { ArrowRight, Building2, Clock3 } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 
-import { AppText, Badge } from "@/components";
+import { AppText, Badge, Button } from "@/components";
 import { theme } from "@/theme";
 
 import type { Apartment } from "../types";
 
 type ApartmentCardProps = {
   apartment: Apartment;
+  onOpenPress?: (apartment: Apartment) => void;
 };
 
-export function ApartmentCard({ apartment }: ApartmentCardProps) {
+export function ApartmentCard({ apartment, onOpenPress }: ApartmentCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -27,6 +28,17 @@ export function ApartmentCard({ apartment }: ApartmentCardProps) {
           Default timezone: {apartment.timezone}
         </AppText>
       </View>
+
+      {onOpenPress ? (
+        <Button
+          accessibilityHint="Opens apartment channels and operational details."
+          fullWidth={false}
+          icon={<ArrowRight color={theme.colors.textPrimary} size={16} />}
+          label="Open apartment"
+          onPress={() => onOpenPress(apartment)}
+          variant="secondary"
+        />
+      ) : null}
     </View>
   );
 }

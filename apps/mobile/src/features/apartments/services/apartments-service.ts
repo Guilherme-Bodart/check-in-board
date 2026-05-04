@@ -124,6 +124,15 @@ export async function listApartments(session: AuthSession | null) {
   return mapApartmentsResponse(response);
 }
 
+export async function getApartmentById(
+  session: AuthSession | null,
+  apartmentId: string,
+) {
+  const apartments = await listApartments(session);
+
+  return apartments.find((apartment) => apartment.id === apartmentId) ?? null;
+}
+
 export async function createApartment(
   session: AuthSession | null,
   input: CreateApartmentInput,

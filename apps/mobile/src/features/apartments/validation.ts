@@ -2,6 +2,9 @@ import type {
   ApartmentFieldErrors,
   ApartmentFormValues,
   CreateApartmentInput,
+  CreateIcalSourceInput,
+  IcalSourceFieldErrors,
+  IcalSourceFormValues,
 } from "./types";
 
 export const defaultApartmentTimezone = "America/Sao_Paulo";
@@ -44,5 +47,54 @@ export function toCreateApartmentInput(
   return {
     name: normalized.name,
     timezone: normalized.timezone,
+  };
+}
+
+export function normalizeIcalSourceValues(
+  values: IcalSourceFormValues,
+): IcalSourceFormValues {
+  return {
+    icalUrl: values.icalUrl.trim(),
+    label: values.label.trim(),
+    provider: values.provider.trim().toLowerCase(),
+  };
+}
+
+export function validateIcalSourceValues(
+  values: IcalSourceFormValues,
+): IcalSourceFieldErrors {
+  const normalized = normalizeIcalSourceValues(values);
+  const errors: IcalSourceFieldErrors = {};
+
+  if (!normalized.provider) {
+    errors.provider = "Provider is required.";
+  }
+
+  if (!normalized.label) {
+    errors.label = "Label is required.";
+  }
+
+  if (!normalized.icalUrl) {
+    errors.icalUrl = "iCal URL is required.";
+  } else if (!/^https?:\/\/.+/i.test(normalized.icalUrl)) {
+    errors.icalUrl = "Enter a valid http or https iCal URL.";
+  }
+
+  return errors;
+}
+
+export function hasIcalSourceErrors(errors: IcalSourceFieldErrors) {
+  return Object.values(errors).some(Boolean);
+}
+
+export function toCreateIcalSourceInput(
+  values: IcalSourceFormValues,
+): CreateIcalSourceInput {
+  const normalized = normalizeIcalSourceValues(values);
+
+  return {
+    icalUrl: normalized.icalUrl,
+    label: normalized.label,
+    provider: normalized.provider,
   };
 }
