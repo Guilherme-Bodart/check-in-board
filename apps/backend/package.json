@@ -9,11 +9,15 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "echo \"No lint configured for backend yet\"",
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:validate": "prisma validate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --check \"src/**/*.ts\""
   },
   "dependencies": {
+    "@prisma/client": "^6.8.2",
     "fastify": "^5.6.2",
     "pino": "^10.1.0",
     "zod": "^4.1.13"
@@ -21,6 +25,7 @@
   "devDependencies": {
     "@check-in-board/tsconfig": "workspace:*",
     "@types/node": "^24.10.1",
+    "prisma": "^6.8.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"

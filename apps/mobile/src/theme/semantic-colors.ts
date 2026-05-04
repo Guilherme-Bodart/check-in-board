@@ -16,6 +16,7 @@ export const semanticColors = {
   warning: palette.amber[500],
   warningSoft: palette.amber[100],
   danger: palette.red[600],
+  dangerPressed: palette.red[700],
   dangerSoft: palette.red[100],
   success: palette.green[600],
   successSoft: palette.green[100],

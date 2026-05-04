@@ -22,6 +22,8 @@ type ButtonProps = {
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
   fullWidth?: boolean;
+  accessibilityHint?: string;
+  accessibilityLabel?: string;
 };
 
 const variantStyles = {
@@ -68,8 +70,8 @@ const variantStyles = {
       textColor: theme.colors.surface,
     },
     pressed: {
-      backgroundColor: theme.palette.red[700],
-      borderColor: theme.palette.red[700],
+      backgroundColor: theme.colors.dangerPressed,
+      borderColor: theme.colors.dangerPressed,
       textColor: theme.colors.surface,
     },
   },
@@ -96,11 +98,15 @@ export function Button({
   icon,
   style,
   fullWidth = true,
+  accessibilityHint,
+  accessibilityLabel,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
 
   return (
     <Pressable
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}

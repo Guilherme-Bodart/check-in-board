@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  host_admin
+  co_host
+  team
+}
+
+enum TaskStatus {
+  pending
+  done
+  not_done
+  cancelled
+}
+
+enum ReservationStatus {
+  confirmed
+  cancelled
+  missing_in_feed
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  revoked
+  expired
+}
+
+enum SyncStatus {
+  queued
+  running
+  succeeded
+  failed
+}
+
+model User {
+  id                      String                   @id @default(cuid())
+  authProvider            String                   @map("auth_provider")
+  authSubject             String                   @map("auth_subject")
+  fullName                String                   @map("full_name")
+  email                   String
+  phone                   String?
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  organizationMemberships OrganizationMembership[]
+  apartmentMemberships    ApartmentMembership[]
+  assignedTasks           Task[]                   @relation("task_assignee")
+  completedTasks          Task[]                   @relation("task_completed_by")
+  invitationsSent         Invitation[]             @relation("invitation_invited_by")
+  auditLogs               AuditLog[]               @relation("audit_actor")
+
+  @@unique([authProvider, authSubject])
+  @@unique([email])
+  @@map("users")
+}
+
+model Organization {
+  id            String                   @id @default(cuid())
+  name          String
+  deletedAt     DateTime?                @map("deleted_at")
+  createdAt     DateTime                 @default(now()) @map("created_at")
+  updatedAt     DateTime                 @updatedAt @map("updated_at")
+  memberships   OrganizationMembership[]
+  apartments    Apartment[]
+  invitations   Invitation[]
+  auditLogs     AuditLog[]
+
+  @@map("organizations")
+}
+
+model OrganizationMembership {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  userId         String       @map("user_id")
+  role           Role
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_memberships")
+}
+
+model Apartment {
+  id                   String                @id @default(cuid())
+  organizationId       String                @map("organization_id")
+  name                 String
+  timezone             String
+  deletedAt            DateTime?             @map("deleted_at")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships          ApartmentMembership[]
+  icalSources          IcalSource[]
+  reservations         Reservation[]
+  tasks                Task[]
+  invitations          Invitation[]
+  auditLogs            AuditLog[]
+
+  @@index([organizationId])
+  @@map("apartments")
+}
+
+model ApartmentMembership {
+  id                    String    @id @default(cuid())
+  apartmentId           String    @map("apartment_id")
+  userId                String    @map("user_id")
+  role                  Role
+  canView               Boolean   @default(true) @map("can_view")
+  canUpdateTaskStatus   Boolean   @default(false) @map("can_update_task_status")
+  canManageIntegrations Boolean   @default(false) @map("can_manage_integrations")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  apartment             Apartment @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([apartmentId, userId])
+  @@index([userId])
+  @@map("apartment_memberships")
+}
+
+model IcalSource {
+  id               String        @id @default(cuid())
+  apartmentId      String        @map("apartment_id")
+  provider         String
+  label            String
+  icalUrlEncrypted String        @map("ical_url_encrypted")
+  syncEnabled      Boolean       @default(true) @map("sync_enabled")
+  etag             String?
+  lastModifiedAt   DateTime?     @map("last_modified_at")
+  lastSuccessAt    DateTime?     @map("last_success_at")
+  lastFailureAt    DateTime?     @map("last_failure_at")
+  deletedAt        DateTime?     @map("deleted_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  apartment        Apartment     @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  reservations     Reservation[]
+  syncRuns         SyncRun[]
+
+  @@index([apartmentId, syncEnabled])
+  @@map("ical_sources")
+}
+
+model Reservation {
+  id                 String            @id @default(cuid())
+  apartmentId        String            @map("apartment_id")
+  icalSourceId       String            @map("ical_source_id")
+  externalEventKey   String            @map("external_event_key")
+  externalUid        String?           @map("external_uid")
+  status             ReservationStatus @default(confirmed)
+  guestName          String?           @map("guest_name")
+  startsAt           DateTime          @map("starts_at")
+  endsAt             DateTime          @map("ends_at")
+  rawSummary         String?           @map("raw_summary")
+  rawPayload         Json?             @map("raw_payload")
+  lastSeenInFeedAt   DateTime?         @map("last_seen_in_feed_at")
+  missingInFeedCount Int               @default(0) @map("missing_in_feed_count")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  apartment          Apartment         @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  icalSource         IcalSource        @relation(fields: [icalSourceId], references: [id], onDelete: Cascade)
+  tasks              Task[]
+
+  @@unique([icalSourceId, externalEventKey])
+  @@index([apartmentId, startsAt, endsAt])
+  @@index([status])
+  @@map("reservations")
+}
+
+model Task {
+  id                String       @id @default(cuid())
+  apartmentId       String       @map("apartment_id")
+  reservationId     String?      @map("reservation_id")
+  title             String
+  description       String?
+  status            TaskStatus   @default(pending)
+  dueAt             DateTime     @map("due_at")
+  completedAt       DateTime?    @map("completed_at")
+  completedByUserId String?      @map("completed_by_user_id")
+  assignedUserId    String?      @map("assigned_user_id")
+  result            Json?
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+  apartment         Apartment    @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  reservation       Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  completedByUser   User?        @relation("task_completed_by", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  assignedUser      User?        @relation("task_assignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  @@index([apartmentId, status, dueAt])
+  @@index([assignedUserId])
+  @@map("tasks")
+}
+
+model Invitation {
+  id              String           @id @default(cuid())
+  organizationId  String           @map("organization_id")
+  apartmentId     String?          @map("apartment_id")
+  invitedByUserId String?          @map("invited_by_user_id")
+  email           String
+  role            Role
+  status          InvitationStatus @default(pending)
+  tokenHash       String           @map("token_hash")
+  expiresAt       DateTime         @map("expires_at")
+  acceptedAt      DateTime?        @map("accepted_at")
+  revokedAt       DateTime?        @map("revoked_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  apartment       Apartment?       @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
+  invitedByUser   User?            @relation("invitation_invited_by", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([tokenHash])
+  @@index([organizationId, status])
+  @@index([apartmentId])
+  @@map("invitations")
+}
+
+model SyncRun {
+  id                  String      @id @default(cuid())
+  icalSourceId        String      @map("ical_source_id")
+  status              SyncStatus  @default(queued)
+  startedAt           DateTime    @default(now()) @map("started_at")
+  finishedAt          DateTime?   @map("finished_at")
+  durationMs          Int?        @map("duration_ms")
+  eventsSeen          Int         @default(0) @map("events_seen")
+  reservationsCreated Int         @default(0) @map("reservations_created")
+  reservationsUpdated Int         @default(0) @map("reservations_updated")
+  reservationsMissing Int         @default(0) @map("reservations_missing")
+  errorCode           String?     @map("error_code")
+  errorMessage        String?     @map("error_message")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+  icalSource          IcalSource  @relation(fields: [icalSourceId], references: [id], onDelete: Cascade)
+
+  @@index([icalSourceId, startedAt])
+  @@index([status])
+  @@map("sync_runs")
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  actorUserId    String?      @map("actor_user_id")
+  apartmentId    String?      @map("apartment_id")
+  entityType     String       @map("entity_type")
+  entityId       String       @map("entity_id")
+  action         String
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser      User?        @relation("audit_actor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  apartment      Apartment?   @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([apartmentId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
