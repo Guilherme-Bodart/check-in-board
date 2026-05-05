@@ -6,6 +6,7 @@ import { issueAccessToken } from "../auth/token.js";
 import type { AuthUser } from "../auth/types.js";
 import type { ReservationsRepository } from "./repository.js";
 import type {
+  AccessibleReservationSummary,
   IcalSourceSyncTarget,
   ReservationSummary,
   UpsertReservationInput,
@@ -43,6 +44,27 @@ class InMemoryReservationsRepository implements ReservationsRepository {
     return [...this.reservations.values()].filter(
       (reservation) => reservation.apartmentId === apartmentId,
     );
+  }
+
+  async listAccessibleReservationsForDate(
+    userId: string,
+    startsBefore: Date,
+    endsAfter: Date,
+  ): Promise<AccessibleReservationSummary[]> {
+    if (!this.apartmentAccess.get(`${userId}:apartment-1`)) {
+      return [];
+    }
+
+    return [...this.reservations.values()]
+      .filter(
+        (reservation) =>
+          new Date(reservation.startsAt) < startsBefore &&
+          new Date(reservation.endsAt) > endsAfter,
+      )
+      .map((reservation) => ({
+        ...reservation,
+        apartmentName: "Apto 204",
+      }));
   }
 
   async upsertReservation(
@@ -173,6 +195,55 @@ describe("reservation routes", () => {
       firstSync.json().reservations[0].id,
     );
     expect(await repository.listReservations("apartment-1")).toHaveLength(1);
+
+    await app.close();
+  });
+
+  it("builds today board rows from accessible reservations", async () => {
+    const repository = new InMemoryReservationsRepository();
+    const user: AuthUser = {
+      email: "host@example.com",
+      fullName: "Host Admin",
+      id: "user-host",
+    };
+
+    repository.setApartmentCanView(user.id, "apartment-1", true);
+    await repository.upsertReservation({
+      apartmentId: "apartment-1",
+      endsAt: new Date("2026-05-12T15:00:00.000Z"),
+      externalEventKey: "reservation-1@example.com",
+      externalUid: "reservation-1@example.com",
+      icalSourceId: "ical-source-1",
+      rawPayload: {},
+      rawSummary: "Reserved - Airbnb",
+      startsAt: new Date("2026-05-10T18:00:00.000Z"),
+    });
+
+    const app = buildApp({
+      env: buildTestEnv(),
+      reservationsRepository: repository,
+    });
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${await createAccessToken(user)}`,
+      },
+      method: "GET",
+      url: "/today-board?date=2026-05-10T12:00:00.000Z",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const responseBody = response.json();
+
+    expect(responseBody.boardItems[0]).toMatchObject({
+      apartment: "Apto 204",
+      headline: "Reserved - Airbnb",
+      status: "checkInToday",
+    });
+    expect(responseBody.summaryCards[0]).toMatchObject({
+      label: "Check-ins",
+      value: "1",
+    });
 
     await app.close();
   });

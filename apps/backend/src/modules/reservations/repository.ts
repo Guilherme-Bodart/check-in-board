@@ -1,4 +1,5 @@
 import type {
+  AccessibleReservationSummary,
   IcalSourceSyncTarget,
   ReservationSummary,
   UpsertReservationInput,
@@ -10,6 +11,11 @@ export interface ReservationsRepository {
     userId: string,
     icalSourceId: string,
   ): Promise<IcalSourceSyncTarget | null>;
+  listAccessibleReservationsForDate(
+    userId: string,
+    startsBefore: Date,
+    endsAfter: Date,
+  ): Promise<AccessibleReservationSummary[]>;
   listReservations(apartmentId: string): Promise<ReservationSummary[]>;
   upsertReservation(input: UpsertReservationInput): Promise<ReservationSummary>;
 }

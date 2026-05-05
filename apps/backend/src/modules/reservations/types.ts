@@ -30,3 +30,7 @@ export type IcalSourceSyncTarget = {
   canManageIntegrations: boolean;
   role: string;
 };
+
+export type AccessibleReservationSummary = ReservationSummary & {
+  apartmentName: string;
+};

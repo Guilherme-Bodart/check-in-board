@@ -10,6 +10,7 @@ export type SummaryCardData = {
 };
 
 export type BoardItemCardData = {
+  id: string;
   apartment: string;
   time: string;
   status: OperationStatus;

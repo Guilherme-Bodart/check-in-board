@@ -39,6 +39,11 @@
   - idempotent reservation upsert by `icalSourceId + externalEventKey`
   - `GET /apartments/:apartmentId/reservations`
   - mobile upcoming reservations section in apartment detail
+- Reservation-driven Today Board:
+  - `GET /today-board`
+  - derives `checkInToday`, `checkOutToday`, `inStay`, and `upcoming`
+  - mobile Today Board loads via service with mock/API modes
+  - summary cards now derive from reservations when API mode is enabled
 
 ## Test Status
 
@@ -58,6 +63,7 @@ Last full local validation:
   - protected iCal source routes
   - iCal parser
   - reservation sync/listing routes
+  - reservation-driven Today Board route
 - Mobile:
   - auth form validation
   - apartment form validation
@@ -66,11 +72,11 @@ Last full local validation:
 
 ## Next Implementation Step
 
-Connect reservations to the operational board and start task generation:
+Start task generation and task operations:
 
-- derive check-in/check-out operational statuses from reservations;
-- show reservation-driven rows on Today Board;
-- create first task model flow for manual tasks or reservation-linked tasks;
+- create first task endpoints for reservation-linked/manual tasks;
+- show tasks on Today Board alongside reservation rows;
+- allow `team` to mark tasks `done` or `not_done`;
 - later replace manual sync text with queued/fetched iCal sync.
 
 ## Known Local Environment Notes

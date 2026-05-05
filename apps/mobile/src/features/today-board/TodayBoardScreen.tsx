@@ -6,15 +6,21 @@ import {
   TriangleAlert,
 } from "lucide-react-native";
 import type { ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppText, Button, Screen } from "@/components";
+import { useAuthSession } from "@/features/auth";
 import { theme } from "@/theme";
 
 import { BoardItemCard, SummaryCard, TodayBoardEmptyState } from "./components";
-import { todayBoardPreviewState, todayBoardScenarios } from "./mock-data";
+import { todayBoardScenarios } from "./mock-data";
+import {
+  getTodayBoard,
+  todayBoardRuntime,
+} from "./services/today-board-service";
+import type { TodayBoardContent } from "./types";
 
-const currentScenario = todayBoardScenarios[todayBoardPreviewState];
 const handleMockAction = () => undefined;
 
 type TodayBoardScreenProps = {
@@ -22,22 +28,47 @@ type TodayBoardScreenProps = {
 };
 
 export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
+  const { session } = useAuthSession();
+  const [content, setContent] = useState<TodayBoardContent>(
+    todayBoardScenarios.content,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const todayLabel = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
   }).format(new Date());
 
+  const loadData = useCallback(async () => {
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    try {
+      setContent(await getTodayBoard(session));
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "We could not refresh today's board.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const isEmpty = content.boardItems.length === 0;
+
   return (
     <Screen
       contentStyle={styles.content}
-      errorMessage={
-        currentScenario.state === "error"
-          ? currentScenario.errorMessage
-          : undefined
-      }
-      loading={currentScenario.state === "loading"}
-      onRetry={currentScenario.state === "error" ? handleMockAction : undefined}
+      errorMessage={errorMessage ?? undefined}
+      loading={isLoading}
+      onRetry={loadData}
     >
       <View style={styles.header}>
         <View style={styles.headerText}>
@@ -58,7 +89,7 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
             fullWidth={false}
             icon={<RefreshCw color={theme.colors.textPrimary} size={16} />}
             label="Sync"
-            onPress={handleMockAction}
+            onPress={loadData}
             variant="secondary"
           />
         </View>
@@ -92,7 +123,7 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
       </View>
 
       <View style={styles.summarySection}>
-        {currentScenario.summaryCards.map((card) => (
+        {content.summaryCards.map((card) => (
           <SummaryCard card={card} key={card.label} />
         ))}
       </View>
@@ -107,17 +138,24 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
         </View>
       </View>
 
-      {currentScenario.state === "empty" && currentScenario.emptyState ? (
+      {isEmpty ? (
         <TodayBoardEmptyState
           onActionPress={handleMockAction}
-          state={currentScenario.emptyState}
+          state={{
+            actionLabel: "Refresh board",
+            description:
+              todayBoardRuntime.mode === "api"
+                ? "No reservations match today's operational window yet."
+                : "Today looks calm. You can review apartments or wait for the next sync.",
+            title: "Nothing urgent on the board",
+          }}
         />
       ) : (
         <View style={styles.list}>
-          {currentScenario.boardItems.map((item) => (
+          {content.boardItems.map((item) => (
             <BoardItemCard
               item={item}
-              key={`${item.apartment}-${item.time}`}
+              key={item.id}
               onActionPress={handleMockAction}
             />
           ))}
@@ -125,7 +163,7 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
       )}
 
       <View style={styles.bottomSection}>
-        {currentScenario.notices.map((notice) => {
+        {content.notices.map((notice) => {
           const Icon = notice.tone === "success" ? CircleCheck : TriangleAlert;
           const cardStyle =
             notice.tone === "success" ? styles.syncCard : styles.alertCard;
@@ -140,7 +178,7 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
                 <Icon color={iconColor} size={18} />
                 <AppText variant="bodyStrong">
                   {notice.tone === "success"
-                    ? currentScenario.lastSyncLabel
+                    ? content.lastSyncLabel
                     : notice.title}
                 </AppText>
               </View>

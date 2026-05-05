@@ -54,6 +54,7 @@ export const todayBoardScenarios: Record<
     boardItems: [
       {
         apartment: "Apto 204",
+        id: "mock-board-1",
         time: "11:00",
         status: "checkOutToday",
         headline: "Guest leaves before cleaning starts",
@@ -63,6 +64,7 @@ export const todayBoardScenarios: Record<
       },
       {
         apartment: "Studio 12B",
+        id: "mock-board-2",
         time: "14:00",
         status: "checkInToday",
         headline: "Prepare self check-in message",
@@ -72,6 +74,7 @@ export const todayBoardScenarios: Record<
       },
       {
         apartment: "Cobertura 7",
+        id: "mock-board-3",
         time: "16:30",
         status: "pending",
         headline: "Replace towels and confirm inspection photos",

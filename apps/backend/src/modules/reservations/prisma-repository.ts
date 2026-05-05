@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 
 import type { ReservationsRepository } from "./repository.js";
 import type {
+  AccessibleReservationSummary,
   IcalSourceSyncTarget,
   ReservationSummary,
   UpsertReservationInput,
@@ -85,6 +86,52 @@ export class PrismaReservationsRepository implements ReservationsRepository {
 
     return reservations.map((reservation) => ({
       apartmentId: reservation.apartmentId,
+      endsAt: toIsoString(reservation.endsAt),
+      externalEventKey: reservation.externalEventKey,
+      externalUid: reservation.externalUid,
+      icalSourceId: reservation.icalSourceId,
+      id: reservation.id,
+      provider: reservation.icalSource.provider,
+      rawSummary: reservation.rawSummary,
+      startsAt: toIsoString(reservation.startsAt),
+      status: reservation.status,
+    }));
+  }
+
+  async listAccessibleReservationsForDate(
+    userId: string,
+    startsBefore: Date,
+    endsAfter: Date,
+  ): Promise<AccessibleReservationSummary[]> {
+    const reservations = await this.prisma.reservation.findMany({
+      include: {
+        apartment: true,
+        icalSource: true,
+      },
+      orderBy: {
+        startsAt: "asc",
+      },
+      where: {
+        apartment: {
+          memberships: {
+            some: {
+              canView: true,
+              userId,
+            },
+          },
+        },
+        endsAt: {
+          gt: endsAfter,
+        },
+        startsAt: {
+          lt: startsBefore,
+        },
+      },
+    });
+
+    return reservations.map((reservation) => ({
+      apartmentId: reservation.apartmentId,
+      apartmentName: reservation.apartment.name,
       endsAt: toIsoString(reservation.endsAt),
       externalEventKey: reservation.externalEventKey,
       externalUid: reservation.externalUid,

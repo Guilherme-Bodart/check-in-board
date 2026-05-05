@@ -7,12 +7,14 @@ import {
   listReservationsResponseSchema,
   manualSyncRequestSchema,
   manualSyncResponseSchema,
+  todayBoardResponseSchema,
 } from "./schemas.js";
 import {
   listReservationsForApartment,
   ReservationsServiceError,
   syncIcalSourceFromText,
 } from "./service.js";
+import { buildTodayBoardPayload } from "./today-board.js";
 
 export type ReservationsModuleOptions = {
   env: Env;
@@ -49,6 +51,42 @@ export const reservationsModule: FastifyPluginAsync<ReservationsModuleOptions> =
 
       return await repositoryPromise;
     }
+
+    app.get("/today-board", async (request, reply) => {
+      const query = request.query as { date?: string };
+      const targetDate = query.date ? new Date(query.date) : new Date();
+
+      if (Number.isNaN(targetDate.getTime())) {
+        return reply
+          .code(400)
+          .send(sendError("BAD_REQUEST", "Invalid today board date."));
+      }
+
+      const startOfDay = new Date(targetDate);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+
+      try {
+        const auth = await authenticateRequest(request, options.env);
+        const reservations = await (
+          await getRepository()
+        ).listAccessibleReservationsForDate(auth.userId, endOfDay, startOfDay);
+
+        return reply
+          .code(200)
+          .send(todayBoardResponseSchema.parse(buildTodayBoardPayload(reservations, targetDate)));
+      } catch (error) {
+        if (!(error instanceof AuthError)) {
+          throw error;
+        }
+
+        return reply
+          .code(401)
+          .send(sendError("UNAUTHORIZED", "Authentication is required."));
+      }
+    });
 
     app.get("/apartments/:apartmentId/reservations", async (request, reply) => {
       const params = request.params as { apartmentId?: string };
