@@ -77,6 +77,7 @@ export const tasksModule: FastifyPluginAsync<TasksModuleOptions> =
           endOfDay,
           startOfDay,
           await getRepository(),
+          targetDate,
         );
 
         return reply

@@ -25,6 +25,11 @@
   - task due date defaults to an operational preset;
   - task form has quick due date presets for `In 2 hours`, `Tomorrow 09:00`, and `Tomorrow 11:00`;
   - presets are covered by mobile tests.
+- Initial cloud setup:
+  - backend can load local `.env` files through `dotenv`;
+  - local backend `.env` points to the Neon project for development testing;
+  - mobile `.env` points to the Render backend URL;
+  - Neon schema was applied with `prisma db push`.
 
 ## Implemented
 
@@ -87,6 +92,7 @@ Last full local validation:
 - `pnpm test`
 - backend Prisma schema validate with temporary `DATABASE_URL`
 - Expo Web smoke check at `http://localhost:8081`
+- backend build after adding `dotenv`
 
 ## Current Test Coverage Shape
 
@@ -122,3 +128,4 @@ Improve task UX and real integration testing:
 - Docker is not currently available in PATH on this machine.
 - Prisma DB integration can be schema-validated, but real DB flow needs Postgres installed/running.
 - Expo Web has been testable at `http://localhost:8081`.
+- Render URL configured for cloud testing: `https://check-in-board.onrender.com`.

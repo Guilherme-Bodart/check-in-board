@@ -77,7 +77,7 @@ function formatTaskTime(dueAt: string) {
   }).format(new Date(dueAt));
 }
 
-function getTaskBoardStatus(task: TaskSummary) {
+function getTaskBoardStatus(task: TaskSummary, referenceDate: Date) {
   if (task.status === "done") {
     return "completed" as const;
   }
@@ -86,7 +86,7 @@ function getTaskBoardStatus(task: TaskSummary) {
     return "failed" as const;
   }
 
-  if (new Date(task.dueAt) < new Date()) {
+  if (new Date(task.dueAt) < referenceDate) {
     return "overdue" as const;
   }
 
@@ -98,6 +98,7 @@ export async function listTodayTaskBoardItems(
   dueBefore: Date,
   dueAfter: Date,
   repository: TasksRepository,
+  referenceDate = new Date(),
 ) {
   const tasks = await repository.listAccessibleTasksForDate(
     userId,
@@ -114,7 +115,7 @@ export async function listTodayTaskBoardItems(
     id: task.id,
     kind: "task" as const,
     notes: task.description ?? "Operational task due today.",
-    status: getTaskBoardStatus(task),
+    status: getTaskBoardStatus(task, referenceDate),
     taskStatus: task.status,
     time: formatTaskTime(task.dueAt),
   }));

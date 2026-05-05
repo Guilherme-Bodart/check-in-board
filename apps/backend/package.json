@@ -14,11 +14,12 @@
     "db:push": "prisma db push",
     "db:validate": "prisma validate",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run src",
     "format": "prettier --check \"src/**/*.ts\""
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",
+    "dotenv": "^17.4.2",
     "fastify": "^5.6.2",
     "ical.js": "^2.2.1",
     "jose": "^6.1.2",
