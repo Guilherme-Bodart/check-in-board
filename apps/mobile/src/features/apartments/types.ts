@@ -16,6 +16,11 @@ export type IcalSource = {
   lastFailureAt: string | null;
 };
 
+export type IcalSyncSummary = {
+  eventsSeen: number;
+  reservationsUpserted: number;
+};
+
 export type ApartmentFormValues = {
   name: string;
   timezone: string;

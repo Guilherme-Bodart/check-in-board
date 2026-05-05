@@ -26,6 +26,18 @@ const mockReservationsByApartment = new Map<string, Reservation[]>([
   ],
 ]);
 
+export function addMockReservationForApartment(
+  apartmentId: string,
+  reservation: Reservation,
+) {
+  const currentReservations = mockReservationsByApartment.get(apartmentId) ?? [];
+
+  mockReservationsByApartment.set(apartmentId, [
+    reservation,
+    ...currentReservations,
+  ]);
+}
+
 type ReservationsApiResponse =
   | Reservation[]
   | {

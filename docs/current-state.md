@@ -15,6 +15,12 @@
   - task cards can mark work as done or not done;
   - Today Board task rows can now be marked as done or not done;
   - task form validation is covered by mobile tests.
+- iCal demo sync and Today Board navigation:
+  - iCal source cards can trigger a demo sync;
+  - demo sync creates one sample reservation in mock mode;
+  - API mode calls `POST /ical-sources/:icalSourceId/sync` with generated ICS text;
+  - reservation-driven Today Board rows include `apartmentId`;
+  - reservation board actions now open the apartment screen consistently.
 
 ## Implemented
 
@@ -44,9 +50,11 @@
   - idempotent reservation upsert by `icalSourceId + externalEventKey`
   - `GET /apartments/:apartmentId/reservations`
   - mobile upcoming reservations section in apartment detail
+  - mobile iCal card can run a demo sync to make this flow testable from the UI
 - Reservation-driven Today Board:
   - `GET /today-board`
   - derives `checkInToday`, `checkOutToday`, `inStay`, and `upcoming`
+  - returns `apartmentId` for reservation rows
   - mobile Today Board loads via service with mock/API modes
   - summary cards now derive from reservations when API mode is enabled
 - Operational tasks foundation:
@@ -91,6 +99,7 @@ Last full local validation:
   - auth form validation
   - apartment form validation
   - iCal source form validation
+  - demo iCal text generation
   - reservation period formatting
   - task form validation
 
@@ -101,7 +110,7 @@ Improve task UX and real integration testing:
 - replace raw ISO task due date input with a better mobile date/time picker;
 - add optional not-done reason/history;
 - validate manual task creation against a real local Postgres database when available;
-- later replace manual sync text with queued/fetched iCal sync.
+- replace demo/manual iCal sync with backend fetch from stored iCal URLs and a periodic sync queue.
 
 ## Known Local Environment Notes
 

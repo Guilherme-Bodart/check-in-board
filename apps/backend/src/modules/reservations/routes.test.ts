@@ -237,6 +237,7 @@ describe("reservation routes", () => {
 
     expect(responseBody.boardItems[0]).toMatchObject({
       apartment: "Apto 204",
+      apartmentId: "apartment-1",
       headline: "Reserved - Airbnb",
       status: "checkInToday",
     });

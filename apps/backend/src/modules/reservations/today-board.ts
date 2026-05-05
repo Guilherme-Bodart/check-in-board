@@ -3,6 +3,7 @@ import type { AccessibleReservationSummary } from "./types.js";
 
 export type TodayBoardItem = {
   id: string;
+  apartmentId: string;
   apartment: string;
   time: string;
   status: OperationStatus;
@@ -89,8 +90,9 @@ export function buildTodayBoardPayload(
     const status = getReservationStatus(reservation, targetDate);
 
     return {
-      actionLabel: "Open reservation",
+      actionLabel: "Open apartment",
       apartment: reservation.apartmentName,
+      apartmentId: reservation.apartmentId,
       assignee: reservation.provider?.toUpperCase() ?? "Calendar",
       headline: reservation.rawSummary ?? getHeadline(status),
       id: reservation.id,

@@ -41,6 +41,7 @@ export const todayBoardResponseSchema = z.object({
     z.object({
       actionLabel: z.string().min(1),
       apartment: z.string().min(1),
+      apartmentId: z.string().min(1),
       assignee: z.string().min(1),
       headline: z.string().min(1),
       id: z.string().min(1),

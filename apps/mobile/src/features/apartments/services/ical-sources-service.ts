@@ -1,8 +1,14 @@
 import { ApiClientError, apiClient } from "@/services/api-client";
 
 import type { AuthSession } from "@/features/auth/types";
+import { addMockReservationForApartment } from "@/features/reservations/services/reservations-service";
 
-import type { CreateIcalSourceInput, IcalSource } from "../types";
+import { createDemoIcalText } from "../sync-demo";
+import type {
+  CreateIcalSourceInput,
+  IcalSource,
+  IcalSyncSummary,
+} from "../types";
 
 const useDevAuthApi = process.env.EXPO_PUBLIC_USE_DEV_AUTH_API === "true";
 
@@ -35,6 +41,9 @@ type CreateIcalSourceApiResponse =
       data?: IcalSource;
       icalSource?: IcalSource;
     };
+type SyncIcalSourceApiResponse = {
+  summary?: IcalSyncSummary;
+};
 
 function getAuthorizationHeaders(session: AuthSession | null) {
   if (!session?.accessToken) {
@@ -100,6 +109,38 @@ function createMockIcalSource(
   return source;
 }
 
+function createDemoReservationDates() {
+  const startsAt = new Date();
+
+  startsAt.setDate(startsAt.getDate() + 1);
+  startsAt.setHours(18, 0, 0, 0);
+
+  const endsAt = new Date(startsAt);
+
+  endsAt.setDate(endsAt.getDate() + 1);
+  endsAt.setHours(15, 0, 0, 0);
+
+  return { endsAt, startsAt };
+}
+
+function updateMockSourceLastSuccess(apartmentId: string, sourceId: string) {
+  const sources = mockSourcesByApartment.get(apartmentId) ?? [];
+  const syncedAt = new Date().toISOString();
+
+  mockSourcesByApartment.set(
+    apartmentId,
+    sources.map((source) =>
+      source.id === sourceId
+        ? {
+            ...source,
+            lastFailureAt: null,
+            lastSuccessAt: syncedAt,
+          }
+        : source,
+    ),
+  );
+}
+
 export const icalSourcesRuntime = {
   mode: useDevAuthApi ? "api" : "mock",
 } as const;
@@ -140,4 +181,56 @@ export async function createIcalSource(
   );
 
   return mapCreateIcalSourceResponse(response);
+}
+
+export async function syncIcalSourceWithDemoReservation(
+  session: AuthSession | null,
+  apartmentId: string,
+  source: IcalSource,
+) {
+  const { endsAt, startsAt } = createDemoReservationDates();
+  const uid = `demo-${source.id}-${Date.now()}@check-in-board.local`;
+  const summary = "Reserved - Demo Sync";
+  const icsText = createDemoIcalText({
+    endsAt,
+    startsAt,
+    summary,
+    uid,
+  });
+
+  if (!useDevAuthApi) {
+    updateMockSourceLastSuccess(apartmentId, source.id);
+    addMockReservationForApartment(apartmentId, {
+      apartmentId,
+      endsAt: endsAt.toISOString(),
+      externalEventKey: uid,
+      externalUid: uid,
+      icalSourceId: source.id,
+      id: `reservation-${Date.now()}`,
+      provider: source.provider,
+      rawSummary: summary,
+      startsAt: startsAt.toISOString(),
+      status: "confirmed",
+    });
+
+    return {
+      eventsSeen: 1,
+      reservationsUpserted: 1,
+    } satisfies IcalSyncSummary;
+  }
+
+  const response = await apiClient.post<SyncIcalSourceApiResponse>(
+    `/ical-sources/${source.id}/sync`,
+    { icsText },
+    {
+      headers: getAuthorizationHeaders(session),
+    },
+  );
+
+  return (
+    response.summary ?? {
+      eventsSeen: 0,
+      reservationsUpserted: 0,
+    }
+  );
 }

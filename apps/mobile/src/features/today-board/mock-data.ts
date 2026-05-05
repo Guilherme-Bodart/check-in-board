@@ -62,7 +62,7 @@ export const todayBoardScenarios: Record<
         headline: "Guest leaves before cleaning starts",
         notes: "Laundry pickup and minibar check still open.",
         assignee: "Ana",
-        actionLabel: "Open details",
+        actionLabel: "Open apartment",
       },
       {
         apartment: "Studio 12B",
@@ -74,7 +74,7 @@ export const todayBoardScenarios: Record<
         headline: "Prepare self check-in message",
         notes: "Code was updated after lock battery swap.",
         assignee: "Guilherme",
-        actionLabel: "Send checklist",
+        actionLabel: "Open apartment",
       },
       {
         apartment: "Cobertura 7",

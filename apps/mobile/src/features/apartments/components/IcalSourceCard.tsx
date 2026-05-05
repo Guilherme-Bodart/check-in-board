@@ -1,16 +1,27 @@
-import { CalendarSync, CircleCheck, TriangleAlert } from "lucide-react-native";
+import {
+  CalendarSync,
+  CircleCheck,
+  RefreshCw,
+  TriangleAlert,
+} from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 
-import { AppText, Badge } from "@/components";
+import { AppText, Badge, Button } from "@/components";
 import { theme } from "@/theme";
 
 import type { IcalSource } from "../types";
 
 type IcalSourceCardProps = {
+  isSyncing?: boolean;
+  onSyncPress?: (source: IcalSource) => void;
   source: IcalSource;
 };
 
-export function IcalSourceCard({ source }: IcalSourceCardProps) {
+export function IcalSourceCard({
+  isSyncing = false,
+  onSyncPress,
+  source,
+}: IcalSourceCardProps) {
   const hasFailure = Boolean(source.lastFailureAt);
   const StatusIcon = hasFailure ? TriangleAlert : CircleCheck;
 
@@ -43,11 +54,33 @@ export function IcalSourceCard({ source }: IcalSourceCardProps) {
             : "Waiting for first sync"}
         </AppText>
       </View>
+
+      {onSyncPress ? (
+        <View style={styles.actions}>
+          <Button
+            accessibilityHint="Creates one demo reservation from this iCal source."
+            disabled={isSyncing}
+            fullWidth={false}
+            icon={<RefreshCw color={theme.colors.textPrimary} size={16} />}
+            label="Sync demo"
+            loading={isSyncing}
+            onPress={() => onSyncPress(source)}
+            variant="secondary"
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  actions: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing[2],
+    justifyContent: "flex-end",
+  },
   card: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border,

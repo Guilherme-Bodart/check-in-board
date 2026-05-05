@@ -32,6 +32,7 @@ import {
   createIcalSource,
   icalSourcesRuntime,
   listIcalSources,
+  syncIcalSourceWithDemoReservation,
 } from "../services/ical-sources-service";
 import type {
   Apartment,
@@ -84,8 +85,11 @@ export function ApartmentDetailScreen() {
   const [taskFormErrors, setTaskFormErrors] = useState<TaskFieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [taskSubmitError, setTaskSubmitError] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTaskSubmitting, setIsTaskSubmitting] = useState(false);
+  const [syncingSourceId, setSyncingSourceId] = useState<string | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -255,6 +259,42 @@ export function ApartmentDetailScreen() {
     }
   }
 
+  async function handleSyncSource(source: IcalSource) {
+    if (!apartmentId) {
+      return;
+    }
+
+    setSyncingSourceId(source.id);
+    setSyncMessage(null);
+    setSyncError(null);
+
+    try {
+      const summary = await syncIcalSourceWithDemoReservation(
+        session,
+        apartmentId,
+        source,
+      );
+      const [nextSources, nextReservations] = await Promise.all([
+        listIcalSources(session, apartmentId),
+        listReservations(session, apartmentId),
+      ]);
+
+      setSources(nextSources);
+      setReservations(nextReservations);
+      setSyncMessage(
+        `Demo sync finished: ${summary.reservationsUpserted} reservation updated from ${summary.eventsSeen} event.`,
+      );
+    } catch (error) {
+      setSyncError(
+        error instanceof Error
+          ? error.message
+          : "We could not sync this iCal source right now.",
+      );
+    } finally {
+      setSyncingSourceId(null);
+    }
+  }
+
   return (
     <Screen
       contentStyle={styles.content}
@@ -334,8 +374,29 @@ export function ApartmentDetailScreen() {
         </View>
       ) : (
         <View style={styles.list}>
+          {syncMessage ? (
+            <View style={styles.successBox}>
+              <AppText color="success" variant="bodyStrong">
+                {syncMessage}
+              </AppText>
+            </View>
+          ) : null}
+          {syncError ? (
+            <View style={styles.errorBox}>
+              <AppText color="danger" variant="bodyStrong">
+                {syncError}
+              </AppText>
+            </View>
+          ) : null}
           {sources.map((source) => (
-            <IcalSourceCard key={source.id} source={source} />
+            <IcalSourceCard
+              isSyncing={syncingSourceId === source.id}
+              key={source.id}
+              onSyncPress={(selectedSource) =>
+                void handleSyncSource(selectedSource)
+              }
+              source={source}
+            />
           ))}
         </View>
       )}
@@ -434,6 +495,11 @@ const styles = StyleSheet.create({
     gap: theme.spacing[2],
     padding: theme.spacing[4],
   },
+  errorBox: {
+    backgroundColor: theme.colors.dangerSoft,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing[3],
+  },
   header: {
     alignItems: "flex-start",
     flexDirection: "row",
@@ -460,5 +526,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: theme.spacing[2],
+  },
+  successBox: {
+    backgroundColor: theme.colors.successSoft,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing[3],
   },
 });
