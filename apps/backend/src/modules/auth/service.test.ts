@@ -8,10 +8,11 @@ import type {
   AuthOrganization,
   AuthUser,
   AuthenticatedUser,
+  AuthenticatedUserWithPassword,
 } from "./types.js";
 
 class InMemoryAuthRepository implements AuthRepository {
-  private users = new Map<string, AuthenticatedUser>();
+  private users = new Map<string, AuthenticatedUserWithPassword>();
   private usersByEmail = new Map<string, string>();
   private organizations = new Map<string, AuthOrganization>();
   private userSequence = 1;
@@ -21,6 +22,23 @@ class InMemoryAuthRepository implements AuthRepository {
   async findUserByEmail(email: string): Promise<AuthenticatedUser | null> {
     const userId = this.usersByEmail.get(email);
     return userId ? this.findUserById(userId) : null;
+  }
+
+  async findUserCredentialByEmail(
+    email: string,
+  ): Promise<AuthenticatedUserWithPassword | null> {
+    const userId = this.usersByEmail.get(email);
+    const user = userId ? this.users.get(userId) : null;
+
+    return user
+      ? {
+          ...user,
+          memberships: user.memberships.map((membership) => ({
+            ...membership,
+            organization: { ...membership.organization },
+          })),
+        }
+      : null;
   }
 
   async findUserById(userId: string): Promise<AuthenticatedUser | null> {
@@ -42,17 +60,38 @@ class InMemoryAuthRepository implements AuthRepository {
     fullName: string;
     authProvider: string;
     authSubject: string;
+    passwordHash?: string | null;
   }): Promise<AuthUser> {
     const id = `user-${this.userSequence++}`;
-    const user: AuthenticatedUser = {
+    const user: AuthenticatedUserWithPassword = {
       email: input.email,
       fullName: input.fullName,
       id,
       memberships: [],
+      passwordHash: input.passwordHash ?? null,
     };
 
     this.users.set(id, user);
     this.usersByEmail.set(input.email, id);
+
+    return {
+      email: user.email,
+      fullName: user.fullName,
+      id: user.id,
+    };
+  }
+
+  async updateUserPasswordHash(
+    userId: string,
+    passwordHash: string,
+  ): Promise<AuthUser> {
+    const user = this.users.get(userId);
+
+    if (!user) {
+      throw new Error("Missing user.");
+    }
+
+    user.passwordHash = passwordHash;
 
     return {
       email: user.email,

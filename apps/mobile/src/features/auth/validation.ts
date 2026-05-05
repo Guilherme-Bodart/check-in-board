@@ -12,6 +12,7 @@ export function normalizeAuthValues(values: AuthFormValues): AuthFormValues {
     email: values.email.trim().toLowerCase(),
     name: values.name.trim(),
     organizationName: values.organizationName.trim(),
+    password: values.password,
   };
 }
 
@@ -32,6 +33,12 @@ export function validateAuthValues(
     errors.name = "Name is required to create an account.";
   }
 
+  if (!normalized.password) {
+    errors.password = "Password is required.";
+  } else if (normalized.password.length < 8) {
+    errors.password = "Use at least 8 characters.";
+  }
+
   return errors;
 }
 
@@ -50,5 +57,6 @@ export function toSubmitInput(
     mode,
     name: normalized.name || undefined,
     organizationName: normalized.organizationName || undefined,
+    password: normalized.password,
   };
 }

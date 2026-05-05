@@ -8,10 +8,11 @@ import type {
   AuthOrganization,
   AuthUser,
   AuthenticatedUser,
+  AuthenticatedUserWithPassword,
 } from "./types.js";
 
 class InMemoryAuthRepository implements AuthRepository {
-  private users = new Map<string, AuthenticatedUser>();
+  private users = new Map<string, AuthenticatedUserWithPassword>();
   private usersByEmail = new Map<string, string>();
   private organizations = new Map<string, AuthOrganization>();
   private userSequence = 1;
@@ -21,6 +22,19 @@ class InMemoryAuthRepository implements AuthRepository {
   async findUserByEmail(email: string): Promise<AuthenticatedUser | null> {
     const userId = this.usersByEmail.get(email);
     return userId ? this.findUserById(userId) : null;
+  }
+
+  async findUserCredentialByEmail(
+    email: string,
+  ): Promise<AuthenticatedUserWithPassword | null> {
+    const user = await this.findUserByEmail(email);
+
+    return user
+      ? {
+          ...user,
+          passwordHash: this.users.get(user.id)?.passwordHash ?? null,
+        }
+      : null;
   }
 
   async findUserById(userId: string): Promise<AuthenticatedUser | null> {
@@ -41,17 +55,38 @@ class InMemoryAuthRepository implements AuthRepository {
     fullName: string;
     authProvider: string;
     authSubject: string;
+    passwordHash?: string | null;
   }): Promise<AuthUser> {
     const id = `user-${this.userSequence++}`;
-    const user: AuthenticatedUser = {
+    const user: AuthenticatedUserWithPassword = {
       email: input.email,
       fullName: input.fullName,
       id,
       memberships: [],
+      passwordHash: input.passwordHash ?? null,
     };
 
     this.users.set(id, user);
     this.usersByEmail.set(input.email, id);
+
+    return {
+      email: user.email,
+      fullName: user.fullName,
+      id: user.id,
+    };
+  }
+
+  async updateUserPasswordHash(
+    userId: string,
+    passwordHash: string,
+  ): Promise<AuthUser> {
+    const user = this.users.get(userId);
+
+    if (!user) {
+      throw new Error("Missing user.");
+    }
+
+    user.passwordHash = passwordHash;
 
     return {
       email: user.email,
@@ -110,6 +145,91 @@ function buildTestEnv(nodeEnv: "test" | "production" = "test") {
 }
 
 describe("auth routes", () => {
+  it("creates and signs in with email and password", async () => {
+    const app = buildApp({
+      authRepository: new InMemoryAuthRepository(),
+      env: buildTestEnv("production"),
+    });
+
+    const signUpResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+        fullName: "Host Admin",
+        organizationName: "Host Ops",
+        password: "secure-password",
+      },
+      url: "/auth/sign-up",
+    });
+
+    expect(signUpResponse.statusCode).toBe(201);
+    expect(signUpResponse.json()).toMatchObject({
+      accessToken: expect.any(String),
+      organization: {
+        name: "Host Ops",
+      },
+      user: {
+        email: "host@example.com",
+        fullName: "Host Admin",
+      },
+    });
+
+    const signInResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+        password: "secure-password",
+      },
+      url: "/auth/sign-in",
+    });
+
+    expect(signInResponse.statusCode).toBe(200);
+    expect(signInResponse.json()).toMatchObject({
+      accessToken: expect.any(String),
+      user: {
+        email: "host@example.com",
+      },
+    });
+
+    await app.close();
+  });
+
+  it("rejects incorrect passwords", async () => {
+    const app = buildApp({
+      authRepository: new InMemoryAuthRepository(),
+      env: buildTestEnv("production"),
+    });
+
+    await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+        fullName: "Host Admin",
+        password: "secure-password",
+      },
+      url: "/auth/sign-up",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+        password: "wrong-password",
+      },
+      url: "/auth/sign-in",
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      error: {
+        code: "INVALID_CREDENTIALS",
+        message: "Email or password is incorrect.",
+      },
+    });
+
+    await app.close();
+  });
+
   it("signs up with dev auth and returns the authenticated user", async () => {
     const app = buildApp({
       authRepository: new InMemoryAuthRepository(),

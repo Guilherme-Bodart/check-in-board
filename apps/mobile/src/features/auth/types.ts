@@ -4,6 +4,7 @@ export type AuthFormValues = {
   email: string;
   name: string;
   organizationName: string;
+  password: string;
 };
 
 export type AuthFieldErrors = Partial<Record<keyof AuthFormValues, string>>;
@@ -13,6 +14,7 @@ export type AuthSubmitInput = {
   mode: AuthMode;
   name?: string;
   organizationName?: string;
+  password: string;
 };
 
 export type AuthUser = {

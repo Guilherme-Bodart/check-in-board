@@ -30,6 +30,13 @@
   - local backend `.env` points to the Neon project for development testing;
   - mobile `.env` points to the Render backend URL;
   - Neon schema was applied with `prisma db push`.
+- Real email/password auth:
+  - `POST /auth/sign-up` creates host admin users with password hashes;
+  - `POST /auth/sign-in` validates email/password and returns JWT sessions;
+  - passwords are hashed with Node `scrypt`;
+  - existing dev-auth users can attach a password through sign-up;
+  - mobile auth screen now requires password and calls real auth endpoints in API mode;
+  - Neon schema includes `users.password_hash`.
 
 ## Implemented
 
@@ -39,10 +46,12 @@
 - Backend foundation with Fastify, env validation, logs, and healthcheck.
 - Prisma data model for users, organizations, apartments, iCal sources, reservations, tasks, invitations, sync runs, and audit logs.
 - Development auth flow:
+  - `POST /auth/sign-up`
+  - `POST /auth/sign-in`
   - `POST /auth/dev/sign-up`
   - `GET /auth/me`
   - local JWT for development/test
-  - mobile auth screen and session storage
+  - mobile auth screen with email/password and session storage
 - Protected apartments flow:
   - `GET /apartments`
   - `POST /apartments`
@@ -93,6 +102,7 @@ Last full local validation:
 - backend Prisma schema validate with temporary `DATABASE_URL`
 - Expo Web smoke check at `http://localhost:8081`
 - backend build after adding `dotenv`
+- Neon schema push after adding password auth
 
 ## Current Test Coverage Shape
 
@@ -107,6 +117,7 @@ Last full local validation:
   - operational task routes
 - Mobile:
   - auth form validation
+  - auth password validation
   - apartment form validation
   - iCal source form validation
   - demo iCal text generation

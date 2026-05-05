@@ -21,6 +21,7 @@ const initialValues: AuthFormValues = {
   email: "",
   name: "",
   organizationName: "",
+  password: "",
 };
 
 const todayRoute = "/today" as Href;
@@ -78,12 +79,12 @@ export function AuthScreen() {
       >
         <View style={styles.hero}>
           <AppText color="textMuted" variant="label">
-            DEV AUTH
+            SECURE AUTH
           </AppText>
           <AppText variant="titleLarge">Enter the board</AppText>
           <AppText color="textSecondary">
-            Use Continue for an existing operator flow, or Create account to
-            start a fresh local workspace.
+            Use Continue with your password, or Create account to start a fresh
+            workspace.
           </AppText>
         </View>
 
@@ -101,6 +102,20 @@ export function AuthScreen() {
               placeholder="operator@checkboard.app"
               textContentType="emailAddress"
               value={values.email}
+            />
+            <AuthTextField
+              autoCapitalize="none"
+              autoComplete={mode === "create" ? "new-password" : "password"}
+              error={errors.password}
+              helperText="Use at least 8 characters."
+              label="Password"
+              onChangeText={(value) => updateValue("password", value)}
+              placeholder="Your password"
+              secureTextEntry
+              textContentType={
+                mode === "create" ? "newPassword" : "password"
+              }
+              value={values.password}
             />
             <AuthTextField
               autoCapitalize="words"
@@ -144,7 +159,7 @@ export function AuthScreen() {
         <AuthStatusBanner
           message={
             authRuntime.mode === "api"
-              ? `Using local API at ${authRuntime.apiBaseUrl}.`
+              ? `Using API at ${authRuntime.apiBaseUrl}.`
               : "Using local mock auth until EXPO_PUBLIC_USE_DEV_AUTH_API=true."
           }
         />

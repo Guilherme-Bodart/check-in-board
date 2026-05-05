@@ -22,8 +22,21 @@ export type AuthenticatedUser = AuthUser & {
   memberships: AuthMembership[];
 };
 
+export type AuthenticatedUserWithPassword = AuthenticatedUser & {
+  passwordHash: string | null;
+};
+
 export type SignUpInput = {
   email: string;
   fullName: string;
   organizationName?: string;
+};
+
+export type PasswordSignUpInput = SignUpInput & {
+  password: string;
+};
+
+export type SignInInput = {
+  email: string;
+  password: string;
 };

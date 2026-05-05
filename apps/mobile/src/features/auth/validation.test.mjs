@@ -13,6 +13,7 @@ test("validateAuthValues requires a valid email in all modes", () => {
     email: "wrong",
     name: "",
     organizationName: "",
+    password: "password123",
   });
 
   assert.equal(errors.email, "Enter a valid email.");
@@ -23,15 +24,28 @@ test("validateAuthValues requires name only in create mode", () => {
     email: "ops@example.com",
     name: "",
     organizationName: "",
+    password: "password123",
   });
   const createErrors = validateAuthValues("create", {
     email: "ops@example.com",
     name: "",
     organizationName: "",
+    password: "password123",
   });
 
   assert.equal(hasAuthErrors(continueErrors), false);
   assert.equal(createErrors.name, "Name is required to create an account.");
+});
+
+test("validateAuthValues requires a password in all modes", () => {
+  const errors = validateAuthValues("continue", {
+    email: "ops@example.com",
+    name: "",
+    organizationName: "",
+    password: "short",
+  });
+
+  assert.equal(errors.password, "Use at least 8 characters.");
 });
 
 test("toSubmitInput trims values and omits empty optional fields", () => {
@@ -39,6 +53,7 @@ test("toSubmitInput trims values and omits empty optional fields", () => {
     email: "  TEAM@EXAMPLE.COM ",
     name: "  Guilherme  ",
     organizationName: "  ",
+    password: "password123",
   });
 
   assert.deepEqual(payload, {
@@ -46,17 +61,20 @@ test("toSubmitInput trims values and omits empty optional fields", () => {
     mode: "create",
     name: "Guilherme",
     organizationName: undefined,
+    password: "password123",
   });
   assert.deepEqual(
     normalizeAuthValues({
       email: " User@Example.com ",
       name: "  Ana ",
       organizationName: "  Ops ",
+      password: "password123",
     }),
     {
       email: "user@example.com",
       name: "Ana",
       organizationName: "Ops",
+      password: "password123",
     },
   );
 });

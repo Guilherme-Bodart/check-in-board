@@ -12,6 +12,7 @@ type AuthTextFieldProps = {
   label: string;
   onChangeText: (value: string) => void;
   placeholder: string;
+  secureTextEntry?: boolean;
   textContentType?: TextInputProps["textContentType"];
   value: string;
 };
@@ -25,6 +26,7 @@ export function AuthTextField({
   label,
   onChangeText,
   placeholder,
+  secureTextEntry = false,
   textContentType = "none",
   value,
 }: AuthTextFieldProps) {
@@ -39,6 +41,7 @@ export function AuthTextField({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={theme.colors.textMuted}
+        secureTextEntry={secureTextEntry}
         style={[styles.input, error ? styles.inputError : null]}
         textContentType={textContentType}
         value={value}

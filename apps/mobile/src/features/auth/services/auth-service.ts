@@ -7,8 +7,6 @@ import {
 import type { AuthSession, AuthSubmitInput } from "../types";
 
 const useDevAuthApi = process.env.EXPO_PUBLIC_USE_DEV_AUTH_API === "true";
-const devAuthPath =
-  process.env.EXPO_PUBLIC_DEV_AUTH_PATH || "/auth/dev/sign-up";
 
 type DevAuthApiResponse = {
   accessToken?: string;
@@ -115,10 +113,20 @@ export async function authenticateWithDevAuth(input: AuthSubmitInput) {
     return createMockSession(input);
   }
 
-  const response = await apiClient.post<DevAuthApiResponse>(devAuthPath, {
-    email: input.email,
-    fullName: input.name || getDefaultName(input.email),
-    organizationName: input.organizationName,
-  });
+  const path = input.mode === "create" ? "/auth/sign-up" : "/auth/sign-in";
+  const payload =
+    input.mode === "create"
+      ? {
+          email: input.email,
+          fullName: input.name || getDefaultName(input.email),
+          organizationName: input.organizationName,
+          password: input.password,
+        }
+      : {
+          email: input.email,
+          password: input.password,
+        };
+  const response = await apiClient.post<DevAuthApiResponse>(path, payload);
+
   return mapApiSession(response, input);
 }

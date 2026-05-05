@@ -6,6 +6,7 @@ import type {
   AuthRole,
   AuthUser,
   AuthenticatedUser,
+  AuthenticatedUserWithPassword,
 } from "./types.js";
 import type {
   AuthRepository,
@@ -73,6 +74,27 @@ function mapAuthenticatedUser(record: {
   };
 }
 
+function mapAuthenticatedUserWithPassword(record: {
+  id: string;
+  email: string;
+  fullName: string;
+  passwordHash: string | null;
+  organizationMemberships: Array<{
+    id: string;
+    isActive: boolean;
+    role: string;
+    organization: {
+      id: string;
+      name: string;
+    };
+  }>;
+}): AuthenticatedUserWithPassword {
+  return {
+    ...mapAuthenticatedUser(record),
+    passwordHash: record.passwordHash,
+  };
+}
+
 export class PrismaAuthRepository implements AuthRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -94,6 +116,28 @@ export class PrismaAuthRepository implements AuthRepository {
     });
 
     return user ? mapAuthenticatedUser(user) : null;
+  }
+
+  async findUserCredentialByEmail(
+    email: string,
+  ): Promise<AuthenticatedUserWithPassword | null> {
+    const user = await this.prisma.user.findUnique({
+      include: {
+        organizationMemberships: {
+          include: {
+            organization: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
+      where: {
+        email,
+      },
+    });
+
+    return user ? mapAuthenticatedUserWithPassword(user) : null;
   }
 
   async findUserById(userId: string): Promise<AuthenticatedUser | null> {
@@ -123,6 +167,23 @@ export class PrismaAuthRepository implements AuthRepository {
         authSubject: input.authSubject,
         email: input.email,
         fullName: input.fullName,
+        passwordHash: input.passwordHash,
+      },
+    });
+
+    return mapUser(user);
+  }
+
+  async updateUserPasswordHash(
+    userId: string,
+    passwordHash: string,
+  ): Promise<AuthUser> {
+    const user = await this.prisma.user.update({
+      data: {
+        passwordHash,
+      },
+      where: {
+        id: userId,
       },
     });
 
