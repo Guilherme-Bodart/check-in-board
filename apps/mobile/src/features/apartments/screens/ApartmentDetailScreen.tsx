@@ -13,6 +13,7 @@ import {
 } from "@/features/reservations";
 import {
   createApartmentTask,
+  getTaskDueDatePresetValue,
   hasTaskErrors,
   listApartmentTasks,
   markTaskStatus,
@@ -54,12 +55,9 @@ const initialFormValues: IcalSourceFormValues = {
 };
 
 function getInitialTaskFormValues(): TaskFormValues {
-  const dueAt = new Date();
-  dueAt.setHours(dueAt.getHours() + 2, 0, 0, 0);
-
   return {
     description: "",
-    dueAt: dueAt.toISOString(),
+    dueAt: getTaskDueDatePresetValue("inTwoHours"),
     title: "",
   };
 }

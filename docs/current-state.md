@@ -21,6 +21,10 @@
   - API mode calls `POST /ical-sources/:icalSourceId/sync` with generated ICS text;
   - reservation-driven Today Board rows include `apartmentId`;
   - reservation board actions now open the apartment screen consistently.
+- Task form UX:
+  - task due date defaults to an operational preset;
+  - task form has quick due date presets for `In 2 hours`, `Tomorrow 09:00`, and `Tomorrow 11:00`;
+  - presets are covered by mobile tests.
 
 ## Implemented
 
@@ -101,6 +105,7 @@ Last full local validation:
   - iCal source form validation
   - demo iCal text generation
   - reservation period formatting
+  - task due date presets
   - task form validation
 
 ## Next Implementation Step

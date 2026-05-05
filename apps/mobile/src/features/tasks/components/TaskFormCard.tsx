@@ -4,6 +4,10 @@ import { StyleSheet, TextInput, View } from "react-native";
 import { AppText, Button } from "@/components";
 import { theme } from "@/theme";
 
+import {
+  getTaskDueDatePresetValue,
+  taskDueDatePresets,
+} from "../due-date-presets";
 import type { TaskFieldErrors, TaskFormValues } from "../types";
 
 type TaskFormCardProps = {
@@ -48,6 +52,19 @@ export function TaskFormCard({
 
       <View style={styles.fieldGroup}>
         <AppText variant="label">Due at</AppText>
+        <View style={styles.presets}>
+          {taskDueDatePresets.map((preset) => (
+            <Button
+              fullWidth={false}
+              key={preset.id}
+              label={preset.label}
+              onPress={() =>
+                onChange("dueAt", getTaskDueDatePresetValue(preset.id))
+              }
+              variant="secondary"
+            />
+          ))}
+        </View>
         <TextInput
           accessibilityLabel="Task due date"
           autoCapitalize="none"
@@ -139,6 +156,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: theme.spacing[3],
     paddingVertical: theme.spacing[3],
+  },
+  presets: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing[2],
   },
   textArea: {
     minHeight: 88,
