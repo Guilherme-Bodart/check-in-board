@@ -11,7 +11,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "format": "prettier --check .",
-    "test": "node --no-warnings --test --experimental-strip-types src/features/auth/validation.test.mjs src/features/apartments/validation.test.mjs src/features/reservations/format.test.mjs"
+    "test": "node --no-warnings --test --experimental-strip-types src/features/auth/validation.test.mjs src/features/apartments/validation.test.mjs src/features/reservations/format.test.mjs src/features/tasks/validation.test.mjs"
   },
   "dependencies": {
     "expo": "~54.0.33",

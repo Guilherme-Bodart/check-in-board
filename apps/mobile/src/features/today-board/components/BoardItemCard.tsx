@@ -8,9 +8,16 @@ import type { BoardItemCardData } from "../types";
 type BoardItemCardProps = {
   item: BoardItemCardData;
   onActionPress?: () => void;
+  onSecondaryActionPress?: () => void;
+  secondaryActionLabel?: string;
 };
 
-export function BoardItemCard({ item, onActionPress }: BoardItemCardProps) {
+export function BoardItemCard({
+  item,
+  onActionPress,
+  onSecondaryActionPress,
+  secondaryActionLabel,
+}: BoardItemCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
@@ -40,6 +47,16 @@ export function BoardItemCard({ item, onActionPress }: BoardItemCardProps) {
           onPress={onActionPress}
           variant="secondary"
         />
+        {secondaryActionLabel ? (
+          <Button
+            accessibilityHint={`Marks ${item.apartment} task as not done.`}
+            accessibilityLabel={`${secondaryActionLabel} for ${item.apartment}`}
+            fullWidth={false}
+            label={secondaryActionLabel}
+            onPress={onSecondaryActionPress}
+            variant="danger"
+          />
+        ) : null}
       </View>
     </View>
   );

@@ -11,6 +11,19 @@ import {
   reservationsRuntime,
   type Reservation,
 } from "@/features/reservations";
+import {
+  createApartmentTask,
+  hasTaskErrors,
+  listApartmentTasks,
+  markTaskStatus,
+  TaskCard,
+  TaskFormCard,
+  toCreateTaskInput,
+  type OperationalTask,
+  type TaskFieldErrors,
+  type TaskFormValues,
+  validateTaskValues,
+} from "@/features/tasks";
 import { theme } from "@/theme";
 
 import { IcalSourceCard, IcalSourceFormCard } from "../components";
@@ -39,6 +52,17 @@ const initialFormValues: IcalSourceFormValues = {
   provider: "airbnb",
 };
 
+function getInitialTaskFormValues(): TaskFormValues {
+  const dueAt = new Date();
+  dueAt.setHours(dueAt.getHours() + 2, 0, 0, 0);
+
+  return {
+    description: "",
+    dueAt: dueAt.toISOString(),
+    title: "",
+  };
+}
+
 export function ApartmentDetailScreen() {
   const router = useRouter();
   const { apartmentId } = useLocalSearchParams<{ apartmentId: string }>();
@@ -46,14 +70,23 @@ export function ApartmentDetailScreen() {
   const [apartment, setApartment] = useState<Apartment | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [sources, setSources] = useState<IcalSource[]>([]);
+  const [tasks, setTasks] = useState<OperationalTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [isTaskFormVisible, setIsTaskFormVisible] = useState(false);
   const [formValues, setFormValues] =
     useState<IcalSourceFormValues>(initialFormValues);
+  const [taskFormValues, setTaskFormValues] = useState<TaskFormValues>(
+    getInitialTaskFormValues,
+  );
   const [formErrors, setFormErrors] = useState<IcalSourceFieldErrors>({});
+  const [taskFormErrors, setTaskFormErrors] = useState<TaskFieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [taskSubmitError, setTaskSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTaskSubmitting, setIsTaskSubmitting] = useState(false);
+  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!apartmentId) {
@@ -66,15 +99,18 @@ export function ApartmentDetailScreen() {
     setIsLoading(true);
 
     try {
-      const [nextApartment, nextSources, nextReservations] = await Promise.all([
-        getApartmentById(session, apartmentId),
-        listIcalSources(session, apartmentId),
-        listReservations(session, apartmentId),
-      ]);
+      const [nextApartment, nextSources, nextReservations, nextTasks] =
+        await Promise.all([
+          getApartmentById(session, apartmentId),
+          listIcalSources(session, apartmentId),
+          listReservations(session, apartmentId),
+          listApartmentTasks(session, apartmentId),
+        ]);
 
       setApartment(nextApartment);
       setSources(nextSources);
       setReservations(nextReservations);
+      setTasks(nextTasks);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -101,11 +137,29 @@ export function ApartmentDetailScreen() {
     }));
   }
 
+  function updateTaskField(field: keyof TaskFormValues, value: string) {
+    setTaskFormValues((current) => ({
+      ...current,
+      [field]: value,
+    }));
+    setTaskFormErrors((current) => ({
+      ...current,
+      [field]: undefined,
+    }));
+  }
+
   function resetForm() {
     setFormValues(initialFormValues);
     setFormErrors({});
     setSubmitError(null);
     setIsFormVisible(false);
+  }
+
+  function resetTaskForm() {
+    setTaskFormValues(getInitialTaskFormValues());
+    setTaskFormErrors({});
+    setTaskSubmitError(null);
+    setIsTaskFormVisible(false);
   }
 
   async function handleSubmit() {
@@ -139,6 +193,65 @@ export function ApartmentDetailScreen() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleTaskSubmit() {
+    if (!apartmentId) {
+      return;
+    }
+
+    const nextErrors = validateTaskValues(taskFormValues);
+    setTaskFormErrors(nextErrors);
+    setTaskSubmitError(null);
+
+    if (hasTaskErrors(nextErrors)) {
+      return;
+    }
+
+    setIsTaskSubmitting(true);
+
+    try {
+      const task = await createApartmentTask(
+        session,
+        apartmentId,
+        toCreateTaskInput(taskFormValues),
+      );
+      setTasks((current) => [task, ...current]);
+      resetTaskForm();
+    } catch (error) {
+      setTaskSubmitError(
+        error instanceof Error
+          ? error.message
+          : "We could not save this task right now.",
+      );
+    } finally {
+      setIsTaskSubmitting(false);
+    }
+  }
+
+  async function handleTaskStatus(
+    task: OperationalTask,
+    status: "done" | "not_done",
+  ) {
+    setUpdatingTaskId(task.id);
+
+    try {
+      const updatedTask = await markTaskStatus(session, task.id, status);
+      setTasks((current) =>
+        current.map((currentTask) =>
+          currentTask.id === task.id
+            ? {
+                ...currentTask,
+                completedAt:
+                  updatedTask?.completedAt ?? new Date().toISOString(),
+                status,
+              }
+            : currentTask,
+        ),
+      );
+    } finally {
+      setUpdatingTaskId(null);
     }
   }
 
@@ -249,6 +362,58 @@ export function ApartmentDetailScreen() {
             <ReservationCard
               key={reservation.id}
               reservation={reservation}
+            />
+          ))}
+        </View>
+      )}
+
+      <View style={styles.sectionHeader}>
+        <AppText variant="sectionTitle">Operational tasks</AppText>
+        <AppText color="textMuted" variant="caption">
+          Create tasks for this apartment and update execution status.
+        </AppText>
+      </View>
+
+      {isTaskFormVisible ? (
+        <TaskFormCard
+          errors={taskFormErrors}
+          isSubmitting={isTaskSubmitting}
+          onCancel={resetTaskForm}
+          onChange={updateTaskField}
+          onSubmit={handleTaskSubmit}
+          submitError={taskSubmitError}
+          values={taskFormValues}
+        />
+      ) : (
+        <Button
+          accessibilityHint="Opens the task creation form."
+          fullWidth={false}
+          icon={<Plus color={theme.colors.surface} size={16} />}
+          label="Create task"
+          onPress={() => setIsTaskFormVisible(true)}
+        />
+      )}
+
+      {tasks.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <AppText variant="bodyStrong">No tasks yet</AppText>
+          <AppText color="textSecondary">
+            Create the first task to coordinate cleaning, checkout, or prep.
+          </AppText>
+        </View>
+      ) : (
+        <View style={styles.list}>
+          {tasks.map((task) => (
+            <TaskCard
+              isUpdating={updatingTaskId === task.id}
+              key={task.id}
+              onMarkDone={(selectedTask) =>
+                void handleTaskStatus(selectedTask, "done")
+              }
+              onMarkNotDone={(selectedTask) =>
+                void handleTaskStatus(selectedTask, "not_done")
+              }
+              task={task}
             />
           ))}
         </View>

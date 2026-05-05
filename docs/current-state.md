@@ -7,9 +7,14 @@
 - Prefer medium-sized deliverables with one review/check cycle.
 - Keep this file updated after each meaningful implementation step.
 
-## Last Published Commit
+## Latest Completed Block
 
-- `7f7bdae Add protected iCal sources flow`
+- Mobile task operations:
+  - apartment detail can create manual operational tasks;
+  - apartment detail lists tasks for that apartment;
+  - task cards can mark work as done or not done;
+  - Today Board task rows can now be marked as done or not done;
+  - task form validation is covered by mobile tests.
 
 ## Implemented
 
@@ -53,8 +58,13 @@
   - `team` can mark tasks when `canUpdateTaskStatus` is true
   - mobile Today Board merges reservation rows and task rows
   - Today Board filters now work
-  - task board action can mark pending tasks as done
+  - task board action can mark pending tasks as done or not done
   - reservation board action opens apartment detail when possible
+- Mobile apartment task operations:
+  - apartment detail loads tasks from mock/API mode
+  - apartment detail can create manual tasks
+  - apartment detail can mark apartment tasks as done or not done
+  - reusable task card and task form components follow the app token system
 
 ## Test Status
 
@@ -64,6 +74,7 @@ Last full local validation:
 - `pnpm lint`
 - `pnpm test`
 - backend Prisma schema validate with temporary `DATABASE_URL`
+- Expo Web smoke check at `http://localhost:8081`
 
 ## Current Test Coverage Shape
 
@@ -81,14 +92,15 @@ Last full local validation:
   - apartment form validation
   - iCal source form validation
   - reservation period formatting
+  - task form validation
 
 ## Next Implementation Step
 
-Improve task operations and real testing:
+Improve task UX and real integration testing:
 
-- add mobile task creation UI in apartment detail;
-- add a not-done action or task detail screen;
-- connect manual task creation to backend API mode;
+- replace raw ISO task due date input with a better mobile date/time picker;
+- add optional not-done reason/history;
+- validate manual task creation against a real local Postgres database when available;
 - later replace manual sync text with queued/fetched iCal sync.
 
 ## Known Local Environment Notes

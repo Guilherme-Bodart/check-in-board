@@ -82,7 +82,10 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
   });
   const isEmpty = filteredItems.length === 0;
 
-  async function handleBoardItemAction(itemId: string) {
+  async function handleBoardItemAction(
+    itemId: string,
+    taskStatus: "done" | "not_done" = "done",
+  ) {
     const item = content.boardItems.find((boardItem) => boardItem.id === itemId);
 
     if (!item) {
@@ -90,7 +93,7 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
     }
 
     if (item.kind === "task" && item.taskStatus === "pending") {
-      await markTaskStatus(session, item.id, "done");
+      await markTaskStatus(session, item.id, taskStatus);
       setContent((current) => ({
         ...current,
         boardItems: current.boardItems.map((boardItem) =>
@@ -98,8 +101,8 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
             ? {
                 ...boardItem,
                 actionLabel: "View task",
-                status: "completed",
-                taskStatus: "done",
+                status: taskStatus === "done" ? "completed" : "failed",
+                taskStatus,
               }
             : boardItem,
         ),
@@ -206,6 +209,16 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
               item={item}
               key={item.id}
               onActionPress={() => void handleBoardItemAction(item.id)}
+              onSecondaryActionPress={
+                item.kind === "task" && item.taskStatus === "pending"
+                  ? () => void handleBoardItemAction(item.id, "not_done")
+                  : undefined
+              }
+              secondaryActionLabel={
+                item.kind === "task" && item.taskStatus === "pending"
+                  ? "Not done"
+                  : undefined
+              }
             />
           ))}
         </View>
