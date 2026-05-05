@@ -5,6 +5,12 @@ import { StyleSheet, View } from "react-native";
 
 import { AppText, Button, Screen } from "@/components";
 import { useAuthSession } from "@/features/auth";
+import {
+  listReservations,
+  ReservationCard,
+  reservationsRuntime,
+  type Reservation,
+} from "@/features/reservations";
 import { theme } from "@/theme";
 
 import { IcalSourceCard, IcalSourceFormCard } from "../components";
@@ -38,6 +44,7 @@ export function ApartmentDetailScreen() {
   const { apartmentId } = useLocalSearchParams<{ apartmentId: string }>();
   const { session } = useAuthSession();
   const [apartment, setApartment] = useState<Apartment | null>(null);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [sources, setSources] = useState<IcalSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -59,13 +66,15 @@ export function ApartmentDetailScreen() {
     setIsLoading(true);
 
     try {
-      const [nextApartment, nextSources] = await Promise.all([
+      const [nextApartment, nextSources, nextReservations] = await Promise.all([
         getApartmentById(session, apartmentId),
         listIcalSources(session, apartmentId),
+        listReservations(session, apartmentId),
       ]);
 
       setApartment(nextApartment);
       setSources(nextSources);
+      setReservations(nextReservations);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -214,6 +223,33 @@ export function ApartmentDetailScreen() {
         <View style={styles.list}>
           {sources.map((source) => (
             <IcalSourceCard key={source.id} source={source} />
+          ))}
+        </View>
+      )}
+
+      <View style={styles.sectionHeader}>
+        <AppText variant="sectionTitle">Upcoming reservations</AppText>
+        <AppText color="textMuted" variant="caption">
+          {reservationsRuntime.mode === "api"
+            ? "Loaded from protected backend reservations."
+            : "Showing mock reservation data until sync is connected."}
+        </AppText>
+      </View>
+
+      {reservations.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <AppText variant="bodyStrong">No reservations imported yet</AppText>
+          <AppText color="textSecondary">
+            Sync an iCal source to start filling this operational list.
+          </AppText>
+        </View>
+      ) : (
+        <View style={styles.list}>
+          {reservations.map((reservation) => (
+            <ReservationCard
+              key={reservation.id}
+              reservation={reservation}
+            />
           ))}
         </View>
       )}
