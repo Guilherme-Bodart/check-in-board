@@ -44,6 +44,17 @@
   - derives `checkInToday`, `checkOutToday`, `inStay`, and `upcoming`
   - mobile Today Board loads via service with mock/API modes
   - summary cards now derive from reservations when API mode is enabled
+- Operational tasks foundation:
+  - `GET /apartments/:apartmentId/tasks`
+  - `POST /apartments/:apartmentId/tasks`
+  - `GET /tasks/today`
+  - `PATCH /tasks/:taskId/status`
+  - `host_admin` can create tasks
+  - `team` can mark tasks when `canUpdateTaskStatus` is true
+  - mobile Today Board merges reservation rows and task rows
+  - Today Board filters now work
+  - task board action can mark pending tasks as done
+  - reservation board action opens apartment detail when possible
 
 ## Test Status
 
@@ -64,6 +75,7 @@ Last full local validation:
   - iCal parser
   - reservation sync/listing routes
   - reservation-driven Today Board route
+  - operational task routes
 - Mobile:
   - auth form validation
   - apartment form validation
@@ -72,11 +84,11 @@ Last full local validation:
 
 ## Next Implementation Step
 
-Start task generation and task operations:
+Improve task operations and real testing:
 
-- create first task endpoints for reservation-linked/manual tasks;
-- show tasks on Today Board alongside reservation rows;
-- allow `team` to mark tasks `done` or `not_done`;
+- add mobile task creation UI in apartment detail;
+- add a not-done action or task detail screen;
+- connect manual task creation to backend API mode;
 - later replace manual sync text with queued/fetched iCal sync.
 
 ## Known Local Environment Notes

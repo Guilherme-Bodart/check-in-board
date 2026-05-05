@@ -12,7 +12,7 @@ import {
 import { reservationsModule } from "./modules/reservations/index.js";
 import type { ReservationsModuleOptions } from "./modules/reservations/index.js";
 import { syncModule } from "./modules/sync/index.js";
-import { tasksModule } from "./modules/tasks/index.js";
+import { tasksModule, type TasksModuleOptions } from "./modules/tasks/index.js";
 import { env, type Env } from "./shared/env.js";
 import { logger } from "./shared/logger.js";
 
@@ -20,6 +20,7 @@ export type BuildAppOptions = Pick<AuthModuleOptions, "authRepository"> &
   Pick<ApartmentsModuleOptions, "apartmentsRepository"> &
   Pick<IcalSourcesModuleOptions, "icalSourcesRepository"> & {
     reservationsRepository?: ReservationsModuleOptions["reservationsRepository"];
+    tasksRepository?: TasksModuleOptions["tasksRepository"];
     env?: Env;
   };
 
@@ -56,7 +57,10 @@ export function buildApp(options: BuildAppOptions = {}) {
     env: runtimeEnv,
     reservationsRepository: options.reservationsRepository,
   });
-  app.register(tasksModule, { prefix: "/tasks" });
+  app.register(tasksModule, {
+    env: runtimeEnv,
+    tasksRepository: options.tasksRepository,
+  });
   app.register(syncModule, { prefix: "/sync" });
 
   return app;

@@ -27,7 +27,7 @@ export function getApiBaseUrl() {
 type RequestOptions = {
   body?: unknown;
   headers?: HeadersInit;
-  method?: "GET" | "POST";
+  method?: "GET" | "PATCH" | "POST";
   timeoutMs?: number;
 };
 
@@ -90,4 +90,9 @@ export const apiClient = {
     body: unknown,
     options?: Omit<RequestOptions, "body" | "method">,
   ) => request<T>(path, { ...options, body, method: "POST" }),
+  patch: <T>(
+    path: string,
+    body: unknown,
+    options?: Omit<RequestOptions, "body" | "method">,
+  ) => request<T>(path, { ...options, body, method: "PATCH" }),
 };

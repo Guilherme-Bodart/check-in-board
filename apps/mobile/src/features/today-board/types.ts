@@ -11,6 +11,7 @@ export type SummaryCardData = {
 
 export type BoardItemCardData = {
   id: string;
+  apartmentId?: string;
   apartment: string;
   time: string;
   status: OperationStatus;
@@ -18,6 +19,8 @@ export type BoardItemCardData = {
   notes: string;
   assignee: string;
   actionLabel: string;
+  kind?: "reservation" | "task";
+  taskStatus?: "pending" | "done" | "not_done" | "cancelled";
 };
 
 export type TodayBoardNotice = {

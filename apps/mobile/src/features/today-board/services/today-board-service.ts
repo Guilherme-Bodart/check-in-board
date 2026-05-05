@@ -1,6 +1,7 @@
 import { ApiClientError, apiClient } from "@/services/api-client";
 
 import type { AuthSession } from "@/features/auth/types";
+import { listTodayTaskBoardItems } from "@/features/tasks";
 
 import { todayBoardScenarios } from "../mock-data";
 import type { TodayBoardContent } from "../types";
@@ -25,10 +26,26 @@ export const todayBoardRuntime = {
 
 export async function getTodayBoard(session: AuthSession | null) {
   if (!useDevAuthApi) {
-    return todayBoardScenarios.content;
+    return {
+      ...todayBoardScenarios.content,
+      boardItems: [
+        ...todayBoardScenarios.content.boardItems.filter(
+          (item) => item.kind !== "task",
+        ),
+        ...(await listTodayTaskBoardItems(session)),
+      ],
+    };
   }
 
-  return await apiClient.get<TodayBoardApiResponse>("/today-board", {
-    headers: getAuthorizationHeaders(session),
-  });
+  const [reservationBoard, taskBoardItems] = await Promise.all([
+    apiClient.get<TodayBoardApiResponse>("/today-board", {
+      headers: getAuthorizationHeaders(session),
+    }),
+    listTodayTaskBoardItems(session),
+  ]);
+
+  return {
+    ...reservationBoard,
+    boardItems: [...reservationBoard.boardItems, ...taskBoardItems],
+  };
 }

@@ -5,12 +5,14 @@ import {
   RefreshCw,
   TriangleAlert,
 } from "lucide-react-native";
+import { useRouter, type Href } from "expo-router";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppText, Button, Screen } from "@/components";
 import { useAuthSession } from "@/features/auth";
+import { markTaskStatus } from "@/features/tasks";
 import { theme } from "@/theme";
 
 import { BoardItemCard, SummaryCard, TodayBoardEmptyState } from "./components";
@@ -21,17 +23,19 @@ import {
 } from "./services/today-board-service";
 import type { TodayBoardContent } from "./types";
 
-const handleMockAction = () => undefined;
+type TodayBoardFilter = "all" | "checkIns" | "checkOuts" | "tasks";
 
 type TodayBoardScreenProps = {
   headerAccessory?: ReactNode;
 };
 
 export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
+  const router = useRouter();
   const { session } = useAuthSession();
   const [content, setContent] = useState<TodayBoardContent>(
     todayBoardScenarios.content,
   );
+  const [activeFilter, setActiveFilter] = useState<TodayBoardFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const todayLabel = new Intl.DateTimeFormat("en-US", {
@@ -61,7 +65,52 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
     void loadData();
   }, [loadData]);
 
-  const isEmpty = content.boardItems.length === 0;
+  const filteredItems = content.boardItems.filter((item) => {
+    if (activeFilter === "checkIns") {
+      return item.status === "checkInToday";
+    }
+
+    if (activeFilter === "checkOuts") {
+      return item.status === "checkOutToday";
+    }
+
+    if (activeFilter === "tasks") {
+      return item.kind === "task";
+    }
+
+    return true;
+  });
+  const isEmpty = filteredItems.length === 0;
+
+  async function handleBoardItemAction(itemId: string) {
+    const item = content.boardItems.find((boardItem) => boardItem.id === itemId);
+
+    if (!item) {
+      return;
+    }
+
+    if (item.kind === "task" && item.taskStatus === "pending") {
+      await markTaskStatus(session, item.id, "done");
+      setContent((current) => ({
+        ...current,
+        boardItems: current.boardItems.map((boardItem) =>
+          boardItem.id === item.id
+            ? {
+                ...boardItem,
+                actionLabel: "View task",
+                status: "completed",
+                taskStatus: "done",
+              }
+            : boardItem,
+        ),
+      }));
+      return;
+    }
+
+    if (item.apartmentId) {
+      router.push(`/apartment/${item.apartmentId}` as Href);
+    }
+  }
 
   return (
     <Screen
@@ -99,26 +148,26 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
         <Button
           fullWidth={false}
           label="All"
-          onPress={handleMockAction}
-          variant="secondary"
+          onPress={() => setActiveFilter("all")}
+          variant={activeFilter === "all" ? "secondary" : "ghost"}
         />
         <Button
           fullWidth={false}
           label="Check-ins"
-          onPress={handleMockAction}
-          variant="ghost"
+          onPress={() => setActiveFilter("checkIns")}
+          variant={activeFilter === "checkIns" ? "secondary" : "ghost"}
         />
         <Button
           fullWidth={false}
           label="Check-outs"
-          onPress={handleMockAction}
-          variant="ghost"
+          onPress={() => setActiveFilter("checkOuts")}
+          variant={activeFilter === "checkOuts" ? "secondary" : "ghost"}
         />
         <Button
           fullWidth={false}
           label="Tasks"
-          onPress={handleMockAction}
-          variant="ghost"
+          onPress={() => setActiveFilter("tasks")}
+          variant={activeFilter === "tasks" ? "secondary" : "ghost"}
         />
       </View>
 
@@ -140,7 +189,7 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
 
       {isEmpty ? (
         <TodayBoardEmptyState
-          onActionPress={handleMockAction}
+          onActionPress={loadData}
           state={{
             actionLabel: "Refresh board",
             description:
@@ -152,11 +201,11 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
         />
       ) : (
         <View style={styles.list}>
-          {content.boardItems.map((item) => (
+          {filteredItems.map((item) => (
             <BoardItemCard
               item={item}
               key={item.id}
-              onActionPress={handleMockAction}
+              onActionPress={() => void handleBoardItemAction(item.id)}
             />
           ))}
         </View>
