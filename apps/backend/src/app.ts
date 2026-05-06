@@ -9,6 +9,7 @@ import {
   icalSourcesModule,
   type IcalSourcesModuleOptions,
 } from "./modules/ical-sources/index.js";
+import { membersModule, type MembersModuleOptions } from "./modules/members/index.js";
 import { reservationsModule } from "./modules/reservations/index.js";
 import type { ReservationsModuleOptions } from "./modules/reservations/index.js";
 import { syncModule } from "./modules/sync/index.js";
@@ -19,6 +20,7 @@ import { logger } from "./shared/logger.js";
 export type BuildAppOptions = Pick<AuthModuleOptions, "authRepository"> &
   Pick<ApartmentsModuleOptions, "apartmentsRepository"> &
   Pick<IcalSourcesModuleOptions, "icalSourcesRepository"> & {
+    membersRepository?: MembersModuleOptions["membersRepository"];
     reservationsRepository?: ReservationsModuleOptions["reservationsRepository"];
     tasksRepository?: TasksModuleOptions["tasksRepository"];
     env?: Env;
@@ -52,6 +54,10 @@ export function buildApp(options: BuildAppOptions = {}) {
   app.register(icalSourcesModule, {
     env: runtimeEnv,
     icalSourcesRepository: options.icalSourcesRepository,
+  });
+  app.register(membersModule, {
+    env: runtimeEnv,
+    membersRepository: options.membersRepository,
   });
   app.register(reservationsModule, {
     env: runtimeEnv,

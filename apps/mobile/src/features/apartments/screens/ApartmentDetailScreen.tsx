@@ -12,6 +12,15 @@ import {
   type Reservation,
 } from "@/features/reservations";
 import {
+  createApartmentInvitation,
+  InvitationFormCard,
+  listApartmentMembers,
+  MemberCard,
+  type ApartmentInvitation,
+  type ApartmentMember,
+  type InvitationRole,
+} from "@/features/members";
+import {
   createApartmentTask,
   getTaskDueDatePresetValue,
   hasTaskErrors,
@@ -70,10 +79,12 @@ export function ApartmentDetailScreen() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [sources, setSources] = useState<IcalSource[]>([]);
   const [tasks, setTasks] = useState<OperationalTask[]>([]);
+  const [members, setMembers] = useState<ApartmentMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [isTaskFormVisible, setIsTaskFormVisible] = useState(false);
+  const [isInviteFormVisible, setIsInviteFormVisible] = useState(false);
   const [formValues, setFormValues] =
     useState<IcalSourceFormValues>(initialFormValues);
   const [taskFormValues, setTaskFormValues] = useState<TaskFormValues>(
@@ -81,12 +92,20 @@ export function ApartmentDetailScreen() {
   );
   const [formErrors, setFormErrors] = useState<IcalSourceFieldErrors>({});
   const [taskFormErrors, setTaskFormErrors] = useState<TaskFieldErrors>({});
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<InvitationRole>("team");
+  const [lastInvitation, setLastInvitation] =
+    useState<ApartmentInvitation | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [taskSubmitError, setTaskSubmitError] = useState<string | null>(null);
+  const [inviteSubmitError, setInviteSubmitError] = useState<string | null>(
+    null,
+  );
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTaskSubmitting, setIsTaskSubmitting] = useState(false);
+  const [isInviteSubmitting, setIsInviteSubmitting] = useState(false);
   const [syncingSourceId, setSyncingSourceId] = useState<string | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
@@ -101,18 +120,26 @@ export function ApartmentDetailScreen() {
     setIsLoading(true);
 
     try {
-      const [nextApartment, nextSources, nextReservations, nextTasks] =
+      const [
+        nextApartment,
+        nextSources,
+        nextReservations,
+        nextTasks,
+        nextMembers,
+      ] =
         await Promise.all([
           getApartmentById(session, apartmentId),
           listIcalSources(session, apartmentId),
           listReservations(session, apartmentId),
           listApartmentTasks(session, apartmentId),
+          listApartmentMembers(session, apartmentId),
         ]);
 
       setApartment(nextApartment);
       setSources(nextSources);
       setReservations(nextReservations);
       setTasks(nextTasks);
+      setMembers(nextMembers);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -162,6 +189,13 @@ export function ApartmentDetailScreen() {
     setTaskFormErrors({});
     setTaskSubmitError(null);
     setIsTaskFormVisible(false);
+  }
+
+  function resetInviteForm() {
+    setInviteEmail("");
+    setInviteRole("team");
+    setInviteSubmitError(null);
+    setIsInviteFormVisible(false);
   }
 
   async function handleSubmit() {
@@ -259,6 +293,39 @@ export function ApartmentDetailScreen() {
       );
     } finally {
       setUpdatingTaskId(null);
+    }
+  }
+
+  async function handleInviteSubmit() {
+    if (!apartmentId) {
+      return;
+    }
+
+    setInviteSubmitError(null);
+
+    if (!inviteEmail.trim()) {
+      setInviteSubmitError("Email is required.");
+      return;
+    }
+
+    setIsInviteSubmitting(true);
+
+    try {
+      const invitation = await createApartmentInvitation(session, apartmentId, {
+        email: inviteEmail.trim().toLowerCase(),
+        role: inviteRole,
+      });
+
+      setLastInvitation(invitation);
+      resetInviteForm();
+    } catch (error) {
+      setInviteSubmitError(
+        error instanceof Error
+          ? error.message
+          : "We could not create this invitation right now.",
+      );
+    } finally {
+      setIsInviteSubmitting(false);
     }
   }
 
@@ -482,6 +549,60 @@ export function ApartmentDetailScreen() {
               }
               task={task}
             />
+          ))}
+        </View>
+      )}
+
+      <View style={styles.sectionHeader}>
+        <AppText variant="sectionTitle">Members and permissions</AppText>
+        <AppText color="textMuted" variant="caption">
+          Co-hosts can view this apartment. Team can view and update tasks.
+        </AppText>
+      </View>
+
+      {lastInvitation?.token ? (
+        <View style={styles.successBox}>
+          <AppText color="success" variant="bodyStrong">
+            Invitation created
+          </AppText>
+          <AppText color="textSecondary">
+            Send this token to {lastInvitation.email}: {lastInvitation.token}
+          </AppText>
+        </View>
+      ) : null}
+
+      {isInviteFormVisible ? (
+        <InvitationFormCard
+          email={inviteEmail}
+          isSubmitting={isInviteSubmitting}
+          onCancel={resetInviteForm}
+          onChangeEmail={setInviteEmail}
+          onChangeRole={setInviteRole}
+          onSubmit={handleInviteSubmit}
+          role={inviteRole}
+          submitError={inviteSubmitError}
+        />
+      ) : (
+        <Button
+          accessibilityHint="Opens the member invitation form."
+          fullWidth={false}
+          icon={<Plus color={theme.colors.surface} size={16} />}
+          label="Invite member"
+          onPress={() => setIsInviteFormVisible(true)}
+        />
+      )}
+
+      {members.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <AppText variant="bodyStrong">No members loaded yet</AppText>
+          <AppText color="textSecondary">
+            Invite co-hosts or team members when this apartment is ready.
+          </AppText>
+        </View>
+      ) : (
+        <View style={styles.list}>
+          {members.map((member) => (
+            <MemberCard key={member.id} member={member} />
           ))}
         </View>
       )}

@@ -54,6 +54,14 @@
   - marking a task as `not_done` now requires a note;
   - task status notes are stored in the existing task `result` JSON field;
   - mobile task cards collect and display the not-done reason.
+- Apartment members and invitations:
+  - `GET /apartments/:apartmentId/members`
+  - `POST /apartments/:apartmentId/invitations`
+  - `POST /invitations/accept`
+  - host admins can invite `co_host` or `team` users;
+  - co-hosts get read-only apartment access;
+  - team users get apartment access plus task-status update permission;
+  - mobile apartment detail lists members and can create invitations.
 
 ## Implemented
 
@@ -123,6 +131,7 @@ Last full local validation:
 - Neon schema push after adding password auth
 - backend build after real iCal sync
 - backend build after iCal protections and task not-done notes
+- backend build after members/invitations
 - Render + Neon smoke test:
   - `/health`
   - `/auth/sign-up`
@@ -145,6 +154,7 @@ Last full local validation:
   - stored iCal URL fetch sync route
   - reservation-driven Today Board route
   - operational task routes
+  - apartment member and invitation routes
 - Mobile:
   - auth form validation
   - auth password validation
