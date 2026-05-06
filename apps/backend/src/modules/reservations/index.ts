@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import type { Env } from "../../shared/env.js";
+import { getWriteRateLimitConfig } from "../../plugins/rate-limit.js";
 import { AuthError, authenticateRequest } from "../auth/guard.js";
 import type { ReservationsRepository } from "./repository.js";
 import {
@@ -76,7 +77,11 @@ export const reservationsModule: FastifyPluginAsync<ReservationsModuleOptions> =
 
         return reply
           .code(200)
-          .send(todayBoardResponseSchema.parse(buildTodayBoardPayload(reservations, targetDate)));
+          .send(
+            todayBoardResponseSchema.parse(
+              buildTodayBoardPayload(reservations, targetDate),
+            ),
+          );
       } catch (error) {
         if (!(error instanceof AuthError)) {
           throw error;
@@ -119,46 +124,52 @@ export const reservationsModule: FastifyPluginAsync<ReservationsModuleOptions> =
       }
     });
 
-    app.post("/ical-sources/:icalSourceId/sync", async (request, reply) => {
-      const params = request.params as { icalSourceId?: string };
+    app.post(
+      "/ical-sources/:icalSourceId/sync",
+      getWriteRateLimitConfig(options.env),
+      async (request, reply) => {
+        const params = request.params as { icalSourceId?: string };
 
-      try {
-        const auth = await authenticateRequest(request, options.env);
-        const parsedBody = manualSyncRequestSchema.safeParse(request.body);
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const parsedBody = manualSyncRequestSchema.safeParse(request.body);
 
-        if (!parsedBody.success) {
+          if (!parsedBody.success) {
+            return reply
+              .code(400)
+              .send(sendError("BAD_REQUEST", "Invalid sync payload."));
+          }
+
+          const result = await syncIcalSourceFromText(
+            auth.userId,
+            params.icalSourceId ?? "",
+            parsedBody.data.icsText,
+            await getRepository(),
+          );
+
+          return reply.code(200).send(manualSyncResponseSchema.parse(result));
+        } catch (error) {
+          if (error instanceof ReservationsServiceError) {
+            const statusCode =
+              error.code === "BAD_REQUEST"
+                ? 400
+                : error.code === "SYNC_FETCH_FAILED"
+                  ? 502
+                  : 403;
+
+            return reply
+              .code(statusCode)
+              .send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
           return reply
-            .code(400)
-            .send(sendError("BAD_REQUEST", "Invalid sync payload."));
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
         }
-
-        const result = await syncIcalSourceFromText(
-          auth.userId,
-          params.icalSourceId ?? "",
-          parsedBody.data.icsText,
-          await getRepository(),
-        );
-
-        return reply.code(200).send(manualSyncResponseSchema.parse(result));
-      } catch (error) {
-        if (error instanceof ReservationsServiceError) {
-          const statusCode =
-            error.code === "BAD_REQUEST"
-              ? 400
-              : error.code === "SYNC_FETCH_FAILED"
-                ? 502
-                : 403;
-
-          return reply.code(statusCode).send(sendError(error.code, error.message));
-        }
-
-        if (!(error instanceof AuthError)) {
-          throw error;
-        }
-
-        return reply
-          .code(401)
-          .send(sendError("UNAUTHORIZED", "Authentication is required."));
-      }
-    });
+      },
+    );
   };

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import type { Env } from "../../shared/env.js";
+import { getWriteRateLimitConfig } from "../../plugins/rate-limit.js";
 import { AuthError, authenticateRequest } from "../auth/guard.js";
 import type { TasksRepository } from "./repository.js";
 import {
@@ -121,85 +122,93 @@ export const tasksModule: FastifyPluginAsync<TasksModuleOptions> =
       }
     });
 
-    app.post("/apartments/:apartmentId/tasks", async (request, reply) => {
-      const params = request.params as { apartmentId?: string };
+    app.post(
+      "/apartments/:apartmentId/tasks",
+      getWriteRateLimitConfig(options.env),
+      async (request, reply) => {
+        const params = request.params as { apartmentId?: string };
 
-      try {
-        const auth = await authenticateRequest(request, options.env);
-        const parsedBody = createTaskRequestSchema.safeParse(request.body);
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const parsedBody = createTaskRequestSchema.safeParse(request.body);
 
-        if (!parsedBody.success) {
+          if (!parsedBody.success) {
+            return reply
+              .code(400)
+              .send(sendError("BAD_REQUEST", "Invalid task payload."));
+          }
+
+          const task = await createTaskForApartment(
+            auth.userId,
+            {
+              ...parsedBody.data,
+              apartmentId: params.apartmentId ?? "",
+              dueAt: new Date(parsedBody.data.dueAt),
+            },
+            await getRepository(),
+          );
+
+          return reply.code(201).send(createTaskResponseSchema.parse({ task }));
+        } catch (error) {
+          if (error instanceof TasksServiceError) {
+            return reply.code(403).send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
           return reply
-            .code(400)
-            .send(sendError("BAD_REQUEST", "Invalid task payload."));
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
         }
+      },
+    );
 
-        const task = await createTaskForApartment(
-          auth.userId,
-          {
-            ...parsedBody.data,
-            apartmentId: params.apartmentId ?? "",
-            dueAt: new Date(parsedBody.data.dueAt),
-          },
-          await getRepository(),
-        );
+    app.patch(
+      "/tasks/:taskId/status",
+      getWriteRateLimitConfig(options.env),
+      async (request, reply) => {
+        const params = request.params as { taskId?: string };
 
-        return reply.code(201).send(createTaskResponseSchema.parse({ task }));
-      } catch (error) {
-        if (error instanceof TasksServiceError) {
-          return reply.code(403).send(sendError(error.code, error.message));
-        }
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const parsedBody = updateTaskStatusRequestSchema.safeParse(
+            request.body,
+          );
 
-        if (!(error instanceof AuthError)) {
-          throw error;
-        }
+          if (!parsedBody.success) {
+            return reply
+              .code(400)
+              .send(sendError("BAD_REQUEST", "Invalid task status payload."));
+          }
 
-        return reply
-          .code(401)
-          .send(sendError("UNAUTHORIZED", "Authentication is required."));
-      }
-    });
+          const task = await updateTaskStatusForUser(
+            {
+              note: parsedBody.data.note,
+              status: parsedBody.data.status,
+              taskId: params.taskId ?? "",
+              userId: auth.userId,
+            },
+            await getRepository(),
+          );
 
-    app.patch("/tasks/:taskId/status", async (request, reply) => {
-      const params = request.params as { taskId?: string };
-
-      try {
-        const auth = await authenticateRequest(request, options.env);
-        const parsedBody = updateTaskStatusRequestSchema.safeParse(
-          request.body,
-        );
-
-        if (!parsedBody.success) {
           return reply
-            .code(400)
-            .send(sendError("BAD_REQUEST", "Invalid task status payload."));
+            .code(200)
+            .send(updateTaskStatusResponseSchema.parse({ task }));
+        } catch (error) {
+          if (error instanceof TasksServiceError) {
+            return reply.code(403).send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
+          return reply
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
         }
-
-        const task = await updateTaskStatusForUser(
-          {
-            note: parsedBody.data.note,
-            status: parsedBody.data.status,
-            taskId: params.taskId ?? "",
-            userId: auth.userId,
-          },
-          await getRepository(),
-        );
-
-        return reply
-          .code(200)
-          .send(updateTaskStatusResponseSchema.parse({ task }));
-      } catch (error) {
-        if (error instanceof TasksServiceError) {
-          return reply.code(403).send(sendError(error.code, error.message));
-        }
-
-        if (!(error instanceof AuthError)) {
-          throw error;
-        }
-
-        return reply
-          .code(401)
-          .send(sendError("UNAUTHORIZED", "Authentication is required."));
-      }
-    });
+      },
+    );
   };

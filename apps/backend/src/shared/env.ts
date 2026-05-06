@@ -16,6 +16,12 @@ export function parseEnv(input: NodeJS.ProcessEnv = process.env): {
   LOG_LEVEL: "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
   DATABASE_URL: string;
   AUTH_JWT_SECRET: string;
+  RATE_LIMIT_AUTH_MAX: number;
+  RATE_LIMIT_AUTH_WINDOW: string;
+  RATE_LIMIT_GLOBAL_MAX: number;
+  RATE_LIMIT_GLOBAL_WINDOW: string;
+  RATE_LIMIT_WRITE_MAX: number;
+  RATE_LIMIT_WRITE_WINDOW: string;
 } {
   const nodeEnv = nodeEnvSchema.parse(input.NODE_ENV);
   const envSchema = z.object({
@@ -34,6 +40,12 @@ export function parseEnv(input: NodeJS.ProcessEnv = process.env): {
       nodeEnv === "production"
         ? z.string().min(32)
         : z.string().min(1).default(defaultAuthJwtSecret),
+    RATE_LIMIT_AUTH_MAX: z.coerce.number().int().min(1).default(8),
+    RATE_LIMIT_AUTH_WINDOW: z.string().min(1).default("1 minute"),
+    RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).default(120),
+    RATE_LIMIT_GLOBAL_WINDOW: z.string().min(1).default("1 minute"),
+    RATE_LIMIT_WRITE_MAX: z.coerce.number().int().min(1).default(30),
+    RATE_LIMIT_WRITE_WINDOW: z.string().min(1).default("1 hour"),
   });
   const parsedEnv = envSchema.safeParse(input);
 

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import type { Env } from "../../shared/env.js";
+import { getWriteRateLimitConfig } from "../../plugins/rate-limit.js";
 import { AuthError, authenticateRequest } from "../auth/guard.js";
 import {
   createIcalSourceRequestSchema,
@@ -39,10 +40,7 @@ export const icalSourcesModule: FastifyPluginAsync<IcalSourcesModuleOptions> =
 
       repositoryPromise ??= (async () => {
         const [{ prisma }, { PrismaIcalSourcesRepository }] = await Promise.all(
-          [
-            import("../../db/prisma.js"),
-            import("./prisma-repository.js"),
-          ],
+          [import("../../db/prisma.js"), import("./prisma-repository.js")],
         );
 
         return new PrismaIcalSourcesRepository(prisma);
@@ -85,50 +83,54 @@ export const icalSourcesModule: FastifyPluginAsync<IcalSourcesModuleOptions> =
       }
     });
 
-    app.post("/apartments/:apartmentId/ical-sources", async (request, reply) => {
-      const params = request.params as { apartmentId?: string };
+    app.post(
+      "/apartments/:apartmentId/ical-sources",
+      getWriteRateLimitConfig(options.env),
+      async (request, reply) => {
+        const params = request.params as { apartmentId?: string };
 
-      try {
-        const auth = await authenticateRequest(request, options.env);
-        const parsedBody = createIcalSourceRequestSchema.safeParse(
-          request.body,
-        );
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const parsedBody = createIcalSourceRequestSchema.safeParse(
+            request.body,
+          );
 
-        if (!parsedBody.success) {
+          if (!parsedBody.success) {
+            return reply
+              .code(400)
+              .send(sendError("BAD_REQUEST", "Invalid iCal source payload."));
+          }
+
+          const repository = await getRepository();
+          const icalSource = await createIcalSourceForApartment(
+            auth.userId,
+            {
+              ...parsedBody.data,
+              apartmentId: params.apartmentId ?? "",
+            },
+            repository,
+          );
+
+          return reply.code(201).send(
+            createIcalSourceResponseSchema.parse({
+              icalSource,
+            }),
+          );
+        } catch (error) {
+          if (error instanceof IcalSourcesServiceError) {
+            return reply
+              .code(error.code === "UNSAFE_ICAL_URL" ? 400 : 403)
+              .send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
           return reply
-            .code(400)
-            .send(sendError("BAD_REQUEST", "Invalid iCal source payload."));
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
         }
-
-        const repository = await getRepository();
-        const icalSource = await createIcalSourceForApartment(
-          auth.userId,
-          {
-            ...parsedBody.data,
-            apartmentId: params.apartmentId ?? "",
-          },
-          repository,
-        );
-
-        return reply.code(201).send(
-          createIcalSourceResponseSchema.parse({
-            icalSource,
-          }),
-        );
-      } catch (error) {
-        if (error instanceof IcalSourcesServiceError) {
-          return reply
-            .code(error.code === "UNSAFE_ICAL_URL" ? 400 : 403)
-            .send(sendError(error.code, error.message));
-        }
-
-        if (!(error instanceof AuthError)) {
-          throw error;
-        }
-
-        return reply
-          .code(401)
-          .send(sendError("UNAUTHORIZED", "Authentication is required."));
-      }
-    });
+      },
+    );
   };

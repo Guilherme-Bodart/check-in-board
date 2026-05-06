@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import type { Env } from "../../shared/env.js";
+import { getWriteRateLimitConfig } from "../../plugins/rate-limit.js";
 import { AuthError, authenticateRequest } from "../auth/guard.js";
 import type { MembersRepository } from "./repository.js";
 import {
@@ -79,89 +80,9 @@ export const membersModule: FastifyPluginAsync<MembersModuleOptions> =
           await getRepository(),
         );
 
-        return reply.code(200).send(listMembersResponseSchema.parse({ members }));
-      } catch (error) {
-        if (error instanceof MembersServiceError) {
-          return reply
-            .code(getMembersStatusCode(error))
-            .send(sendError(error.code, error.message));
-        }
-
-        if (!(error instanceof AuthError)) {
-          throw error;
-        }
-
-        return reply
-          .code(401)
-          .send(sendError("UNAUTHORIZED", "Authentication is required."));
-      }
-    });
-
-    app.post("/apartments/:apartmentId/invitations", async (request, reply) => {
-      const params = request.params as { apartmentId?: string };
-
-      try {
-        const auth = await authenticateRequest(request, options.env);
-        const parsedBody = createInvitationRequestSchema.safeParse(request.body);
-
-        if (!parsedBody.success) {
-          return reply
-            .code(400)
-            .send(sendError("BAD_REQUEST", "Invalid invitation payload."));
-        }
-
-        const invitation = await createApartmentInvitation(
-          {
-            apartmentId: params.apartmentId ?? "",
-            email: parsedBody.data.email,
-            invitedByUserId: auth.userId,
-            role: parsedBody.data.role,
-          },
-          await getRepository(),
-        );
-
-        return reply
-          .code(201)
-          .send(createInvitationResponseSchema.parse({ invitation }));
-      } catch (error) {
-        if (error instanceof MembersServiceError) {
-          return reply
-            .code(getMembersStatusCode(error))
-            .send(sendError(error.code, error.message));
-        }
-
-        if (!(error instanceof AuthError)) {
-          throw error;
-        }
-
-        return reply
-          .code(401)
-          .send(sendError("UNAUTHORIZED", "Authentication is required."));
-      }
-    });
-
-    app.post("/invitations/accept", async (request, reply) => {
-      try {
-        const auth = await authenticateRequest(request, options.env);
-        const parsedBody = acceptInvitationRequestSchema.safeParse(request.body);
-
-        if (!parsedBody.success) {
-          return reply
-            .code(400)
-            .send(sendError("BAD_REQUEST", "Invalid invitation payload."));
-        }
-
-        const invitation = await acceptApartmentInvitation(
-          {
-            token: parsedBody.data.token,
-            userId: auth.userId,
-          },
-          await getRepository(),
-        );
-
         return reply
           .code(200)
-          .send(acceptInvitationResponseSchema.parse({ invitation }));
+          .send(listMembersResponseSchema.parse({ members }));
       } catch (error) {
         if (error instanceof MembersServiceError) {
           return reply
@@ -178,4 +99,98 @@ export const membersModule: FastifyPluginAsync<MembersModuleOptions> =
           .send(sendError("UNAUTHORIZED", "Authentication is required."));
       }
     });
+
+    app.post(
+      "/apartments/:apartmentId/invitations",
+      getWriteRateLimitConfig(options.env),
+      async (request, reply) => {
+        const params = request.params as { apartmentId?: string };
+
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const parsedBody = createInvitationRequestSchema.safeParse(
+            request.body,
+          );
+
+          if (!parsedBody.success) {
+            return reply
+              .code(400)
+              .send(sendError("BAD_REQUEST", "Invalid invitation payload."));
+          }
+
+          const invitation = await createApartmentInvitation(
+            {
+              apartmentId: params.apartmentId ?? "",
+              email: parsedBody.data.email,
+              invitedByUserId: auth.userId,
+              role: parsedBody.data.role,
+            },
+            await getRepository(),
+          );
+
+          return reply
+            .code(201)
+            .send(createInvitationResponseSchema.parse({ invitation }));
+        } catch (error) {
+          if (error instanceof MembersServiceError) {
+            return reply
+              .code(getMembersStatusCode(error))
+              .send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
+          return reply
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
+        }
+      },
+    );
+
+    app.post(
+      "/invitations/accept",
+      getWriteRateLimitConfig(options.env),
+      async (request, reply) => {
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const parsedBody = acceptInvitationRequestSchema.safeParse(
+            request.body,
+          );
+
+          if (!parsedBody.success) {
+            return reply
+              .code(400)
+              .send(sendError("BAD_REQUEST", "Invalid invitation payload."));
+          }
+
+          const invitation = await acceptApartmentInvitation(
+            {
+              token: parsedBody.data.token,
+              userId: auth.userId,
+            },
+            await getRepository(),
+          );
+
+          return reply
+            .code(200)
+            .send(acceptInvitationResponseSchema.parse({ invitation }));
+        } catch (error) {
+          if (error instanceof MembersServiceError) {
+            return reply
+              .code(getMembersStatusCode(error))
+              .send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
+          return reply
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
+        }
+      },
+    );
   };

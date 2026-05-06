@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import type { Env } from "../../shared/env.js";
+import { getWriteRateLimitConfig } from "../../plugins/rate-limit.js";
 import { AuthError, authenticateRequest } from "../auth/guard.js";
 import {
   createApartmentRequestSchema,
@@ -75,41 +76,47 @@ export const apartmentsModule: FastifyPluginAsync<ApartmentsModuleOptions> =
       }
     });
 
-    app.post("/", async (request, reply) => {
-      try {
-        const auth = await authenticateRequest(request, options.env);
-        const parsedBody = createApartmentRequestSchema.safeParse(request.body);
+    app.post(
+      "/",
+      getWriteRateLimitConfig(options.env),
+      async (request, reply) => {
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const parsedBody = createApartmentRequestSchema.safeParse(
+            request.body,
+          );
 
-        if (!parsedBody.success) {
+          if (!parsedBody.success) {
+            return reply
+              .code(400)
+              .send(sendError("BAD_REQUEST", "Invalid apartment payload."));
+          }
+
+          const repository = await getRepository();
+          const apartment = await createApartmentForAuthenticatedUser(
+            auth.userId,
+            parsedBody.data,
+            repository,
+          );
+
+          return reply.code(201).send(
+            createApartmentResponseSchema.parse({
+              apartment,
+            }),
+          );
+        } catch (error) {
+          if (error instanceof ApartmentsServiceError) {
+            return reply.code(403).send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
           return reply
-            .code(400)
-            .send(sendError("BAD_REQUEST", "Invalid apartment payload."));
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
         }
-
-        const repository = await getRepository();
-        const apartment = await createApartmentForAuthenticatedUser(
-          auth.userId,
-          parsedBody.data,
-          repository,
-        );
-
-        return reply.code(201).send(
-          createApartmentResponseSchema.parse({
-            apartment,
-          }),
-        );
-      } catch (error) {
-        if (error instanceof ApartmentsServiceError) {
-          return reply.code(403).send(sendError(error.code, error.message));
-        }
-
-        if (!(error instanceof AuthError)) {
-          throw error;
-        }
-
-        return reply
-          .code(401)
-          .send(sendError("UNAUTHORIZED", "Authentication is required."));
-      }
-    });
+      },
+    );
   };

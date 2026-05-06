@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import type { Env } from "../../shared/env.js";
+import { getAuthRateLimitConfig } from "../../plugins/rate-limit.js";
 import {
   meResponseSchema,
   passwordSignUpRequestSchema,
@@ -53,83 +54,95 @@ export const authModule: FastifyPluginAsync<AuthModuleOptions> =
       return await authRepositoryPromise;
     }
 
-    app.post("/sign-up", async (request, reply) => {
-      const parsedBody = passwordSignUpRequestSchema.safeParse(request.body);
+    app.post(
+      "/sign-up",
+      getAuthRateLimitConfig(options.env),
+      async (request, reply) => {
+        const parsedBody = passwordSignUpRequestSchema.safeParse(request.body);
 
-      if (!parsedBody.success) {
-        return reply
-          .code(400)
-          .send(sendError("BAD_REQUEST", "Invalid sign-up payload."));
-      }
-
-      try {
-        const repository = await getRepository();
-        const responseBody = signUpResponseSchema.parse(
-          await signUpWithPassword(parsedBody.data, repository, options.env),
-        );
-
-        return reply.code(201).send(responseBody);
-      } catch (error) {
-        if (error instanceof AuthServiceError) {
-          return reply.code(409).send(sendError(error.code, error.message));
+        if (!parsedBody.success) {
+          return reply
+            .code(400)
+            .send(sendError("BAD_REQUEST", "Invalid sign-up payload."));
         }
 
-        throw error;
-      }
-    });
+        try {
+          const repository = await getRepository();
+          const responseBody = signUpResponseSchema.parse(
+            await signUpWithPassword(parsedBody.data, repository, options.env),
+          );
 
-    app.post("/sign-in", async (request, reply) => {
-      const parsedBody = signInRequestSchema.safeParse(request.body);
+          return reply.code(201).send(responseBody);
+        } catch (error) {
+          if (error instanceof AuthServiceError) {
+            return reply.code(409).send(sendError(error.code, error.message));
+          }
 
-      if (!parsedBody.success) {
-        return reply
-          .code(400)
-          .send(sendError("BAD_REQUEST", "Invalid sign-in payload."));
-      }
+          throw error;
+        }
+      },
+    );
 
-      try {
+    app.post(
+      "/sign-in",
+      getAuthRateLimitConfig(options.env),
+      async (request, reply) => {
+        const parsedBody = signInRequestSchema.safeParse(request.body);
+
+        if (!parsedBody.success) {
+          return reply
+            .code(400)
+            .send(sendError("BAD_REQUEST", "Invalid sign-in payload."));
+        }
+
+        try {
+          const repository = await getRepository();
+          const responseBody = signUpResponseSchema.parse(
+            await signInWithPassword(parsedBody.data, repository, options.env),
+          );
+
+          return reply.code(200).send(responseBody);
+        } catch (error) {
+          if (error instanceof AuthServiceError) {
+            return reply.code(401).send(sendError(error.code, error.message));
+          }
+
+          throw error;
+        }
+      },
+    );
+
+    app.post(
+      "/dev/sign-up",
+      getAuthRateLimitConfig(options.env),
+      async (request, reply) => {
+        if (options.env.NODE_ENV === "production") {
+          return reply
+            .code(403)
+            .send(
+              sendError(
+                "DEV_AUTH_DISABLED",
+                "Dev auth is disabled in production.",
+              ),
+            );
+        }
+
+        const parsedBody = signUpRequestSchema.safeParse(request.body);
+
+        if (!parsedBody.success) {
+          return reply
+            .code(400)
+            .send(sendError("BAD_REQUEST", "Invalid sign-up payload."));
+        }
+
         const repository = await getRepository();
         const responseBody = signUpResponseSchema.parse(
-          await signInWithPassword(parsedBody.data, repository, options.env),
+          await signUpWithDevAuth(parsedBody.data, repository, options.env),
         );
 
         return reply.code(200).send(responseBody);
-      } catch (error) {
-        if (error instanceof AuthServiceError) {
-          return reply.code(401).send(sendError(error.code, error.message));
-        }
-
-        throw error;
-      }
-    });
-
-    app.post("/dev/sign-up", async (request, reply) => {
-      if (options.env.NODE_ENV === "production") {
-        return reply
-          .code(403)
-          .send(
-            sendError(
-              "DEV_AUTH_DISABLED",
-              "Dev auth is disabled in production.",
-            ),
-          );
-      }
-
-      const parsedBody = signUpRequestSchema.safeParse(request.body);
-
-      if (!parsedBody.success) {
-        return reply
-          .code(400)
-          .send(sendError("BAD_REQUEST", "Invalid sign-up payload."));
-      }
-
-      const repository = await getRepository();
-      const responseBody = signUpResponseSchema.parse(
-        await signUpWithDevAuth(parsedBody.data, repository, options.env),
-      );
-
-      return reply.code(200).send(responseBody);
-    });
+      },
+    );
 
     app.get("/me", async (request, reply) => {
       try {

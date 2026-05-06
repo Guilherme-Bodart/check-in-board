@@ -66,6 +66,12 @@
   - co-hosts get read-only apartment access;
   - team users get apartment access plus task-status update permission;
   - mobile apartment detail lists members and can create invitations.
+- API abuse protection:
+  - global IP-based rate limiting is enabled for backend routes;
+  - auth routes have a stricter configurable limit;
+  - write/sync routes have a separate configurable limit;
+  - rate limit knobs are exposed through backend environment variables;
+  - backend tests cover 429 behavior for repeated requests.
 
 ## Implemented
 
@@ -121,6 +127,9 @@
   - apartment detail can create manual tasks
   - apartment detail can mark apartment tasks as done or not done
   - reusable task card and task form components follow the app token system
+- API protection:
+  - `@fastify/rate-limit` protects backend routes with an in-memory store for the current single-instance MVP setup
+  - configurable global, auth, and write-route limits
 
 ## Test Status
 
@@ -136,6 +145,7 @@ Last full local validation:
 - backend build after real iCal sync
 - backend build after iCal protections and task not-done notes
 - backend build after members/invitations
+- backend tests/typecheck after API rate limiting
 - Render + Neon smoke test:
   - `/health`
   - `/auth/sign-up`
@@ -171,12 +181,13 @@ Last full local validation:
 
 ## Next Implementation Step
 
-Improve task UX and real integration testing:
+Improve production readiness and invitation UX:
 
-- replace raw ISO task due date input with a better mobile date/time picker;
-- add optional not-done reason/history;
-- validate manual task creation against a real local Postgres database when available;
-- replace demo/manual iCal sync with backend fetch from stored iCal URLs and a periodic sync queue.
+- add CORS/security headers appropriate for mobile/API clients;
+- add an accept-invite mobile flow/deep link instead of showing only the raw token;
+- add password reset/change password;
+- replace placeholder iCal URL base64 encoding with real encryption at rest;
+- add audit logs for security-sensitive actions.
 
 ## Known Local Environment Notes
 
@@ -184,3 +195,4 @@ Improve task UX and real integration testing:
 - Prisma DB integration can be schema-validated, but real DB flow needs Postgres installed/running.
 - Expo Web has been testable at `http://localhost:8081`.
 - Render URL configured for cloud testing: `https://check-in-board.onrender.com`.
+- Current rate limiting uses in-memory storage, which is fine for one Render instance; scaling to multiple instances should move rate-limit state to Redis/Upstash.
