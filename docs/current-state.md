@@ -110,6 +110,15 @@ Last full local validation:
 - backend build after adding `dotenv`
 - Neon schema push after adding password auth
 - backend build after real iCal sync
+- Render + Neon smoke test:
+  - `/health`
+  - `/auth/sign-up`
+  - `/auth/sign-in`
+  - `/auth/me`
+  - create apartment
+  - create iCal source
+  - sync stored iCal URL
+  - list imported reservations
 
 ## Current Test Coverage Shape
 
