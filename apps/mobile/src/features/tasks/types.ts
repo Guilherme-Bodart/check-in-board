@@ -23,6 +23,7 @@ export type OperationalTask = {
   id: string;
   reservationId: string | null;
   status: "pending" | "done" | "not_done" | "cancelled";
+  statusNote: string | null;
   title: string;
 };
 

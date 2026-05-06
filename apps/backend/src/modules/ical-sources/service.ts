@@ -1,9 +1,10 @@
 import type { IcalSourcesRepository } from "./repository.js";
 import type { CreateIcalSourceInput } from "./types.js";
+import { assertSafeIcalUrl, IcalUrlPolicyError } from "./url-policy.js";
 
 export class IcalSourcesServiceError extends Error {
   constructor(
-    public readonly code: "FORBIDDEN",
+    public readonly code: "FORBIDDEN" | "UNSAFE_ICAL_URL",
     message: string,
   ) {
     super(message);
@@ -51,6 +52,16 @@ export async function createIcalSourceForApartment(
       "FORBIDDEN",
       "You do not have permission to manage iCal sources.",
     );
+  }
+
+  try {
+    await assertSafeIcalUrl(input.icalUrl);
+  } catch (error) {
+    if (error instanceof IcalUrlPolicyError) {
+      throw new IcalSourcesServiceError("UNSAFE_ICAL_URL", error.message);
+    }
+
+    throw error;
   }
 
   return await repository.createIcalSource({

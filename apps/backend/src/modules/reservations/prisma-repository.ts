@@ -12,8 +12,39 @@ function toIsoString(value: Date): string {
   return value.toISOString();
 }
 
+function toNullableIsoString(value: Date | null): string | null {
+  return value ? value.toISOString() : null;
+}
+
 function toPrismaJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
+}
+
+function mapSyncTarget(source: {
+  apartmentId: string;
+  id: string;
+  icalUrlEncrypted: string;
+  lastFailureAt: Date | null;
+  lastSuccessAt: Date | null;
+  provider: string;
+  syncEnabled: boolean;
+}, membership: {
+  canManageIntegrations: boolean;
+  canView: boolean;
+  role: string;
+}): IcalSourceSyncTarget {
+  return {
+    apartmentId: source.apartmentId,
+    canManageIntegrations: membership.canManageIntegrations,
+    canView: membership.canView,
+    icalUrlEncrypted: source.icalUrlEncrypted,
+    id: source.id,
+    lastFailureAt: toNullableIsoString(source.lastFailureAt),
+    lastSuccessAt: toNullableIsoString(source.lastSuccessAt),
+    provider: source.provider,
+    role: membership.role,
+    syncEnabled: source.syncEnabled,
+  };
 }
 
 export class PrismaReservationsRepository implements ReservationsRepository {
@@ -61,15 +92,38 @@ export class PrismaReservationsRepository implements ReservationsRepository {
       return null;
     }
 
-    return {
-      apartmentId: source.apartmentId,
-      canManageIntegrations: membership.canManageIntegrations,
-      canView: membership.canView,
-      id: source.id,
-      icalUrlEncrypted: source.icalUrlEncrypted,
-      provider: source.provider,
-      role: membership.role,
-    };
+    return mapSyncTarget(source, membership);
+  }
+
+  async listApartmentSyncTargets(
+    userId: string,
+    apartmentId: string,
+  ): Promise<IcalSourceSyncTarget[]> {
+    const sources = await this.prisma.icalSource.findMany({
+      include: {
+        apartment: {
+          include: {
+            memberships: {
+              where: {
+                canView: true,
+                userId,
+              },
+            },
+          },
+        },
+      },
+      where: {
+        apartmentId,
+        deletedAt: null,
+        syncEnabled: true,
+      },
+    });
+
+    return sources.flatMap((source) => {
+      const membership = source.apartment.memberships[0];
+
+      return membership ? [mapSyncTarget(source, membership)] : [];
+    });
   }
 
   async listReservations(apartmentId: string): Promise<ReservationSummary[]> {

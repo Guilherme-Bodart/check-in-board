@@ -141,7 +141,7 @@ describe("iCal source routes", () => {
       },
       method: "POST",
       payload: {
-        icalUrl: "https://example.com/calendar.ics",
+        icalUrl: "https://93.184.216.34/calendar.ics",
         label: "Airbnb main",
         provider: "airbnb",
       },
@@ -179,7 +179,7 @@ describe("iCal source routes", () => {
       },
       method: "POST",
       payload: {
-        icalUrl: "https://example.com/private-calendar.ics",
+        icalUrl: "https://93.184.216.34/private-calendar.ics",
         label: "Airbnb main",
         provider: "airbnb",
       },
@@ -201,8 +201,52 @@ describe("iCal source routes", () => {
       "private-calendar.ics",
     );
     expect(repository.encryptedUrls[0]).not.toBe(
-      "https://example.com/private-calendar.ics",
+      "https://93.184.216.34/private-calendar.ics",
     );
+
+    await app.close();
+  });
+
+  it("rejects localhost iCal URLs", async () => {
+    const repository = new InMemoryIcalSourcesRepository();
+    const user: AuthUser = {
+      email: "host@example.com",
+      fullName: "Host Admin",
+      id: "user-host",
+    };
+
+    repository.setApartmentAccess(user.id, {
+      apartmentId: "apartment-1",
+      canManageIntegrations: false,
+      canView: true,
+      role: "host_admin",
+    });
+
+    const app = buildApp({
+      env: buildTestEnv(),
+      icalSourcesRepository: repository,
+    });
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${await createAccessToken(user)}`,
+      },
+      method: "POST",
+      payload: {
+        icalUrl: "http://localhost:3333/private.ics",
+        label: "Bad local calendar",
+        provider: "airbnb",
+      },
+      url: "/apartments/apartment-1/ical-sources",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "UNSAFE_ICAL_URL",
+        message: "Local iCal URLs are not allowed.",
+      },
+    });
 
     await app.close();
   });

@@ -93,7 +93,14 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
     }
 
     if (item.kind === "task" && item.taskStatus === "pending") {
-      await markTaskStatus(session, item.id, taskStatus);
+      await markTaskStatus(
+        session,
+        item.id,
+        taskStatus,
+        taskStatus === "not_done"
+          ? "Marked not done from Today Board."
+          : undefined,
+      );
       setContent((current) => ({
         ...current,
         boardItems: current.boardItems.map((boardItem) =>

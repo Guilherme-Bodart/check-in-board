@@ -39,6 +39,7 @@ const mockTasksByApartment = new Map<string, OperationalTask[]>([
         id: "mock-task-1",
         reservationId: null,
         status: "pending",
+        statusNote: null,
         title: "Replace towels and confirm inspection photos",
       },
     ],
@@ -119,6 +120,7 @@ export async function createApartmentTask(
       id: `mock-task-${Date.now()}`,
       reservationId: null,
       status: "pending",
+      statusNote: null,
       title: input.title,
     };
     const currentTasks = mockTasksByApartment.get(apartmentId) ?? [];
@@ -147,6 +149,7 @@ export async function markTaskStatus(
   session: AuthSession | null,
   taskId: string,
   status: "done" | "not_done",
+  note?: string,
 ) {
   if (!useDevAuthApi) {
     for (const [apartmentId, tasks] of mockTasksByApartment.entries()) {
@@ -157,6 +160,7 @@ export async function markTaskStatus(
           ...existingTask,
           completedAt: new Date().toISOString(),
           status,
+          statusNote: status === "not_done" ? (note ?? null) : null,
         };
 
         mockTasksByApartment.set(
@@ -188,7 +192,7 @@ export async function markTaskStatus(
 
   const response = await apiClient.patch<UpdateTaskResponse>(
     `/tasks/${taskId}/status`,
-    { status },
+    { note, status },
     {
       headers: getAuthorizationHeaders(session),
     },

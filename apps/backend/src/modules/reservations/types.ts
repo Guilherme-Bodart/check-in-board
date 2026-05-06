@@ -27,6 +27,9 @@ export type IcalSourceSyncTarget = {
   apartmentId: string;
   provider: string;
   icalUrlEncrypted: string;
+  lastFailureAt: string | null;
+  lastSuccessAt: string | null;
+  syncEnabled: boolean;
   canView: boolean;
   canManageIntegrations: boolean;
   role: string;

@@ -43,6 +43,17 @@
   - iCal source `lastSuccessAt` and `lastFailureAt` are updated after sync attempts;
   - mobile iCal cards now show `Sync now` and call the real sync path in API mode;
   - mock mode still creates a demo reservation for local UI testing.
+- iCal abuse protection and low-cost auto sync:
+  - iCal URLs are restricted to HTTP/HTTPS;
+  - localhost, `.local`, embedded credentials, and private network targets are rejected;
+  - stored iCal fetches do not follow redirects automatically;
+  - fetched iCal content is limited to 2 MB;
+  - stored iCal sync is throttled to once every 30 minutes per source;
+  - listing apartment reservations triggers stale-source sync opportunistically, avoiding a paid cron for now.
+- Task execution history:
+  - marking a task as `not_done` now requires a note;
+  - task status notes are stored in the existing task `result` JSON field;
+  - mobile task cards collect and display the not-done reason.
 
 ## Implemented
 
@@ -91,6 +102,7 @@
   - mobile Today Board merges reservation rows and task rows
   - Today Board filters now work
   - task board action can mark pending tasks as done or not done
+  - `not_done` requires a reason in backend/API mode
   - reservation board action opens apartment detail when possible
 - Mobile apartment task operations:
   - apartment detail loads tasks from mock/API mode
@@ -110,6 +122,7 @@ Last full local validation:
 - backend build after adding `dotenv`
 - Neon schema push after adding password auth
 - backend build after real iCal sync
+- backend build after iCal protections and task not-done notes
 - Render + Neon smoke test:
   - `/health`
   - `/auth/sign-up`

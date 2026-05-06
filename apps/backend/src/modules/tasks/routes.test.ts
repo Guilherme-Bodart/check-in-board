@@ -36,6 +36,7 @@ class InMemoryTasksRepository implements TasksRepository {
       id: `task-${this.taskSequence++}`,
       reservationId: input.reservationId ?? null,
       status: "pending",
+      statusNote: null,
       title: input.title,
     };
 
@@ -93,6 +94,7 @@ class InMemoryTasksRepository implements TasksRepository {
       completedAt: "2026-05-05T12:00:00.000Z",
       completedByUserId: input.userId,
       status: input.status,
+      statusNote: input.note ?? null,
     };
 
     this.tasks.set(updatedTask.id, updatedTask);
@@ -226,6 +228,62 @@ describe("task routes", () => {
     expect(response.json().task).toMatchObject({
       completedByUserId: team.id,
       status: "done",
+    });
+
+    await app.close();
+  });
+
+  it("requires a note when marking a task not done", async () => {
+    const repository = new InMemoryTasksRepository();
+    const team: AuthUser = {
+      email: "team@example.com",
+      fullName: "Team User",
+      id: "user-team",
+    };
+
+    repository.setApartmentAccess(team.id, {
+      apartmentId: "apartment-1",
+      canUpdateTaskStatus: true,
+      canView: true,
+      role: "team",
+    });
+    const task = await repository.createTask({
+      apartmentId: "apartment-1",
+      dueAt: new Date("2026-05-05T14:00:00.000Z"),
+      title: "Prepare apartment",
+    });
+    const app = buildApp({
+      env: buildTestEnv(),
+      tasksRepository: repository,
+    });
+
+    const invalidResponse = await app.inject({
+      headers: {
+        authorization: `Bearer ${await createAccessToken(team)}`,
+      },
+      method: "PATCH",
+      payload: {
+        status: "not_done",
+      },
+      url: `/tasks/${task.id}/status`,
+    });
+    const validResponse = await app.inject({
+      headers: {
+        authorization: `Bearer ${await createAccessToken(team)}`,
+      },
+      method: "PATCH",
+      payload: {
+        note: "Cleaning could not enter the building.",
+        status: "not_done",
+      },
+      url: `/tasks/${task.id}/status`,
+    });
+
+    expect(invalidResponse.statusCode).toBe(400);
+    expect(validResponse.statusCode).toBe(200);
+    expect(validResponse.json().task).toMatchObject({
+      status: "not_done",
+      statusNote: "Cleaning could not enter the building.",
     });
 
     await app.close();

@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 import type { TasksRepository } from "./repository.js";
 import type {
@@ -22,9 +22,15 @@ function mapTask(task: {
   dueAt: Date;
   id: string;
   reservationId: string | null;
+  result?: Prisma.JsonValue | null;
   status: "pending" | "done" | "not_done" | "cancelled";
   title: string;
 }): TaskSummary {
+  const result =
+    task.result && typeof task.result === "object" && !Array.isArray(task.result)
+      ? task.result
+      : null;
+
   return {
     apartmentId: task.apartmentId,
     apartmentName: task.apartment?.name ?? null,
@@ -36,6 +42,10 @@ function mapTask(task: {
     id: task.id,
     reservationId: task.reservationId,
     status: task.status,
+    statusNote:
+      typeof result?.notDoneReason === "string"
+        ? result.notDoneReason
+        : null,
     title: task.title,
   };
 }
@@ -169,6 +179,12 @@ export class PrismaTasksRepository implements TasksRepository {
       data: {
         completedAt: new Date(),
         completedByUserId: input.userId,
+        result:
+          input.status === "not_done"
+            ? {
+                notDoneReason: input.note,
+              }
+            : Prisma.JsonNull,
         status: input.status,
       },
       include: {

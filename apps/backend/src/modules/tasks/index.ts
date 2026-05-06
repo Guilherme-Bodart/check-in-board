@@ -177,6 +177,7 @@ export const tasksModule: FastifyPluginAsync<TasksModuleOptions> =
 
         const task = await updateTaskStatusForUser(
           {
+            note: parsedBody.data.note,
             status: parsedBody.data.status,
             taskId: params.taskId ?? "",
             userId: auth.userId,

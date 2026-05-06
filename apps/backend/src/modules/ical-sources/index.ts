@@ -70,7 +70,9 @@ export const icalSourcesModule: FastifyPluginAsync<IcalSourcesModuleOptions> =
         );
       } catch (error) {
         if (error instanceof IcalSourcesServiceError) {
-          return reply.code(403).send(sendError(error.code, error.message));
+          return reply
+            .code(error.code === "UNSAFE_ICAL_URL" ? 400 : 403)
+            .send(sendError(error.code, error.message));
         }
 
         if (!(error instanceof AuthError)) {
@@ -115,7 +117,9 @@ export const icalSourcesModule: FastifyPluginAsync<IcalSourcesModuleOptions> =
         );
       } catch (error) {
         if (error instanceof IcalSourcesServiceError) {
-          return reply.code(403).send(sendError(error.code, error.message));
+          return reply
+            .code(error.code === "UNSAFE_ICAL_URL" ? 400 : 403)
+            .send(sendError(error.code, error.message));
         }
 
         if (!(error instanceof AuthError)) {

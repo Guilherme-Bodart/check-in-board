@@ -1,5 +1,13 @@
 import { parseIcalReservations } from "../../integrations/ical/parser.js";
+import {
+  assertSafeIcalUrl,
+  IcalUrlPolicyError,
+} from "../ical-sources/url-policy.js";
 import type { ReservationsRepository } from "./repository.js";
+import type { IcalSourceSyncTarget } from "./types.js";
+
+const maxIcalBytes = 2_000_000;
+const syncIntervalMs = 30 * 60 * 1000;
 
 export class ReservationsServiceError extends Error {
   constructor(
@@ -20,6 +28,16 @@ function canManageSync(target: { canManageIntegrations: boolean; role: string })
 }
 
 async function fetchIcalText(icalUrl: string) {
+  try {
+    await assertSafeIcalUrl(icalUrl);
+  } catch (error) {
+    if (error instanceof IcalUrlPolicyError) {
+      throw new ReservationsServiceError("SYNC_FETCH_FAILED", error.message);
+    }
+
+    throw error;
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
@@ -29,6 +47,7 @@ async function fetchIcalText(icalUrl: string) {
         Accept: "text/calendar,text/plain,*/*",
         "User-Agent": "Check-In Board iCal Sync/0.1",
       },
+      redirect: "manual",
       signal: controller.signal,
     });
 
@@ -39,7 +58,44 @@ async function fetchIcalText(icalUrl: string) {
       );
     }
 
-    return await response.text();
+    const contentLength = Number(response.headers.get("content-length"));
+
+    if (contentLength > maxIcalBytes) {
+      throw new ReservationsServiceError(
+        "SYNC_FETCH_FAILED",
+        "iCal source is too large.",
+      );
+    }
+
+    const reader = response.body?.getReader();
+
+    if (!reader) {
+      return await response.text();
+    }
+
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      totalBytes += value.length;
+
+      if (totalBytes > maxIcalBytes) {
+        throw new ReservationsServiceError(
+          "SYNC_FETCH_FAILED",
+          "iCal source is too large.",
+        );
+      }
+
+      chunks.push(value);
+    }
+
+    return new TextDecoder().decode(Buffer.concat(chunks));
   } catch (error) {
     if (error instanceof ReservationsServiceError) {
       throw error;
@@ -52,6 +108,60 @@ async function fetchIcalText(icalUrl: string) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function getLastSyncAttemptAt(target: IcalSourceSyncTarget): Date | null {
+  const attempts = [target.lastSuccessAt, target.lastFailureAt]
+    .filter(Boolean)
+    .map((value) => new Date(value as string))
+    .filter((value) => !Number.isNaN(value.getTime()));
+
+  if (attempts.length === 0) {
+    return null;
+  }
+
+  return attempts.sort((left, right) => right.getTime() - left.getTime())[0];
+}
+
+function canRunStoredSync(target: IcalSourceSyncTarget, now = new Date()) {
+  if (!target.syncEnabled) {
+    return false;
+  }
+
+  const lastAttempt = getLastSyncAttemptAt(target);
+
+  return !lastAttempt || now.getTime() - lastAttempt.getTime() >= syncIntervalMs;
+}
+
+async function syncTargetReservations(
+  target: IcalSourceSyncTarget,
+  repository: ReservationsRepository,
+  feedText: string,
+) {
+  const parsedReservations = parseIcalReservations(feedText);
+  const reservations = [];
+
+  for (const parsedReservation of parsedReservations) {
+    reservations.push(
+      await repository.upsertReservation({
+        ...parsedReservation,
+        apartmentId: target.apartmentId,
+        icalSourceId: target.id,
+      }),
+    );
+  }
+
+  await repository.markIcalSourceSyncSuccess(target.id, new Date());
+
+  return {
+    reservations,
+    summary: {
+      eventsSeen: parsedReservations.length,
+      reservationsUpserted: reservations.length,
+      syncSkipped: false,
+      syncSkippedReason: null,
+    },
+  };
 }
 
 export async function listReservationsForApartment(
@@ -68,7 +178,29 @@ export async function listReservationsForApartment(
     );
   }
 
+  await syncStaleIcalSourcesForApartment(userId, apartmentId, repository);
+
   return await repository.listReservations(apartmentId);
+}
+
+export async function syncStaleIcalSourcesForApartment(
+  userId: string,
+  apartmentId: string,
+  repository: ReservationsRepository,
+) {
+  const targets = await repository.listApartmentSyncTargets(userId, apartmentId);
+
+  for (const target of targets.filter((source) => canRunStoredSync(source))) {
+    try {
+      await syncTargetReservations(
+        target,
+        repository,
+        await fetchIcalText(decodeIcalUrl(target.icalUrlEncrypted)),
+      );
+    } catch {
+      await repository.markIcalSourceSyncFailure(target.id, new Date());
+    }
+  }
 }
 
 export async function syncIcalSourceFromText(
@@ -86,37 +218,25 @@ export async function syncIcalSourceFromText(
     );
   }
 
-  const reservations = [];
-  let eventsSeen = 0;
-
   try {
-    const feedText =
-      icsText ?? (await fetchIcalText(decodeIcalUrl(target.icalUrlEncrypted)));
-    const parsedReservations = parseIcalReservations(feedText);
-
-    eventsSeen = parsedReservations.length;
-
-    for (const parsedReservation of parsedReservations) {
-      reservations.push(
-        await repository.upsertReservation({
-          ...parsedReservation,
-          apartmentId: target.apartmentId,
-          icalSourceId: target.id,
-        }),
-      );
+    if (!icsText && !canRunStoredSync(target)) {
+      return {
+        reservations: [],
+        summary: {
+          eventsSeen: 0,
+          reservationsUpserted: 0,
+          syncSkipped: true,
+          syncSkippedReason: "This iCal source was synced recently.",
+        },
+      };
     }
 
-    await repository.markIcalSourceSyncSuccess(target.id, new Date());
+    const feedText =
+      icsText ?? (await fetchIcalText(decodeIcalUrl(target.icalUrlEncrypted)));
+
+    return await syncTargetReservations(target, repository, feedText);
   } catch (error) {
     await repository.markIcalSourceSyncFailure(target.id, new Date());
     throw error;
   }
-
-  return {
-    reservations,
-    summary: {
-      eventsSeen,
-      reservationsUpserted: reservations.length,
-    },
-  };
 }

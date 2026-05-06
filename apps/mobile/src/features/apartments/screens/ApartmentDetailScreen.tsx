@@ -235,11 +235,12 @@ export function ApartmentDetailScreen() {
   async function handleTaskStatus(
     task: OperationalTask,
     status: "done" | "not_done",
+    note?: string,
   ) {
     setUpdatingTaskId(task.id);
 
     try {
-      const updatedTask = await markTaskStatus(session, task.id, status);
+      const updatedTask = await markTaskStatus(session, task.id, status, note);
       setTasks((current) =>
         current.map((currentTask) =>
           currentTask.id === task.id
@@ -248,6 +249,10 @@ export function ApartmentDetailScreen() {
                 completedAt:
                   updatedTask?.completedAt ?? new Date().toISOString(),
                 status,
+                statusNote:
+                  status === "not_done"
+                    ? (updatedTask?.statusNote ?? note ?? null)
+                    : null,
               }
             : currentTask,
         ),
@@ -280,7 +285,10 @@ export function ApartmentDetailScreen() {
       setSources(nextSources);
       setReservations(nextReservations);
       setSyncMessage(
-        `Sync finished: ${summary.reservationsUpserted} reservation updated from ${summary.eventsSeen} event.`,
+        summary.syncSkipped
+          ? (summary.syncSkippedReason ??
+              "This iCal source was synced recently.")
+          : `Sync finished: ${summary.reservationsUpserted} reservation updated from ${summary.eventsSeen} event.`,
       );
     } catch (error) {
       setSyncError(
@@ -469,8 +477,8 @@ export function ApartmentDetailScreen() {
               onMarkDone={(selectedTask) =>
                 void handleTaskStatus(selectedTask, "done")
               }
-              onMarkNotDone={(selectedTask) =>
-                void handleTaskStatus(selectedTask, "not_done")
+              onMarkNotDone={(selectedTask, note) =>
+                void handleTaskStatus(selectedTask, "not_done", note)
               }
               task={task}
             />

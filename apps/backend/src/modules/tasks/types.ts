@@ -10,6 +10,7 @@ export type TaskSummary = {
   title: string;
   description: string | null;
   status: TaskStatus;
+  statusNote: string | null;
   dueAt: string;
   completedAt: string | null;
   completedByUserId: string | null;
@@ -32,6 +33,7 @@ export type CreateTaskInput = {
 };
 
 export type UpdateTaskStatusInput = {
+  note?: string;
   taskId: string;
   status: Extract<TaskStatus, "done" | "not_done">;
   userId: string;

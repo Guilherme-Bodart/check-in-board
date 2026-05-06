@@ -19,6 +19,8 @@ export type IcalSource = {
 export type IcalSyncSummary = {
   eventsSeen: number;
   reservationsUpserted: number;
+  syncSkipped?: boolean;
+  syncSkippedReason?: string | null;
 };
 
 export type ApartmentFormValues = {

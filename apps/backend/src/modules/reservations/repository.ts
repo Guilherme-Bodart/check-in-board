@@ -11,6 +11,10 @@ export interface ReservationsRepository {
     userId: string,
     icalSourceId: string,
   ): Promise<IcalSourceSyncTarget | null>;
+  listApartmentSyncTargets(
+    userId: string,
+    apartmentId: string,
+  ): Promise<IcalSourceSyncTarget[]>;
   listAccessibleReservationsForDate(
     userId: string,
     startsBefore: Date,

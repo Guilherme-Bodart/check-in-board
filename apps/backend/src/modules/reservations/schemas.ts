@@ -26,6 +26,8 @@ export const manualSyncResponseSchema = z.object({
   summary: z.object({
     eventsSeen: z.number().int().min(0),
     reservationsUpserted: z.number().int().min(0),
+    syncSkipped: z.boolean().optional(),
+    syncSkippedReason: z.string().nullable().optional(),
   }),
 });
 

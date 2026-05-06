@@ -42,6 +42,18 @@ class InMemoryReservationsRepository implements ReservationsRepository {
     return this.sourceTargets.get(`${userId}:${icalSourceId}`) ?? null;
   }
 
+  async listApartmentSyncTargets(
+    userId: string,
+    apartmentId: string,
+  ): Promise<IcalSourceSyncTarget[]> {
+    return [...this.sourceTargets.entries()]
+      .filter(
+        ([key, target]) =>
+          key.startsWith(`${userId}:`) && target.apartmentId === apartmentId,
+      )
+      .map(([, target]) => target);
+  }
+
   async listReservations(apartmentId: string): Promise<ReservationSummary[]> {
     return [...this.reservations.values()].filter(
       (reservation) => reservation.apartmentId === apartmentId,
@@ -169,11 +181,14 @@ describe("reservation routes", () => {
       canView: true,
       id: "ical-source-1",
       icalUrlEncrypted: Buffer.from(
-        "https://calendar.example.com/source.ics",
+        "https://93.184.216.34/source.ics",
         "utf8",
       ).toString("base64"),
+      lastFailureAt: null,
+      lastSuccessAt: null,
       provider: "airbnb",
       role: "host_admin",
+      syncEnabled: true,
     });
 
     const app = buildApp({
@@ -204,7 +219,7 @@ describe("reservation routes", () => {
     });
 
     expect(firstSync.statusCode).toBe(200);
-    expect(firstSync.json().summary).toEqual({
+    expect(firstSync.json().summary).toMatchObject({
       eventsSeen: 1,
       reservationsUpserted: 1,
     });
@@ -232,11 +247,14 @@ describe("reservation routes", () => {
       canView: true,
       id: "ical-source-1",
       icalUrlEncrypted: Buffer.from(
-        "https://calendar.example.com/source.ics",
+        "https://93.184.216.34/source.ics",
         "utf8",
       ).toString("base64"),
+      lastFailureAt: null,
+      lastSuccessAt: null,
       provider: "airbnb",
       role: "host_admin",
+      syncEnabled: true,
     });
     vi.stubGlobal(
       "fetch",
@@ -258,12 +276,12 @@ describe("reservation routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().summary).toEqual({
+    expect(response.json().summary).toMatchObject({
       eventsSeen: 1,
       reservationsUpserted: 1,
     });
     expect(fetch).toHaveBeenCalledWith(
-      "https://calendar.example.com/source.ics",
+      "https://93.184.216.34/source.ics",
       expect.objectContaining({
         headers: expect.objectContaining({
           Accept: "text/calendar,text/plain,*/*",
@@ -271,6 +289,59 @@ describe("reservation routes", () => {
       }),
     );
     expect(repository.successfulSyncs).toBe(1);
+
+    await app.close();
+  });
+
+  it("skips stored iCal sync when the source synced recently", async () => {
+    const repository = new InMemoryReservationsRepository();
+    const user: AuthUser = {
+      email: "host@example.com",
+      fullName: "Host Admin",
+      id: "user-host",
+    };
+
+    repository.setSourceTarget(user.id, {
+      apartmentId: "apartment-1",
+      canManageIntegrations: true,
+      canView: true,
+      id: "ical-source-1",
+      icalUrlEncrypted: Buffer.from(
+        "https://93.184.216.34/source.ics",
+        "utf8",
+      ).toString("base64"),
+      lastFailureAt: null,
+      lastSuccessAt: new Date().toISOString(),
+      provider: "airbnb",
+      role: "host_admin",
+      syncEnabled: true,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(sampleIcs, { status: 200 })),
+    );
+
+    const app = buildApp({
+      env: buildTestEnv(),
+      reservationsRepository: repository,
+    });
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${await createAccessToken(user)}`,
+      },
+      method: "POST",
+      payload: {},
+      url: "/ical-sources/ical-source-1/sync",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().summary).toMatchObject({
+      eventsSeen: 0,
+      reservationsUpserted: 0,
+      syncSkipped: true,
+    });
+    expect(fetch).not.toHaveBeenCalled();
 
     await app.close();
   });
