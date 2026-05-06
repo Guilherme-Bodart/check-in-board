@@ -16,13 +16,35 @@ export class PrismaIcalSourcesRepository implements IcalSourcesRepository {
   async createIcalSource(
     input: CreateIcalSourceRecordInput,
   ): Promise<IcalSourceSummary> {
-    const source = await this.prisma.icalSource.create({
-      data: {
-        apartmentId: input.apartmentId,
-        icalUrlEncrypted: input.icalUrlEncrypted,
-        label: input.label,
-        provider: input.provider,
-      },
+    const source = await this.prisma.$transaction(async (tx) => {
+      const createdSource = await tx.icalSource.create({
+        data: {
+          apartmentId: input.apartmentId,
+          icalUrlEncrypted: input.icalUrlEncrypted,
+          label: input.label,
+          provider: input.provider,
+        },
+        include: {
+          apartment: true,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: "ical_source.created",
+          actorUserId: input.createdByUserId,
+          apartmentId: input.apartmentId,
+          entityId: createdSource.id,
+          entityType: "ical_source",
+          metadata: {
+            label: input.label,
+            provider: input.provider,
+          },
+          organizationId: createdSource.apartment.organizationId,
+        },
+      });
+
+      return createdSource;
     });
 
     return {

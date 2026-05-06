@@ -95,3 +95,33 @@ export async function createApartmentInvitation(
 
   return response.invitation;
 }
+
+export async function acceptApartmentInvitation(
+  session: AuthSession | null,
+  token: string,
+) {
+  if (!useDevAuthApi) {
+    return {
+      apartmentId: "apt-1",
+      email: session?.user.email ?? "member@example.com",
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      id: `accepted-invitation-${Date.now()}`,
+      role: "team",
+      status: "accepted",
+    } satisfies ApartmentInvitation;
+  }
+
+  const response = await apiClient.post<InvitationResponse>(
+    "/invitations/accept",
+    { token },
+    {
+      headers: getAuthorizationHeaders(session),
+    },
+  );
+
+  if (!response.invitation) {
+    throw new ApiClientError("Invitation response is invalid.", 500);
+  }
+
+  return response.invitation;
+}

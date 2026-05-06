@@ -3,11 +3,13 @@ import { Platform } from "react-native";
 const DEFAULT_TIMEOUT_MS = 8000;
 
 export class ApiClientError extends Error {
+  retryAfterSeconds?: number;
   status: number;
 
-  constructor(message: string, status = 500) {
+  constructor(message: string, status = 500, retryAfterSeconds?: number) {
     super(message);
     this.name = "ApiClientError";
+    this.retryAfterSeconds = retryAfterSeconds;
     this.status = status;
   }
 }
@@ -57,9 +59,17 @@ async function request<T>(path: string, options: RequestOptions = {}) {
     } | null;
 
     if (!response.ok) {
+      const retryAfterHeader = response.headers.get("retry-after");
+      const retryAfterSeconds = retryAfterHeader
+        ? Number(retryAfterHeader)
+        : undefined;
+
       throw new ApiClientError(
-        payload?.error?.message ?? "Request failed. Please try again.",
+        response.status === 429
+          ? "Too many attempts right now. Wait a little and try again."
+          : (payload?.error?.message ?? "Request failed. Please try again."),
         response.status,
+        Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : undefined,
       );
     }
 

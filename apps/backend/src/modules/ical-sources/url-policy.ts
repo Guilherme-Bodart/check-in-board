@@ -18,7 +18,7 @@ function isPrivateIpv4(host: string) {
 
   return (
     first === 10 ||
-    (first === 127) ||
+    first === 127 ||
     (first === 169 && second === 254) ||
     (first === 172 && second >= 16 && second <= 31) ||
     (first === 192 && second === 168) ||
@@ -67,7 +67,9 @@ export async function assertSafeIcalUrl(icalUrl: string) {
       isPrivateIpv4(parsedUrl.hostname) ||
       isPrivateIpv6(parsedUrl.hostname)
     ) {
-      throw new IcalUrlPolicyError("Private network iCal URLs are not allowed.");
+      throw new IcalUrlPolicyError(
+        "Private network iCal URLs are not allowed.",
+      );
     }
 
     return;

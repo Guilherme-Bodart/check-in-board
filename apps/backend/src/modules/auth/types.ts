@@ -40,3 +40,25 @@ export type SignInInput = {
   email: string;
   password: string;
 };
+
+export type ChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+  userId: string;
+};
+
+export type RequestPasswordResetInput = {
+  email: string;
+};
+
+export type ResetPasswordInput = {
+  newPassword: string;
+  token: string;
+};
+
+export type PasswordResetTokenRecord = {
+  id: string;
+  userId: string;
+  expiresAt: string;
+  usedAt: string | null;
+};

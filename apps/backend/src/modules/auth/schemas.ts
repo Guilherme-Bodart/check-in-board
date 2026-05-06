@@ -27,6 +27,24 @@ export const signInRequestSchema = z.object({
   password: passwordSchema,
 });
 
+export const changePasswordRequestSchema = z.object({
+  currentPassword: passwordSchema,
+  newPassword: passwordSchema,
+});
+
+export const requestPasswordResetRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email()
+    .transform((value) => value.toLowerCase()),
+});
+
+export const resetPasswordRequestSchema = z.object({
+  newPassword: passwordSchema,
+  token: z.string().trim().min(16),
+});
+
 export const authUserSchema = z.object({
   id: z.string().min(1),
   email: z.string().email(),
@@ -56,10 +74,21 @@ export const meResponseSchema = z.object({
   memberships: z.array(membershipSchema),
 });
 
+export const passwordResetRequestedResponseSchema = z.object({
+  resetToken: z.string().min(1).nullable().optional(),
+});
+
+export const okResponseSchema = z.object({
+  ok: z.literal(true),
+});
+
 export type SignUpRequest = z.infer<typeof signUpRequestSchema>;
-export type PasswordSignUpRequest = z.infer<
-  typeof passwordSignUpRequestSchema
->;
+export type PasswordSignUpRequest = z.infer<typeof passwordSignUpRequestSchema>;
 export type SignInRequest = z.infer<typeof signInRequestSchema>;
+export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
+export type RequestPasswordResetRequest = z.infer<
+  typeof requestPasswordResetRequestSchema
+>;
+export type ResetPasswordRequest = z.infer<typeof resetPasswordRequestSchema>;
 export type SignUpResponse = z.infer<typeof signUpResponseSchema>;
 export type MeResponse = z.infer<typeof meResponseSchema>;

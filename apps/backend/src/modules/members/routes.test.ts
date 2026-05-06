@@ -98,7 +98,9 @@ class InMemoryMembersRepository implements MembersRepository {
     userId: string,
     apartmentId: string,
   ): Promise<ApartmentMemberAccess | null> {
-    return this.accessByUserAndApartment.get(`${userId}:${apartmentId}`) ?? null;
+    return (
+      this.accessByUserAndApartment.get(`${userId}:${apartmentId}`) ?? null
+    );
   }
 
   async getUserEmail(userId: string): Promise<string | null> {

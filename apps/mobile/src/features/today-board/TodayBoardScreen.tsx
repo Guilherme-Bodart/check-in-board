@@ -86,7 +86,9 @@ export function TodayBoardScreen({ headerAccessory }: TodayBoardScreenProps) {
     itemId: string,
     taskStatus: "done" | "not_done" = "done",
   ) {
-    const item = content.boardItems.find((boardItem) => boardItem.id === itemId);
+    const item = content.boardItems.find(
+      (boardItem) => boardItem.id === itemId,
+    );
 
     if (!item) {
       return;

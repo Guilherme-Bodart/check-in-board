@@ -1,10 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import type { MembersRepository } from "./repository.js";
-import type {
-  AcceptInvitationInput,
-  CreateInvitationInput,
-} from "./types.js";
+import type { AcceptInvitationInput, CreateInvitationInput } from "./types.js";
 
 export class MembersServiceError extends Error {
   constructor(

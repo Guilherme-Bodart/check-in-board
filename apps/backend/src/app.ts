@@ -18,6 +18,12 @@ import type { ReservationsModuleOptions } from "./modules/reservations/index.js"
 import { syncModule } from "./modules/sync/index.js";
 import { tasksModule, type TasksModuleOptions } from "./modules/tasks/index.js";
 import { getGlobalRateLimitConfig, rateLimit } from "./plugins/rate-limit.js";
+import {
+  cors,
+  getCorsConfig,
+  getHelmetConfig,
+  helmet,
+} from "./plugins/security.js";
 import { env, type Env } from "./shared/env.js";
 import { logger } from "./shared/logger.js";
 
@@ -35,8 +41,11 @@ export function buildApp(options: BuildAppOptions = {}) {
   const app = Fastify({
     disableRequestLogging: runtimeEnv.NODE_ENV === "test",
     loggerInstance: logger,
+    trustProxy: runtimeEnv.TRUST_PROXY,
   });
 
+  app.register(helmet, getHelmetConfig());
+  app.register(cors, getCorsConfig(runtimeEnv));
   app.register(rateLimit, getGlobalRateLimitConfig(runtimeEnv));
 
   app.after(() => {

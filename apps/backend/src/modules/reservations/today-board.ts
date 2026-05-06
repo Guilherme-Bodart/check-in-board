@@ -32,7 +32,9 @@ export type TodayBoardPayload = {
 };
 
 function isSameLocalDate(date: Date, targetDate: Date) {
-  return date.toISOString().slice(0, 10) === targetDate.toISOString().slice(0, 10);
+  return (
+    date.toISOString().slice(0, 10) === targetDate.toISOString().slice(0, 10)
+  );
 }
 
 function formatTime(value: string) {

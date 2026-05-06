@@ -1,4 +1,6 @@
 import { parseIcalReservations } from "../../integrations/ical/parser.js";
+import { decryptSecret } from "../../shared/encryption.js";
+import type { Env } from "../../shared/env.js";
 import {
   assertSafeIcalUrl,
   IcalUrlPolicyError,
@@ -18,12 +20,10 @@ export class ReservationsServiceError extends Error {
   }
 }
 
-function decodeIcalUrl(icalUrlEncrypted: string): string {
-  // Mirrors the MVP placeholder encoding used when creating iCal sources.
-  return Buffer.from(icalUrlEncrypted, "base64").toString("utf8");
-}
-
-function canManageSync(target: { canManageIntegrations: boolean; role: string }) {
+function canManageSync(target: {
+  canManageIntegrations: boolean;
+  role: string;
+}) {
   return target.role === "host_admin" || target.canManageIntegrations;
 }
 
@@ -130,13 +130,16 @@ function canRunStoredSync(target: IcalSourceSyncTarget, now = new Date()) {
 
   const lastAttempt = getLastSyncAttemptAt(target);
 
-  return !lastAttempt || now.getTime() - lastAttempt.getTime() >= syncIntervalMs;
+  return (
+    !lastAttempt || now.getTime() - lastAttempt.getTime() >= syncIntervalMs
+  );
 }
 
 async function syncTargetReservations(
   target: IcalSourceSyncTarget,
   repository: ReservationsRepository,
   feedText: string,
+  actorUserId: string | null,
 ) {
   const parsedReservations = parseIcalReservations(feedText);
   const reservations = [];
@@ -152,6 +155,13 @@ async function syncTargetReservations(
   }
 
   await repository.markIcalSourceSyncSuccess(target.id, new Date());
+  await repository.recordIcalSyncAudit({
+    actorUserId,
+    apartmentId: target.apartmentId,
+    icalSourceId: target.id,
+    organizationId: target.organizationId,
+    status: "succeeded",
+  });
 
   return {
     reservations,
@@ -168,6 +178,7 @@ export async function listReservationsForApartment(
   userId: string,
   apartmentId: string,
   repository: ReservationsRepository,
+  env: Env,
 ) {
   const canView = await repository.getApartmentCanView(userId, apartmentId);
 
@@ -178,7 +189,7 @@ export async function listReservationsForApartment(
     );
   }
 
-  await syncStaleIcalSourcesForApartment(userId, apartmentId, repository);
+  await syncStaleIcalSourcesForApartment(userId, apartmentId, repository, env);
 
   return await repository.listReservations(apartmentId);
 }
@@ -187,18 +198,30 @@ export async function syncStaleIcalSourcesForApartment(
   userId: string,
   apartmentId: string,
   repository: ReservationsRepository,
+  env: Env,
 ) {
-  const targets = await repository.listApartmentSyncTargets(userId, apartmentId);
+  const targets = await repository.listApartmentSyncTargets(
+    userId,
+    apartmentId,
+  );
 
   for (const target of targets.filter((source) => canRunStoredSync(source))) {
     try {
       await syncTargetReservations(
         target,
         repository,
-        await fetchIcalText(decodeIcalUrl(target.icalUrlEncrypted)),
+        await fetchIcalText(decryptSecret(target.icalUrlEncrypted, env)),
+        null,
       );
     } catch {
       await repository.markIcalSourceSyncFailure(target.id, new Date());
+      await repository.recordIcalSyncAudit({
+        actorUserId: null,
+        apartmentId: target.apartmentId,
+        icalSourceId: target.id,
+        organizationId: target.organizationId,
+        status: "failed",
+      });
     }
   }
 }
@@ -208,6 +231,7 @@ export async function syncIcalSourceFromText(
   icalSourceId: string,
   icsText: string | undefined,
   repository: ReservationsRepository,
+  env: Env,
 ) {
   const target = await repository.getIcalSourceSyncTarget(userId, icalSourceId);
 
@@ -220,6 +244,14 @@ export async function syncIcalSourceFromText(
 
   try {
     if (!icsText && !canRunStoredSync(target)) {
+      await repository.recordIcalSyncAudit({
+        actorUserId: userId,
+        apartmentId: target.apartmentId,
+        icalSourceId: target.id,
+        organizationId: target.organizationId,
+        status: "skipped",
+      });
+
       return {
         reservations: [],
         summary: {
@@ -232,11 +264,19 @@ export async function syncIcalSourceFromText(
     }
 
     const feedText =
-      icsText ?? (await fetchIcalText(decodeIcalUrl(target.icalUrlEncrypted)));
+      icsText ??
+      (await fetchIcalText(decryptSecret(target.icalUrlEncrypted, env)));
 
-    return await syncTargetReservations(target, repository, feedText);
+    return await syncTargetReservations(target, repository, feedText, userId);
   } catch (error) {
     await repository.markIcalSourceSyncFailure(target.id, new Date());
+    await repository.recordIcalSyncAudit({
+      actorUserId: userId,
+      apartmentId: target.apartmentId,
+      icalSourceId: target.id,
+      organizationId: target.organizationId,
+      status: "failed",
+    });
     throw error;
   }
 }

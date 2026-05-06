@@ -109,6 +109,7 @@ export const icalSourcesModule: FastifyPluginAsync<IcalSourcesModuleOptions> =
               apartmentId: params.apartmentId ?? "",
             },
             repository,
+            options.env,
           );
 
           return reply.code(201).send(

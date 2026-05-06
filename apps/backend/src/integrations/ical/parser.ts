@@ -12,7 +12,9 @@ export type ParsedIcalReservation = {
   };
 };
 
-export function parseIcalReservations(icsText: string): ParsedIcalReservation[] {
+export function parseIcalReservations(
+  icsText: string,
+): ParsedIcalReservation[] {
   const calendar = new ICAL.Component(ICAL.parse(icsText));
   const events = calendar.getAllSubcomponents("vevent");
 

@@ -32,18 +32,20 @@ export const createTaskResponseSchema = z.object({
   task: taskSchema,
 });
 
-export const updateTaskStatusRequestSchema = z.object({
-  note: z.string().trim().max(500).optional(),
-  status: z.enum(["done", "not_done"]),
-}).superRefine((value, context) => {
-  if (value.status === "not_done" && !value.note) {
-    context.addIssue({
-      code: "custom",
-      message: "A note is required when marking a task as not done.",
-      path: ["note"],
-    });
-  }
-});
+export const updateTaskStatusRequestSchema = z
+  .object({
+    note: z.string().trim().max(500).optional(),
+    status: z.enum(["done", "not_done"]),
+  })
+  .superRefine((value, context) => {
+    if (value.status === "not_done" && !value.note) {
+      context.addIssue({
+        code: "custom",
+        message: "A note is required when marking a task as not done.",
+        path: ["note"],
+      });
+    }
+  });
 
 export const updateTaskStatusResponseSchema = z.object({
   task: taskSchema,

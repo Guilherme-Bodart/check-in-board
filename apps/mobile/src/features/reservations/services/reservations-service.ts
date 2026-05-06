@@ -30,7 +30,8 @@ export function addMockReservationForApartment(
   apartmentId: string,
   reservation: Reservation,
 ) {
-  const currentReservations = mockReservationsByApartment.get(apartmentId) ?? [];
+  const currentReservations =
+    mockReservationsByApartment.get(apartmentId) ?? [];
 
   mockReservationsByApartment.set(apartmentId, [
     reservation,

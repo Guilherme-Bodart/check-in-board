@@ -4,6 +4,7 @@ import type {
   AuthUser,
   AuthenticatedUser,
   AuthenticatedUserWithPassword,
+  PasswordResetTokenRecord,
 } from "./types.js";
 
 export type CreateUserInput = {
@@ -24,6 +25,12 @@ export type CreateOrganizationMembershipInput = {
   role: AuthMembership["role"];
 };
 
+export type CreatePasswordResetTokenInput = {
+  expiresAt: Date;
+  tokenHash: string;
+  userId: string;
+};
+
 export interface AuthRepository {
   findUserByEmail(email: string): Promise<AuthenticatedUser | null>;
   findUserCredentialByEmail(
@@ -35,6 +42,13 @@ export interface AuthRepository {
     userId: string,
     passwordHash: string,
   ): Promise<AuthUser>;
+  createPasswordResetToken(
+    input: CreatePasswordResetTokenInput,
+  ): Promise<PasswordResetTokenRecord>;
+  findPasswordResetTokenByHash(
+    tokenHash: string,
+  ): Promise<PasswordResetTokenRecord | null>;
+  markPasswordResetTokenUsed(tokenId: string): Promise<void>;
   createOrganization(input: CreateOrganizationInput): Promise<AuthOrganization>;
   createOrganizationMembership(
     input: CreateOrganizationMembershipInput,

@@ -102,6 +102,7 @@ export const reservationsModule: FastifyPluginAsync<ReservationsModuleOptions> =
           auth.userId,
           params.apartmentId ?? "",
           await getRepository(),
+          options.env,
         );
 
         return reply.code(200).send(
@@ -145,6 +146,7 @@ export const reservationsModule: FastifyPluginAsync<ReservationsModuleOptions> =
             params.icalSourceId ?? "",
             parsedBody.data.icsText,
             await getRepository(),
+            options.env,
           );
 
           return reply.code(200).send(manualSyncResponseSchema.parse(result));

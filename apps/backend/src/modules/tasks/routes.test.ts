@@ -49,7 +49,9 @@ class InMemoryTasksRepository implements TasksRepository {
     userId: string,
     apartmentId: string,
   ): Promise<ApartmentTaskAccess | null> {
-    return this.accessByUserAndApartment.get(`${userId}:${apartmentId}`) ?? null;
+    return (
+      this.accessByUserAndApartment.get(`${userId}:${apartmentId}`) ?? null
+    );
   }
 
   async getTaskAccess(
@@ -58,7 +60,9 @@ class InMemoryTasksRepository implements TasksRepository {
   ): Promise<ApartmentTaskAccess | null> {
     const task = this.tasks.get(taskId);
 
-    return task ? await this.getApartmentAccess(userId, task.apartmentId) : null;
+    return task
+      ? await this.getApartmentAccess(userId, task.apartmentId)
+      : null;
   }
 
   async listAccessibleTasksForDate(

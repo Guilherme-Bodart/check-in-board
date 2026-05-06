@@ -1,10 +1,18 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import type { Env } from "../../shared/env.js";
-import { getAuthRateLimitConfig } from "../../plugins/rate-limit.js";
 import {
+  getAuthRateLimitConfig,
+  getWriteRateLimitConfig,
+} from "../../plugins/rate-limit.js";
+import {
+  changePasswordRequestSchema,
   meResponseSchema,
+  okResponseSchema,
   passwordSignUpRequestSchema,
+  passwordResetRequestedResponseSchema,
+  requestPasswordResetRequestSchema,
+  resetPasswordRequestSchema,
   signInRequestSchema,
   signUpRequestSchema,
   signUpResponseSchema,
@@ -12,7 +20,10 @@ import {
 import { AuthError, authenticateRequest } from "./guard.js";
 import {
   AuthServiceError,
+  changePasswordForUser,
   getAuthenticatedUser,
+  requestPasswordReset,
+  resetPasswordWithToken,
   signInWithPassword,
   signUpWithDevAuth,
   signUpWithPassword,
@@ -141,6 +152,100 @@ export const authModule: FastifyPluginAsync<AuthModuleOptions> =
         );
 
         return reply.code(200).send(responseBody);
+      },
+    );
+
+    app.post(
+      "/change-password",
+      getWriteRateLimitConfig(options.env),
+      async (request, reply) => {
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const parsedBody = changePasswordRequestSchema.safeParse(
+            request.body,
+          );
+
+          if (!parsedBody.success) {
+            return reply
+              .code(400)
+              .send(sendError("BAD_REQUEST", "Invalid password payload."));
+          }
+
+          await changePasswordForUser(
+            {
+              currentPassword: parsedBody.data.currentPassword,
+              newPassword: parsedBody.data.newPassword,
+              userId: auth.userId,
+            },
+            await getRepository(),
+          );
+
+          return reply.code(200).send(okResponseSchema.parse({ ok: true }));
+        } catch (error) {
+          if (error instanceof AuthServiceError) {
+            return reply.code(401).send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
+          return reply
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
+        }
+      },
+    );
+
+    app.post(
+      "/password-reset/request",
+      getAuthRateLimitConfig(options.env),
+      async (request, reply) => {
+        const parsedBody = requestPasswordResetRequestSchema.safeParse(
+          request.body,
+        );
+
+        if (!parsedBody.success) {
+          return reply
+            .code(400)
+            .send(sendError("BAD_REQUEST", "Invalid password reset payload."));
+        }
+
+        const responseBody = passwordResetRequestedResponseSchema.parse(
+          await requestPasswordReset(
+            parsedBody.data,
+            await getRepository(),
+            options.env,
+          ),
+        );
+
+        return reply.code(202).send(responseBody);
+      },
+    );
+
+    app.post(
+      "/password-reset/confirm",
+      getAuthRateLimitConfig(options.env),
+      async (request, reply) => {
+        const parsedBody = resetPasswordRequestSchema.safeParse(request.body);
+
+        if (!parsedBody.success) {
+          return reply
+            .code(400)
+            .send(sendError("BAD_REQUEST", "Invalid password reset payload."));
+        }
+
+        try {
+          await resetPasswordWithToken(parsedBody.data, await getRepository());
+
+          return reply.code(200).send(okResponseSchema.parse({ ok: true }));
+        } catch (error) {
+          if (error instanceof AuthServiceError) {
+            return reply.code(400).send(sendError(error.code, error.message));
+          }
+
+          throw error;
+        }
       },
     );
 

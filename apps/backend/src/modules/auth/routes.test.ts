@@ -9,11 +9,13 @@ import type {
   AuthUser,
   AuthenticatedUser,
   AuthenticatedUserWithPassword,
+  PasswordResetTokenRecord,
 } from "./types.js";
 
 class InMemoryAuthRepository implements AuthRepository {
   private users = new Map<string, AuthenticatedUserWithPassword>();
   private usersByEmail = new Map<string, string>();
+  private passwordResetTokens = new Map<string, PasswordResetTokenRecord>();
   private organizations = new Map<string, AuthOrganization>();
   private userSequence = 1;
   private organizationSequence = 1;
@@ -95,6 +97,40 @@ class InMemoryAuthRepository implements AuthRepository {
     };
   }
 
+  async createPasswordResetToken(input: {
+    expiresAt: Date;
+    tokenHash: string;
+    userId: string;
+  }): Promise<PasswordResetTokenRecord> {
+    const token = {
+      expiresAt: input.expiresAt.toISOString(),
+      id: `reset-${this.passwordResetTokens.size + 1}`,
+      usedAt: null,
+      userId: input.userId,
+    };
+
+    this.passwordResetTokens.set(input.tokenHash, token);
+
+    return token;
+  }
+
+  async findPasswordResetTokenByHash(
+    tokenHash: string,
+  ): Promise<PasswordResetTokenRecord | null> {
+    return this.passwordResetTokens.get(tokenHash) ?? null;
+  }
+
+  async markPasswordResetTokenUsed(tokenId: string): Promise<void> {
+    for (const [hash, token] of this.passwordResetTokens.entries()) {
+      if (token.id === tokenId) {
+        this.passwordResetTokens.set(hash, {
+          ...token,
+          usedAt: new Date().toISOString(),
+        });
+      }
+    }
+  }
+
   async createOrganization(input: { name: string }): Promise<AuthOrganization> {
     const organization = {
       id: `org-${this.organizationSequence++}`,
@@ -136,6 +172,7 @@ class InMemoryAuthRepository implements AuthRepository {
 
 function buildTestEnv(nodeEnv: "test" | "production" = "test") {
   return parseEnv({
+    AUTH_PASSWORD_RESET_EXPOSE_TOKEN: "true",
     AUTH_JWT_SECRET: "test-auth-secret-with-at-least-thirty-two-characters",
     DATABASE_URL:
       "postgresql://postgres:postgres@localhost:5432/check_in_board_test?schema=public",
@@ -226,6 +263,103 @@ describe("auth routes", () => {
         message: "Email or password is incorrect.",
       },
     });
+
+    await app.close();
+  });
+
+  it("changes password for an authenticated user", async () => {
+    const app = buildApp({
+      authRepository: new InMemoryAuthRepository(),
+      env: buildTestEnv("production"),
+    });
+
+    const signUpResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+        fullName: "Host Admin",
+        password: "secure-password",
+      },
+      url: "/auth/sign-up",
+    });
+
+    const changeResponse = await app.inject({
+      headers: {
+        authorization: `Bearer ${signUpResponse.json().accessToken}`,
+      },
+      method: "POST",
+      payload: {
+        currentPassword: "secure-password",
+        newPassword: "new-secure-password",
+      },
+      url: "/auth/change-password",
+    });
+
+    expect(changeResponse.statusCode).toBe(200);
+
+    const signInResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+        password: "new-secure-password",
+      },
+      url: "/auth/sign-in",
+    });
+
+    expect(signInResponse.statusCode).toBe(200);
+
+    await app.close();
+  });
+
+  it("resets password with an issued token", async () => {
+    const app = buildApp({
+      authRepository: new InMemoryAuthRepository(),
+      env: buildTestEnv("production"),
+    });
+
+    await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+        fullName: "Host Admin",
+        password: "secure-password",
+      },
+      url: "/auth/sign-up",
+    });
+
+    const resetRequestResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+      },
+      url: "/auth/password-reset/request",
+    });
+
+    expect(resetRequestResponse.statusCode).toBe(202);
+    const resetToken = resetRequestResponse.json().resetToken;
+    expect(resetToken).toEqual(expect.any(String));
+
+    const resetConfirmResponse = await app.inject({
+      method: "POST",
+      payload: {
+        newPassword: "reset-secure-password",
+        token: resetToken,
+      },
+      url: "/auth/password-reset/confirm",
+    });
+
+    expect(resetConfirmResponse.statusCode).toBe(200);
+
+    const signInResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "host@example.com",
+        password: "reset-secure-password",
+      },
+      url: "/auth/sign-in",
+    });
+
+    expect(signInResponse.statusCode).toBe(200);
 
     await app.close();
   });

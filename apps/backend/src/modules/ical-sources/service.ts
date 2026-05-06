@@ -1,3 +1,5 @@
+import type { Env } from "../../shared/env.js";
+import { encryptSecret } from "../../shared/encryption.js";
 import type { IcalSourcesRepository } from "./repository.js";
 import type { CreateIcalSourceInput } from "./types.js";
 import { assertSafeIcalUrl, IcalUrlPolicyError } from "./url-policy.js";
@@ -9,11 +11,6 @@ export class IcalSourcesServiceError extends Error {
   ) {
     super(message);
   }
-}
-
-function encodeIcalUrl(icalUrl: string): string {
-  // TODO: replace this placeholder with real encryption before production.
-  return Buffer.from(icalUrl, "utf8").toString("base64");
 }
 
 function canManageIcalSources(access: {
@@ -44,6 +41,7 @@ export async function createIcalSourceForApartment(
   userId: string,
   input: CreateIcalSourceInput,
   repository: IcalSourcesRepository,
+  env: Env,
 ) {
   const access = await repository.getApartmentAccess(userId, input.apartmentId);
 
@@ -66,6 +64,7 @@ export async function createIcalSourceForApartment(
 
   return await repository.createIcalSource({
     ...input,
-    icalUrlEncrypted: encodeIcalUrl(input.icalUrl),
+    createdByUserId: userId,
+    icalUrlEncrypted: encryptSecret(input.icalUrl, env),
   });
 }

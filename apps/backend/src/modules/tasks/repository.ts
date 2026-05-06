@@ -5,8 +5,12 @@ import type {
   UpdateTaskStatusInput,
 } from "./types.js";
 
+export type CreateTaskRecordInput = CreateTaskInput & {
+  createdByUserId: string;
+};
+
 export interface TasksRepository {
-  createTask(input: CreateTaskInput): Promise<TaskSummary>;
+  createTask(input: CreateTaskRecordInput): Promise<TaskSummary>;
   getApartmentAccess(
     userId: string,
     apartmentId: string,

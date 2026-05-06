@@ -5,6 +5,7 @@ import type {
 } from "./types.js";
 
 export type CreateIcalSourceRecordInput = CreateIcalSourceInput & {
+  createdByUserId: string;
   icalUrlEncrypted: string;
 };
 

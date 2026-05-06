@@ -51,7 +51,9 @@ class InMemoryIcalSourcesRepository implements IcalSourcesRepository {
     userId: string,
     apartmentId: string,
   ): Promise<ApartmentIcalAccess | null> {
-    return this.accessByUserAndApartment.get(`${userId}:${apartmentId}`) ?? null;
+    return (
+      this.accessByUserAndApartment.get(`${userId}:${apartmentId}`) ?? null
+    );
   }
 
   async listIcalSources(apartmentId: string): Promise<IcalSourceSummary[]> {

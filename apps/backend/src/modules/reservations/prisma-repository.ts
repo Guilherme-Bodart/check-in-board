@@ -20,19 +20,25 @@ function toPrismaJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
-function mapSyncTarget(source: {
-  apartmentId: string;
-  id: string;
-  icalUrlEncrypted: string;
-  lastFailureAt: Date | null;
-  lastSuccessAt: Date | null;
-  provider: string;
-  syncEnabled: boolean;
-}, membership: {
-  canManageIntegrations: boolean;
-  canView: boolean;
-  role: string;
-}): IcalSourceSyncTarget {
+function mapSyncTarget(
+  source: {
+    apartment: {
+      organizationId: string;
+    };
+    apartmentId: string;
+    id: string;
+    icalUrlEncrypted: string;
+    lastFailureAt: Date | null;
+    lastSuccessAt: Date | null;
+    provider: string;
+    syncEnabled: boolean;
+  },
+  membership: {
+    canManageIntegrations: boolean;
+    canView: boolean;
+    role: string;
+  },
+): IcalSourceSyncTarget {
   return {
     apartmentId: source.apartmentId,
     canManageIntegrations: membership.canManageIntegrations,
@@ -41,6 +47,7 @@ function mapSyncTarget(source: {
     id: source.id,
     lastFailureAt: toNullableIsoString(source.lastFailureAt),
     lastSuccessAt: toNullableIsoString(source.lastSuccessAt),
+    organizationId: source.apartment.organizationId,
     provider: source.provider,
     role: membership.role,
     syncEnabled: source.syncEnabled,
@@ -274,6 +281,28 @@ export class PrismaReservationsRepository implements ReservationsRepository {
       },
       where: {
         id: icalSourceId,
+      },
+    });
+  }
+
+  async recordIcalSyncAudit(input: {
+    actorUserId: string | null;
+    apartmentId: string;
+    icalSourceId: string;
+    organizationId: string;
+    status: "succeeded" | "failed" | "skipped";
+  }): Promise<void> {
+    await this.prisma.auditLog.create({
+      data: {
+        action: `ical_source.sync_${input.status}`,
+        actorUserId: input.actorUserId,
+        apartmentId: input.apartmentId,
+        entityId: input.icalSourceId,
+        entityType: "ical_source",
+        metadata: {
+          status: input.status,
+        },
+        organizationId: input.organizationId,
       },
     });
   }

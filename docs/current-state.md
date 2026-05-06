@@ -72,6 +72,16 @@
   - write/sync routes have a separate configurable limit;
   - rate limit knobs are exposed through backend environment variables;
   - backend tests cover 429 behavior for repeated requests.
+- Security and account hardening:
+  - backend now registers CORS and Helmet security headers;
+  - Fastify `trustProxy` is configurable for Render/proxy-aware IP handling;
+  - new iCal URLs are encrypted with AES-256-GCM while legacy base64 values still decrypt;
+  - password reset tokens are stored hashed in `password_reset_tokens`;
+  - authenticated users can change password from the mobile Security screen;
+  - mobile auth screen can request/confirm password reset tokens;
+  - mobile has an invitation acceptance screen for pasted invite tokens;
+  - mobile API client now gives a clearer message for HTTP `429`;
+  - audit logs are written for iCal source creation/sync, invitation creation/acceptance, and task creation/status updates.
 
 ## Implemented
 
@@ -130,6 +140,14 @@
 - API protection:
   - `@fastify/rate-limit` protects backend routes with an in-memory store for the current single-instance MVP setup
   - configurable global, auth, and write-route limits
+- Account and security flows:
+  - `POST /auth/change-password`
+  - `POST /auth/password-reset/request`
+  - `POST /auth/password-reset/confirm`
+  - `password_reset_tokens` table applied to Neon with `prisma db push`
+  - CORS/Helmet plugins enabled in backend
+  - iCal URL encryption helper with legacy decode fallback
+  - protected mobile routes for accepting invites and changing password
 
 ## Test Status
 
@@ -146,6 +164,8 @@ Last full local validation:
 - backend build after iCal protections and task not-done notes
 - backend build after members/invitations
 - backend tests/typecheck after API rate limiting
+- backend tests/typecheck after security headers, password reset/change, iCal encryption, and audit logs
+- Neon schema push after adding `password_reset_tokens`
 - Render + Neon smoke test:
   - `/health`
   - `/auth/sign-up`
@@ -169,6 +189,8 @@ Last full local validation:
   - reservation-driven Today Board route
   - operational task routes
   - apartment member and invitation routes
+  - password change/reset routes
+  - secret encryption helper
 - Mobile:
   - auth form validation
   - auth password validation
@@ -181,13 +203,13 @@ Last full local validation:
 
 ## Next Implementation Step
 
-Improve production readiness and invitation UX:
+Improve production UX and operations:
 
-- add CORS/security headers appropriate for mobile/API clients;
-- add an accept-invite mobile flow/deep link instead of showing only the raw token;
-- add password reset/change password;
-- replace placeholder iCal URL base64 encoding with real encryption at rest;
-- add audit logs for security-sensitive actions.
+- connect a real email provider for password reset and invitation delivery;
+- add audit log viewing/admin inspection endpoints;
+- add better mobile copy/share UX for invitation links;
+- add a persisted sync run table write path for sync observability;
+- consider Redis/Upstash for rate limiting before horizontal scaling.
 
 ## Known Local Environment Notes
 

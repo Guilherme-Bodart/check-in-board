@@ -126,14 +126,13 @@ export function ApartmentDetailScreen() {
         nextReservations,
         nextTasks,
         nextMembers,
-      ] =
-        await Promise.all([
-          getApartmentById(session, apartmentId),
-          listIcalSources(session, apartmentId),
-          listReservations(session, apartmentId),
-          listApartmentTasks(session, apartmentId),
-          listApartmentMembers(session, apartmentId),
-        ]);
+      ] = await Promise.all([
+        getApartmentById(session, apartmentId),
+        listIcalSources(session, apartmentId),
+        listReservations(session, apartmentId),
+        listApartmentTasks(session, apartmentId),
+        listApartmentMembers(session, apartmentId),
+      ]);
 
       setApartment(nextApartment);
       setSources(nextSources);
@@ -339,11 +338,7 @@ export function ApartmentDetailScreen() {
     setSyncError(null);
 
     try {
-      const summary = await syncIcalSource(
-        session,
-        apartmentId,
-        source,
-      );
+      const summary = await syncIcalSource(session, apartmentId, source);
       const [nextSources, nextReservations] = await Promise.all([
         listIcalSources(session, apartmentId),
         listReservations(session, apartmentId),
@@ -493,10 +488,7 @@ export function ApartmentDetailScreen() {
       ) : (
         <View style={styles.list}>
           {reservations.map((reservation) => (
-            <ReservationCard
-              key={reservation.id}
-              reservation={reservation}
-            />
+            <ReservationCard key={reservation.id} reservation={reservation} />
           ))}
         </View>
       )}

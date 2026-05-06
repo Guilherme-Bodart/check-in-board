@@ -1,9 +1,8 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-import type { TasksRepository } from "./repository.js";
+import type { CreateTaskRecordInput, TasksRepository } from "./repository.js";
 import type {
   ApartmentTaskAccess,
-  CreateTaskInput,
   TaskSummary,
   UpdateTaskStatusInput,
 } from "./types.js";
@@ -27,7 +26,9 @@ function mapTask(task: {
   title: string;
 }): TaskSummary {
   const result =
-    task.result && typeof task.result === "object" && !Array.isArray(task.result)
+    task.result &&
+    typeof task.result === "object" &&
+    !Array.isArray(task.result)
       ? task.result
       : null;
 
@@ -43,9 +44,7 @@ function mapTask(task: {
     reservationId: task.reservationId,
     status: task.status,
     statusNote:
-      typeof result?.notDoneReason === "string"
-        ? result.notDoneReason
-        : null,
+      typeof result?.notDoneReason === "string" ? result.notDoneReason : null,
     title: task.title,
   };
 }
@@ -53,18 +52,38 @@ function mapTask(task: {
 export class PrismaTasksRepository implements TasksRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async createTask(input: CreateTaskInput): Promise<TaskSummary> {
-    const task = await this.prisma.task.create({
-      data: {
-        apartmentId: input.apartmentId,
-        description: input.description,
-        dueAt: input.dueAt,
-        reservationId: input.reservationId,
-        title: input.title,
-      },
-      include: {
-        apartment: true,
-      },
+  async createTask(input: CreateTaskRecordInput): Promise<TaskSummary> {
+    const task = await this.prisma.$transaction(async (tx) => {
+      const createdTask = await tx.task.create({
+        data: {
+          apartmentId: input.apartmentId,
+          description: input.description,
+          dueAt: input.dueAt,
+          reservationId: input.reservationId,
+          title: input.title,
+        },
+        include: {
+          apartment: true,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: "task.created",
+          actorUserId: input.createdByUserId,
+          apartmentId: input.apartmentId,
+          entityId: createdTask.id,
+          entityType: "task",
+          metadata: {
+            dueAt: input.dueAt.toISOString(),
+            reservationId: input.reservationId ?? null,
+            title: input.title,
+          },
+          organizationId: createdTask.apartment.organizationId,
+        },
+      });
+
+      return createdTask;
     });
 
     return mapTask(task);
@@ -172,27 +191,44 @@ export class PrismaTasksRepository implements TasksRepository {
     return tasks.map(mapTask);
   }
 
-  async updateTaskStatus(
-    input: UpdateTaskStatusInput,
-  ): Promise<TaskSummary> {
-    const task = await this.prisma.task.update({
-      data: {
-        completedAt: new Date(),
-        completedByUserId: input.userId,
-        result:
-          input.status === "not_done"
-            ? {
-                notDoneReason: input.note,
-              }
-            : Prisma.JsonNull,
-        status: input.status,
-      },
-      include: {
-        apartment: true,
-      },
-      where: {
-        id: input.taskId,
-      },
+  async updateTaskStatus(input: UpdateTaskStatusInput): Promise<TaskSummary> {
+    const task = await this.prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.task.update({
+        data: {
+          completedAt: new Date(),
+          completedByUserId: input.userId,
+          result:
+            input.status === "not_done"
+              ? {
+                  notDoneReason: input.note,
+                }
+              : Prisma.JsonNull,
+          status: input.status,
+        },
+        include: {
+          apartment: true,
+        },
+        where: {
+          id: input.taskId,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: "task.status_updated",
+          actorUserId: input.userId,
+          apartmentId: updatedTask.apartmentId,
+          entityId: updatedTask.id,
+          entityType: "task",
+          metadata: {
+            note: input.note ?? null,
+            status: input.status,
+          },
+          organizationId: updatedTask.apartment.organizationId,
+        },
+      });
+
+      return updatedTask;
     });
 
     return mapTask(task);

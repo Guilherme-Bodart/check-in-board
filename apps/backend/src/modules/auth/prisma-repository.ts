@@ -7,11 +7,13 @@ import type {
   AuthUser,
   AuthenticatedUser,
   AuthenticatedUserWithPassword,
+  PasswordResetTokenRecord,
 } from "./types.js";
 import type {
   AuthRepository,
   CreateOrganizationInput,
   CreateOrganizationMembershipInput,
+  CreatePasswordResetTokenInput,
   CreateUserInput,
 } from "./repository.js";
 
@@ -92,6 +94,20 @@ function mapAuthenticatedUserWithPassword(record: {
   return {
     ...mapAuthenticatedUser(record),
     passwordHash: record.passwordHash,
+  };
+}
+
+function mapPasswordResetToken(record: {
+  expiresAt: Date;
+  id: string;
+  usedAt: Date | null;
+  userId: string;
+}): PasswordResetTokenRecord {
+  return {
+    expiresAt: record.expiresAt.toISOString(),
+    id: record.id,
+    usedAt: record.usedAt?.toISOString() ?? null,
+    userId: record.userId,
   };
 }
 
@@ -188,6 +204,43 @@ export class PrismaAuthRepository implements AuthRepository {
     });
 
     return mapUser(user);
+  }
+
+  async createPasswordResetToken(
+    input: CreatePasswordResetTokenInput,
+  ): Promise<PasswordResetTokenRecord> {
+    const token = await this.prisma.passwordResetToken.create({
+      data: {
+        expiresAt: input.expiresAt,
+        tokenHash: input.tokenHash,
+        userId: input.userId,
+      },
+    });
+
+    return mapPasswordResetToken(token);
+  }
+
+  async findPasswordResetTokenByHash(
+    tokenHash: string,
+  ): Promise<PasswordResetTokenRecord | null> {
+    const token = await this.prisma.passwordResetToken.findUnique({
+      where: {
+        tokenHash,
+      },
+    });
+
+    return token ? mapPasswordResetToken(token) : null;
+  }
+
+  async markPasswordResetTokenUsed(tokenId: string): Promise<void> {
+    await this.prisma.passwordResetToken.update({
+      data: {
+        usedAt: new Date(),
+      },
+      where: {
+        id: tokenId,
+      },
+    });
   }
 
   async createOrganization(

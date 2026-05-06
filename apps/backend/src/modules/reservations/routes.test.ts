@@ -18,6 +18,7 @@ class InMemoryReservationsRepository implements ReservationsRepository {
   private reservations = new Map<string, ReservationSummary>();
   private reservationSequence = 1;
   public failedSyncs = 0;
+  public syncAudits = 0;
   public successfulSyncs = 0;
 
   setApartmentCanView(userId: string, apartmentId: string, canView: boolean) {
@@ -68,6 +69,10 @@ class InMemoryReservationsRepository implements ReservationsRepository {
     this.successfulSyncs += 1;
   }
 
+  async recordIcalSyncAudit(): Promise<void> {
+    this.syncAudits += 1;
+  }
+
   async listAccessibleReservationsForDate(
     userId: string,
     startsBefore: Date,
@@ -100,7 +105,8 @@ class InMemoryReservationsRepository implements ReservationsRepository {
       externalEventKey: input.externalEventKey,
       externalUid: input.externalUid,
       icalSourceId: input.icalSourceId,
-      id: existingReservation?.id ?? `reservation-${this.reservationSequence++}`,
+      id:
+        existingReservation?.id ?? `reservation-${this.reservationSequence++}`,
       provider: "airbnb",
       rawSummary: input.rawSummary,
       startsAt: input.startsAt.toISOString(),
@@ -177,6 +183,7 @@ describe("reservation routes", () => {
 
     repository.setSourceTarget(user.id, {
       apartmentId: "apartment-1",
+      organizationId: "org-1",
       canManageIntegrations: true,
       canView: true,
       id: "ical-source-1",
@@ -243,6 +250,7 @@ describe("reservation routes", () => {
 
     repository.setSourceTarget(user.id, {
       apartmentId: "apartment-1",
+      organizationId: "org-1",
       canManageIntegrations: true,
       canView: true,
       id: "ical-source-1",
@@ -303,6 +311,7 @@ describe("reservation routes", () => {
 
     repository.setSourceTarget(user.id, {
       apartmentId: "apartment-1",
+      organizationId: "org-1",
       canManageIntegrations: true,
       canView: true,
       id: "ical-source-1",

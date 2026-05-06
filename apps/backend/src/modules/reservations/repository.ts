@@ -29,5 +29,12 @@ export interface ReservationsRepository {
     icalSourceId: string,
     syncedAt: Date,
   ): Promise<void>;
+  recordIcalSyncAudit(input: {
+    actorUserId: string | null;
+    apartmentId: string;
+    icalSourceId: string;
+    organizationId: string;
+    status: "succeeded" | "failed" | "skipped";
+  }): Promise<void>;
   upsertReservation(input: UpsertReservationInput): Promise<ReservationSummary>;
 }

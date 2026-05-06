@@ -25,6 +25,7 @@ export type UpsertReservationInput = {
 export type IcalSourceSyncTarget = {
   id: string;
   apartmentId: string;
+  organizationId: string;
   provider: string;
   icalUrlEncrypted: string;
   lastFailureAt: string | null;

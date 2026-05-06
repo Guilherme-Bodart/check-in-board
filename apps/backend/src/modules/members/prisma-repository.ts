@@ -94,6 +94,21 @@ export class PrismaMembersRepository implements MembersRepository {
         });
       }
 
+      await tx.auditLog.create({
+        data: {
+          action: "invitation.accepted",
+          actorUserId: input.userId,
+          apartmentId: invitation.apartmentId,
+          entityId: invitation.id,
+          entityType: "invitation",
+          metadata: {
+            email: invitation.email,
+            role: invitation.role,
+          },
+          organizationId: invitation.organizationId,
+        },
+      });
+
       return mapInvitation(invitation);
     });
   }
@@ -101,16 +116,35 @@ export class PrismaMembersRepository implements MembersRepository {
   async createInvitation(
     input: CreateInvitationRecordInput,
   ): Promise<InvitationSummary> {
-    const invitation = await this.prisma.invitation.create({
-      data: {
-        apartmentId: input.apartmentId,
-        email: input.email,
-        expiresAt: input.expiresAt,
-        invitedByUserId: input.invitedByUserId,
-        organizationId: input.organizationId,
-        role: input.role,
-        tokenHash: input.tokenHash,
-      },
+    const invitation = await this.prisma.$transaction(async (tx) => {
+      const createdInvitation = await tx.invitation.create({
+        data: {
+          apartmentId: input.apartmentId,
+          email: input.email,
+          expiresAt: input.expiresAt,
+          invitedByUserId: input.invitedByUserId,
+          organizationId: input.organizationId,
+          role: input.role,
+          tokenHash: input.tokenHash,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: "invitation.created",
+          actorUserId: input.invitedByUserId,
+          apartmentId: input.apartmentId,
+          entityId: createdInvitation.id,
+          entityType: "invitation",
+          metadata: {
+            email: input.email,
+            role: input.role,
+          },
+          organizationId: input.organizationId,
+        },
+      });
+
+      return createdInvitation;
     });
 
     return mapInvitation(invitation);

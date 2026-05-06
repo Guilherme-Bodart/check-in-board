@@ -1,5 +1,9 @@
 import type { TasksRepository } from "./repository.js";
-import type { CreateTaskInput, TaskSummary, UpdateTaskStatusInput } from "./types.js";
+import type {
+  CreateTaskInput,
+  TaskSummary,
+  UpdateTaskStatusInput,
+} from "./types.js";
 
 export class TasksServiceError extends Error {
   constructor(
@@ -31,7 +35,10 @@ function assertCanCreate(access: { role: string } | null) {
 function assertCanUpdateStatus(
   access: { canUpdateTaskStatus: boolean; role: string } | null,
 ) {
-  if (!access || (access.role !== "host_admin" && !access.canUpdateTaskStatus)) {
+  if (
+    !access ||
+    (access.role !== "host_admin" && !access.canUpdateTaskStatus)
+  ) {
     throw new TasksServiceError(
       "FORBIDDEN",
       "You do not have permission to update this task.",
@@ -54,16 +61,23 @@ export async function createTaskForApartment(
   input: CreateTaskInput,
   repository: TasksRepository,
 ) {
-  assertCanCreate(await repository.getApartmentAccess(userId, input.apartmentId));
+  assertCanCreate(
+    await repository.getApartmentAccess(userId, input.apartmentId),
+  );
 
-  return await repository.createTask(input);
+  return await repository.createTask({
+    ...input,
+    createdByUserId: userId,
+  });
 }
 
 export async function updateTaskStatusForUser(
   input: UpdateTaskStatusInput,
   repository: TasksRepository,
 ) {
-  assertCanUpdateStatus(await repository.getTaskAccess(input.userId, input.taskId));
+  assertCanUpdateStatus(
+    await repository.getTaskAccess(input.userId, input.taskId),
+  );
 
   return await repository.updateTaskStatus(input);
 }

@@ -9,11 +9,13 @@ import type {
   AuthUser,
   AuthenticatedUser,
   AuthenticatedUserWithPassword,
+  PasswordResetTokenRecord,
 } from "./types.js";
 
 class InMemoryAuthRepository implements AuthRepository {
   private users = new Map<string, AuthenticatedUserWithPassword>();
   private usersByEmail = new Map<string, string>();
+  private passwordResetTokens = new Map<string, PasswordResetTokenRecord>();
   private organizations = new Map<string, AuthOrganization>();
   private userSequence = 1;
   private organizationSequence = 1;
@@ -98,6 +100,40 @@ class InMemoryAuthRepository implements AuthRepository {
       fullName: user.fullName,
       id: user.id,
     };
+  }
+
+  async createPasswordResetToken(input: {
+    expiresAt: Date;
+    tokenHash: string;
+    userId: string;
+  }): Promise<PasswordResetTokenRecord> {
+    const token = {
+      expiresAt: input.expiresAt.toISOString(),
+      id: `reset-${this.passwordResetTokens.size + 1}`,
+      usedAt: null,
+      userId: input.userId,
+    };
+
+    this.passwordResetTokens.set(input.tokenHash, token);
+
+    return token;
+  }
+
+  async findPasswordResetTokenByHash(
+    tokenHash: string,
+  ): Promise<PasswordResetTokenRecord | null> {
+    return this.passwordResetTokens.get(tokenHash) ?? null;
+  }
+
+  async markPasswordResetTokenUsed(tokenId: string): Promise<void> {
+    for (const [hash, token] of this.passwordResetTokens.entries()) {
+      if (token.id === tokenId) {
+        this.passwordResetTokens.set(hash, {
+          ...token,
+          usedAt: new Date().toISOString(),
+        });
+      }
+    }
   }
 
   async createOrganization(input: { name: string }): Promise<AuthOrganization> {
