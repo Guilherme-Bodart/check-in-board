@@ -66,6 +66,7 @@ export class PrismaReservationsRepository implements ReservationsRepository {
       canManageIntegrations: membership.canManageIntegrations,
       canView: membership.canView,
       id: source.id,
+      icalUrlEncrypted: source.icalUrlEncrypted,
       provider: source.provider,
       role: membership.role,
     };
@@ -192,5 +193,34 @@ export class PrismaReservationsRepository implements ReservationsRepository {
       startsAt: toIsoString(reservation.startsAt),
       status: reservation.status,
     };
+  }
+
+  async markIcalSourceSyncFailure(
+    icalSourceId: string,
+    failedAt: Date,
+  ): Promise<void> {
+    await this.prisma.icalSource.update({
+      data: {
+        lastFailureAt: failedAt,
+      },
+      where: {
+        id: icalSourceId,
+      },
+    });
+  }
+
+  async markIcalSourceSyncSuccess(
+    icalSourceId: string,
+    syncedAt: Date,
+  ): Promise<void> {
+    await this.prisma.icalSource.update({
+      data: {
+        lastFailureAt: null,
+        lastSuccessAt: syncedAt,
+      },
+      where: {
+        id: icalSourceId,
+      },
+    });
   }
 }

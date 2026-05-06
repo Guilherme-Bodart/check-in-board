@@ -33,7 +33,7 @@ import {
   createIcalSource,
   icalSourcesRuntime,
   listIcalSources,
-  syncIcalSourceWithDemoReservation,
+  syncIcalSource,
 } from "../services/ical-sources-service";
 import type {
   Apartment,
@@ -267,7 +267,7 @@ export function ApartmentDetailScreen() {
     setSyncError(null);
 
     try {
-      const summary = await syncIcalSourceWithDemoReservation(
+      const summary = await syncIcalSource(
         session,
         apartmentId,
         source,
@@ -280,7 +280,7 @@ export function ApartmentDetailScreen() {
       setSources(nextSources);
       setReservations(nextReservations);
       setSyncMessage(
-        `Demo sync finished: ${summary.reservationsUpserted} reservation updated from ${summary.eventsSeen} event.`,
+        `Sync finished: ${summary.reservationsUpserted} reservation updated from ${summary.eventsSeen} event.`,
       );
     } catch (error) {
       setSyncError(

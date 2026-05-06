@@ -37,6 +37,12 @@
   - existing dev-auth users can attach a password through sign-up;
   - mobile auth screen now requires password and calls real auth endpoints in API mode;
   - Neon schema includes `users.password_hash`.
+- Real iCal sync:
+  - `POST /ical-sources/:icalSourceId/sync` can now fetch the stored iCal URL when `icsText` is not provided;
+  - sync requests use a 15s timeout and calendar-friendly headers;
+  - iCal source `lastSuccessAt` and `lastFailureAt` are updated after sync attempts;
+  - mobile iCal cards now show `Sync now` and call the real sync path in API mode;
+  - mock mode still creates a demo reservation for local UI testing.
 
 ## Implemented
 
@@ -64,11 +70,11 @@
   - mobile apartment detail and channel form
 - First reservation pipeline:
   - iCal `VEVENT` parser for UID, DTSTART, DTEND, SUMMARY
-  - `POST /ical-sources/:icalSourceId/sync` with development/test `icsText`
+  - `POST /ical-sources/:icalSourceId/sync` with stored URL fetch or development/test `icsText`
   - idempotent reservation upsert by `icalSourceId + externalEventKey`
   - `GET /apartments/:apartmentId/reservations`
   - mobile upcoming reservations section in apartment detail
-  - mobile iCal card can run a demo sync to make this flow testable from the UI
+  - mobile iCal card can run real sync in API mode and demo sync in mock mode
 - Reservation-driven Today Board:
   - `GET /today-board`
   - derives `checkInToday`, `checkOutToday`, `inStay`, and `upcoming`
@@ -103,6 +109,7 @@ Last full local validation:
 - Expo Web smoke check at `http://localhost:8081`
 - backend build after adding `dotenv`
 - Neon schema push after adding password auth
+- backend build after real iCal sync
 
 ## Current Test Coverage Shape
 
@@ -113,6 +120,7 @@ Last full local validation:
   - protected iCal source routes
   - iCal parser
   - reservation sync/listing routes
+  - stored iCal URL fetch sync route
   - reservation-driven Today Board route
   - operational task routes
 - Mobile:

@@ -17,5 +17,13 @@ export interface ReservationsRepository {
     endsAfter: Date,
   ): Promise<AccessibleReservationSummary[]>;
   listReservations(apartmentId: string): Promise<ReservationSummary[]>;
+  markIcalSourceSyncFailure(
+    icalSourceId: string,
+    failedAt: Date,
+  ): Promise<void>;
+  markIcalSourceSyncSuccess(
+    icalSourceId: string,
+    syncedAt: Date,
+  ): Promise<void>;
   upsertReservation(input: UpsertReservationInput): Promise<ReservationSummary>;
 }

@@ -58,11 +58,11 @@ export function IcalSourceCard({
       {onSyncPress ? (
         <View style={styles.actions}>
           <Button
-            accessibilityHint="Creates one demo reservation from this iCal source."
+            accessibilityHint="Syncs reservations from this iCal source."
             disabled={isSyncing}
             fullWidth={false}
             icon={<RefreshCw color={theme.colors.textPrimary} size={16} />}
-            label="Sync demo"
+            label="Sync now"
             loading={isSyncing}
             onPress={() => onSyncPress(source)}
             variant="secondary"

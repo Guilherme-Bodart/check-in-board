@@ -142,7 +142,12 @@ export const reservationsModule: FastifyPluginAsync<ReservationsModuleOptions> =
         return reply.code(200).send(manualSyncResponseSchema.parse(result));
       } catch (error) {
         if (error instanceof ReservationsServiceError) {
-          const statusCode = error.code === "BAD_REQUEST" ? 400 : 403;
+          const statusCode =
+            error.code === "BAD_REQUEST"
+              ? 400
+              : error.code === "SYNC_FETCH_FAILED"
+                ? 502
+                : 403;
 
           return reply.code(statusCode).send(sendError(error.code, error.message));
         }

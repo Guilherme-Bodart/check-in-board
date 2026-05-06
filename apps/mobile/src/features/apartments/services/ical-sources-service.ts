@@ -3,7 +3,6 @@ import { ApiClientError, apiClient } from "@/services/api-client";
 import type { AuthSession } from "@/features/auth/types";
 import { addMockReservationForApartment } from "@/features/reservations/services/reservations-service";
 
-import { createDemoIcalText } from "../sync-demo";
 import type {
   CreateIcalSourceInput,
   IcalSource,
@@ -183,7 +182,7 @@ export async function createIcalSource(
   return mapCreateIcalSourceResponse(response);
 }
 
-export async function syncIcalSourceWithDemoReservation(
+export async function syncIcalSource(
   session: AuthSession | null,
   apartmentId: string,
   source: IcalSource,
@@ -191,12 +190,6 @@ export async function syncIcalSourceWithDemoReservation(
   const { endsAt, startsAt } = createDemoReservationDates();
   const uid = `demo-${source.id}-${Date.now()}@check-in-board.local`;
   const summary = "Reserved - Demo Sync";
-  const icsText = createDemoIcalText({
-    endsAt,
-    startsAt,
-    summary,
-    uid,
-  });
 
   if (!useDevAuthApi) {
     updateMockSourceLastSuccess(apartmentId, source.id);
@@ -221,7 +214,7 @@ export async function syncIcalSourceWithDemoReservation(
 
   const response = await apiClient.post<SyncIcalSourceApiResponse>(
     `/ical-sources/${source.id}/sync`,
-    { icsText },
+    {},
     {
       headers: getAuthorizationHeaders(session),
     },
