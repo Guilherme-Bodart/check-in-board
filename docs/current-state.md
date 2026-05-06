@@ -54,6 +54,10 @@
   - marking a task as `not_done` now requires a note;
   - task status notes are stored in the existing task `result` JSON field;
   - mobile task cards collect and display the not-done reason.
+- Task date/time UX:
+  - mobile task creation no longer exposes raw ISO as the primary input;
+  - task due date and due time are edited as separate local fields;
+  - quick due-date presets remain available.
 - Apartment members and invitations:
   - `GET /apartments/:apartmentId/members`
   - `POST /apartments/:apartmentId/invitations`

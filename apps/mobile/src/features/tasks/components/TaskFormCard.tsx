@@ -20,6 +20,33 @@ type TaskFormCardProps = {
   values: TaskFormValues;
 };
 
+function getDatePart(isoValue: string) {
+  const date = new Date(isoValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function getTimePart(isoValue: string) {
+  const date = new Date(isoValue);
+
+  return Number.isNaN(date.getTime()) ? "" : date.toTimeString().slice(0, 5);
+}
+
+function mergeDateAndTime(datePart: string, timePart: string) {
+  const date = new Date(`${datePart}T${timePart}:00`);
+
+  return Number.isNaN(date.getTime())
+    ? `${datePart}T${timePart}`
+    : date.toISOString();
+}
+
 export function TaskFormCard({
   errors,
   isSubmitting,
@@ -29,6 +56,9 @@ export function TaskFormCard({
   submitError,
   values,
 }: TaskFormCardProps) {
+  const datePart = getDatePart(values.dueAt);
+  const timePart = getTimePart(values.dueAt);
+
   return (
     <View style={styles.card}>
       <AppText variant="sectionTitle">Create task</AppText>
@@ -51,7 +81,7 @@ export function TaskFormCard({
       </View>
 
       <View style={styles.fieldGroup}>
-        <AppText variant="label">Due at</AppText>
+        <AppText variant="label">Due date and time</AppText>
         <View style={styles.presets}>
           {taskDueDatePresets.map((preset) => (
             <Button
@@ -65,20 +95,39 @@ export function TaskFormCard({
             />
           ))}
         </View>
-        <TextInput
-          accessibilityLabel="Task due date"
-          autoCapitalize="none"
-          onChangeText={(value) => onChange("dueAt", value)}
-          placeholder="2026-05-05T14:00:00.000Z"
-          placeholderTextColor={theme.colors.textMuted}
-          style={styles.input}
-          value={values.dueAt}
-        />
+        <View style={styles.dateTimeRow}>
+          <TextInput
+            accessibilityLabel="Task due date"
+            autoCapitalize="none"
+            onChangeText={(value) =>
+              onChange("dueAt", mergeDateAndTime(value, timePart))
+            }
+            placeholder="2026-05-05"
+            placeholderTextColor={theme.colors.textMuted}
+            style={[styles.input, styles.dateInput]}
+            value={datePart}
+          />
+          <TextInput
+            accessibilityLabel="Task due time"
+            autoCapitalize="none"
+            onChangeText={(value) =>
+              onChange("dueAt", mergeDateAndTime(datePart, value))
+            }
+            placeholder="14:00"
+            placeholderTextColor={theme.colors.textMuted}
+            style={[styles.input, styles.timeInput]}
+            value={timePart}
+          />
+        </View>
         {errors.dueAt ? (
           <AppText color="danger" variant="caption">
             {errors.dueAt}
           </AppText>
-        ) : null}
+        ) : (
+          <AppText color="textMuted" variant="caption">
+            Use local date and 24h time.
+          </AppText>
+        )}
       </View>
 
       <View style={styles.fieldGroup}>
@@ -138,6 +187,13 @@ const styles = StyleSheet.create({
     gap: theme.spacing[4],
     padding: theme.spacing[4],
   },
+  dateInput: {
+    flex: 1.35,
+  },
+  dateTimeRow: {
+    flexDirection: "row",
+    gap: theme.spacing[2],
+  },
   errorBox: {
     backgroundColor: theme.colors.dangerSoft,
     borderRadius: theme.radius.md,
@@ -165,5 +221,8 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 88,
     textAlignVertical: "top",
+  },
+  timeInput: {
+    flex: 0.8,
   },
 });
