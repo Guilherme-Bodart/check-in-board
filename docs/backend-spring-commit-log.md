@@ -175,3 +175,46 @@ Validation:
 Best next step:
 
 - Start the apartments module in Spring: schema, organization-scoped ownership, CRUD endpoints, and tests. This is the first product domain needed before the future frontend and mobile flows can share the same API.
+
+## 896cf4a - Add Spring apartments schema
+
+Added:
+
+- Flyway migration for `apartments`;
+- Flyway migration for `apartment_memberships`;
+- organization ownership for apartments;
+- timezone storage per apartment;
+- soft delete column for apartments;
+- apartment-scoped membership permissions for view, task status updates, and integration management.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Add JPA entities, repositories, service rules, controllers, and tests for apartment CRUD.
+
+## d8de1d5 - Add Spring apartments API
+
+Added:
+
+- `GET /apartments`;
+- `POST /apartments`;
+- `GET /apartments/{apartmentId}`;
+- `PUT /apartments/{apartmentId}`;
+- `DELETE /apartments/{apartmentId}`;
+- JPA entities and repositories for apartments and apartment memberships;
+- organization membership queries for host-admin authorization;
+- timezone validation using Java `ZoneId`;
+- soft-delete behavior for apartment removal;
+- tests for create/list/detail, update/delete, invalid timezone, non-host create rejection, cross-organization manage rejection, and missing auth.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`;
+- Ran `pnpm build:backend-spring`.
+
+Best next step:
+
+- Start iCal source management in Spring: encrypted source URL storage, apartment access checks, create/list endpoints, and tests. That unlocks reservation ingestion after it.
