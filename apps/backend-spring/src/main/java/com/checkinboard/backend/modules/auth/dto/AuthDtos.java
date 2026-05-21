@@ -1,6 +1,7 @@
 package com.checkinboard.backend.modules.auth.dto;
 
 import com.checkinboard.backend.modules.auth.model.AuthRole;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -22,6 +23,18 @@ public final class AuthDtos {
         @NotBlank @Size(min = 8, max = 128) String password
     ) {}
 
+    public record ChangePasswordRequest(
+        @NotBlank @Size(min = 8, max = 128) String currentPassword,
+        @NotBlank @Size(min = 8, max = 128) String newPassword
+    ) {}
+
+    public record RequestPasswordResetRequest(@Email @NotBlank String email) {}
+
+    public record ResetPasswordRequest(
+        @NotBlank @Size(min = 8, max = 128) String newPassword,
+        @NotBlank @Size(min = 16) String token
+    ) {}
+
     public record AuthUserResponse(String id, String email, String fullName) {}
 
     public record OrganizationResponse(String id, String name) {}
@@ -40,4 +53,9 @@ public final class AuthDtos {
     ) {}
 
     public record MeResponse(AuthUserResponse user, List<MembershipResponse> memberships) {}
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record PasswordResetRequestedResponse(String resetToken) {}
+
+    public record OkResponse(boolean ok) {}
 }

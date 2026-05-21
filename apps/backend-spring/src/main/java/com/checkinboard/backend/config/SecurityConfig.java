@@ -43,6 +43,8 @@ public class SecurityConfig {
                         "/actuator/health",
                         "/auth/sign-up",
                         "/auth/sign-in",
+                        "/auth/password-reset/request",
+                        "/auth/password-reset/confirm",
                         "/v3/api-docs/**",
                         "/swagger-ui.html",
                         "/swagger-ui/**"

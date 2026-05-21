@@ -32,6 +32,7 @@ springdoc:
 check-in-board:
   service-name: ${SERVICE_NAME:check-in-board-backend}
   auth-jwt-secret: ${AUTH_JWT_SECRET:dev-auth-local-secret-not-for-production}
+  auth-password-reset-expose-token: ${AUTH_PASSWORD_RESET_EXPOSE_TOKEN:false}
 
 logging:
   level:

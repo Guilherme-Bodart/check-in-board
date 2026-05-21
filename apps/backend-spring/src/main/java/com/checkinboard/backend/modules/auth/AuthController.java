@@ -1,7 +1,12 @@
 package com.checkinboard.backend.modules.auth;
 
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.AuthResponse;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.ChangePasswordRequest;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.MeResponse;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.OkResponse;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.PasswordResetRequestedResponse;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.RequestPasswordResetRequest;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.ResetPasswordRequest;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.SignInRequest;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.SignUpRequest;
 import com.checkinboard.backend.modules.auth.service.AuthService;
@@ -39,5 +44,27 @@ public class AuthController {
     @GetMapping("/me")
     MeResponse me(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return authService.me(principal.userId());
+    }
+
+    @PostMapping("/change-password")
+    OkResponse changePassword(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        return authService.changePassword(principal.userId(), request);
+    }
+
+    @PostMapping("/password-reset/request")
+    ResponseEntity<PasswordResetRequestedResponse> requestPasswordReset(
+        @Valid @RequestBody RequestPasswordResetRequest request
+    ) {
+        return ResponseEntity
+            .status(HttpStatus.ACCEPTED)
+            .body(authService.requestPasswordReset(request));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    OkResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return authService.resetPassword(request);
     }
 }

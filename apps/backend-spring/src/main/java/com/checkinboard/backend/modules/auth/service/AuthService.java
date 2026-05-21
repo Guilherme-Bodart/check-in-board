@@ -1,20 +1,35 @@
 package com.checkinboard.backend.modules.auth.service;
 
+import com.checkinboard.backend.config.AppProperties;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.AuthResponse;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.AuthUserResponse;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.ChangePasswordRequest;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.MeResponse;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.MembershipResponse;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.OkResponse;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.OrganizationResponse;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.PasswordResetRequestedResponse;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.RequestPasswordResetRequest;
+import com.checkinboard.backend.modules.auth.dto.AuthDtos.ResetPasswordRequest;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.SignInRequest;
 import com.checkinboard.backend.modules.auth.dto.AuthDtos.SignUpRequest;
 import com.checkinboard.backend.modules.auth.model.AuthRole;
 import com.checkinboard.backend.modules.auth.model.OrganizationEntity;
 import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
+import com.checkinboard.backend.modules.auth.model.PasswordResetTokenEntity;
 import com.checkinboard.backend.modules.auth.model.UserEntity;
 import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRepository;
 import com.checkinboard.backend.modules.auth.repository.OrganizationRepository;
+import com.checkinboard.backend.modules.auth.repository.PasswordResetTokenRepository;
 import com.checkinboard.backend.modules.auth.repository.UserRepository;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -29,21 +44,28 @@ public class AuthService {
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
     private final OrganizationMembershipRepository membershipRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AppProperties appProperties;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthService(
         UserRepository userRepository,
         OrganizationRepository organizationRepository,
         OrganizationMembershipRepository membershipRepository,
+        PasswordResetTokenRepository passwordResetTokenRepository,
         PasswordEncoder passwordEncoder,
-        JwtService jwtService
+        JwtService jwtService,
+        AppProperties appProperties
     ) {
         this.userRepository = userRepository;
         this.organizationRepository = organizationRepository;
         this.membershipRepository = membershipRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.appProperties = appProperties;
     }
 
     @Transactional
@@ -143,6 +165,83 @@ public class AuthService {
         return new MeResponse(toUserResponse(user), toMembershipResponses(user));
     }
 
+    @Transactional
+    public OkResponse changePassword(String userId, ChangePasswordRequest request) {
+        UserEntity user = userRepository
+            .findWithOrganizationMembershipsById(userId)
+            .orElseThrow(() ->
+                new AuthServiceException(
+                    HttpStatus.UNAUTHORIZED,
+                    "UNAUTHORIZED",
+                    "Authentication is required."
+                )
+            );
+
+        if (
+            user.getPasswordHash() == null ||
+            !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())
+        ) {
+            throw new AuthServiceException(
+                HttpStatus.UNAUTHORIZED,
+                "INVALID_CREDENTIALS",
+                "Current password is incorrect."
+            );
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+
+        return new OkResponse(true);
+    }
+
+    @Transactional
+    public PasswordResetRequestedResponse requestPasswordReset(
+        RequestPasswordResetRequest request
+    ) {
+        UserEntity user = userRepository.findByEmail(normalizeEmail(request.email())).orElse(null);
+
+        if (user == null || user.getPasswordHash() == null) {
+            return new PasswordResetRequestedResponse(null);
+        }
+
+        String resetToken = createResetToken();
+        passwordResetTokenRepository.save(
+            new PasswordResetTokenEntity(
+                newId(),
+                user,
+                hashResetToken(resetToken),
+                Instant.now().plusSeconds(30 * 60)
+            )
+        );
+
+        return new PasswordResetRequestedResponse(
+            appProperties.authPasswordResetExposeToken() ? resetToken : null
+        );
+    }
+
+    @Transactional
+    public OkResponse resetPassword(ResetPasswordRequest request) {
+        PasswordResetTokenEntity resetToken = passwordResetTokenRepository
+            .findByTokenHash(hashResetToken(request.token()))
+            .orElseThrow(this::invalidResetToken);
+
+        if (
+            resetToken.getUsedAt() != null ||
+            resetToken.getExpiresAt().isBefore(Instant.now())
+        ) {
+            throw invalidResetToken();
+        }
+
+        UserEntity user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        resetToken.markUsed();
+
+        userRepository.save(user);
+        passwordResetTokenRepository.save(resetToken);
+
+        return new OkResponse(true);
+    }
+
     private AuthResponse toAuthResponse(UserEntity user, OrganizationMembershipEntity membership) {
         return new AuthResponse(
             jwtService.issueAccessToken(user),
@@ -194,6 +293,31 @@ public class AuthService {
             "INVALID_CREDENTIALS",
             "Email or password is incorrect."
         );
+    }
+
+    private AuthServiceException invalidResetToken() {
+        return new AuthServiceException(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_RESET_TOKEN",
+            "Password reset token is invalid or expired."
+        );
+    }
+
+    private String createResetToken() {
+        byte[] bytes = new byte[32];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String hashResetToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat
+                .of()
+                .formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required.", exception);
+        }
     }
 
     private String normalizeEmail(String email) {
