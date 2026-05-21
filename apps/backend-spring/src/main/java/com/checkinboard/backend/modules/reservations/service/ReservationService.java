@@ -15,6 +15,10 @@ import com.checkinboard.backend.modules.icalsources.service.IcalUrlPolicyExcepti
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncSummary;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.OperationsBoardReservationResponse;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.OperationsBoardResponse;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.OperationsBoardSection;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.OperationsBoardTotals;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ReservationResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ReservationsResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.SyncRunResponse;
@@ -26,6 +30,9 @@ import com.checkinboard.backend.modules.reservations.repository.SyncRunRepositor
 import com.checkinboard.backend.shared.crypto.SecretEncryptionService;
 import com.checkinboard.backend.shared.error.ApiException;
 import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -75,6 +82,86 @@ public class ReservationService {
                 .stream()
                 .map(this::toResponse)
                 .toList()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public OperationsBoardResponse operationsBoard(
+        String userId,
+        String apartmentId,
+        LocalDate date,
+        int days
+    ) {
+        ApartmentMembershipEntity membership = getMembership(userId, apartmentId);
+
+        if (!membership.canView()) {
+            throw forbiddenApartmentAccess();
+        }
+
+        if (days < 1 || days > 31) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "BAD_REQUEST",
+                "Board window must be between 1 and 31 days."
+            );
+        }
+
+        ZoneId zoneId = ZoneId.of(membership.getApartment().getTimezone());
+        LocalDate boardDate = date != null ? date : LocalDate.now(zoneId);
+        Instant dayStart = boardDate.atStartOfDay(zoneId).toInstant();
+        Instant nextDayStart = boardDate.plusDays(1).atStartOfDay(zoneId).toInstant();
+        Instant windowEnd = boardDate.plusDays(days).atStartOfDay(zoneId).toInstant();
+        List<ReservationEntity> reservations = reservationRepository
+            .findByApartment_IdAndEndsAtAfterAndStartsAtBeforeOrderByStartsAtAsc(
+                apartmentId,
+                dayStart,
+                windowEnd
+            );
+        List<OperationsBoardReservationResponse> checkIns = new ArrayList<>();
+        List<OperationsBoardReservationResponse> checkOuts = new ArrayList<>();
+        List<OperationsBoardReservationResponse> inHouse = new ArrayList<>();
+        List<OperationsBoardReservationResponse> upcoming = new ArrayList<>();
+
+        for (ReservationEntity reservation : reservations) {
+            OperationsBoardReservationResponse response = toBoardReservationResponse(
+                reservation
+            );
+            LocalDate startsOn = reservation.getStartsAt().atZone(zoneId).toLocalDate();
+            LocalDate endsOn = reservation.getEndsAt().atZone(zoneId).toLocalDate();
+
+            if (startsOn.equals(boardDate)) {
+                checkIns.add(response);
+            }
+
+            if (endsOn.equals(boardDate)) {
+                checkOuts.add(response);
+            }
+
+            if (
+                reservation.getStartsAt().isBefore(nextDayStart) &&
+                reservation.getEndsAt().isAfter(dayStart)
+            ) {
+                inHouse.add(response);
+            } else if (reservation.getStartsAt().isAfter(nextDayStart.minusNanos(1))) {
+                upcoming.add(response);
+            }
+        }
+
+        return new OperationsBoardResponse(
+            apartmentId,
+            boardDate,
+            days,
+            zoneId.getId(),
+            section(checkIns),
+            section(checkOuts),
+            section(inHouse),
+            section(upcoming),
+            new OperationsBoardTotals(
+                checkIns.size(),
+                checkOuts.size(),
+                inHouse.size(),
+                upcoming.size()
+            )
         );
     }
 
@@ -263,6 +350,27 @@ public class ReservationService {
             reservation.getEndsAt(),
             reservation.getRawSummary(),
             reservation.getIcalSource().getProvider()
+        );
+    }
+
+    private OperationsBoardSection section(
+        List<OperationsBoardReservationResponse> reservations
+    ) {
+        return new OperationsBoardSection(reservations.size(), reservations);
+    }
+
+    private OperationsBoardReservationResponse toBoardReservationResponse(
+        ReservationEntity reservation
+    ) {
+        return new OperationsBoardReservationResponse(
+            reservation.getId(),
+            reservation.getApartment().getId(),
+            reservation.getIcalSource().getId(),
+            reservation.getIcalSource().getProvider(),
+            reservation.getStatus(),
+            reservation.getStartsAt(),
+            reservation.getEndsAt(),
+            reservation.getRawSummary()
         );
     }
 

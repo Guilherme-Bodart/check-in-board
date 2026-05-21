@@ -4,6 +4,7 @@ import com.checkinboard.backend.modules.reservations.model.ReservationStatus;
 import com.checkinboard.backend.modules.reservations.model.SyncRunStatus;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public final class ReservationDtos {
@@ -51,4 +52,39 @@ public final class ReservationDtos {
     ) {}
 
     public record SyncRunsResponse(List<SyncRunResponse> syncRuns) {}
+
+    public record OperationsBoardReservationResponse(
+        String id,
+        String apartmentId,
+        String icalSourceId,
+        String provider,
+        ReservationStatus status,
+        Instant startsAt,
+        Instant endsAt,
+        String rawSummary
+    ) {}
+
+    public record OperationsBoardSection(
+        int count,
+        List<OperationsBoardReservationResponse> reservations
+    ) {}
+
+    public record OperationsBoardTotals(
+        int checkIns,
+        int checkOuts,
+        int inHouse,
+        int upcoming
+    ) {}
+
+    public record OperationsBoardResponse(
+        String apartmentId,
+        LocalDate date,
+        int days,
+        String timezone,
+        OperationsBoardSection checkIns,
+        OperationsBoardSection checkOuts,
+        OperationsBoardSection inHouse,
+        OperationsBoardSection upcoming,
+        OperationsBoardTotals totals
+    ) {}
 }

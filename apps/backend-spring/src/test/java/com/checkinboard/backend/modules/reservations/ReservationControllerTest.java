@@ -134,6 +134,49 @@ class ReservationControllerTest {
     }
 
     @Test
+    void returnsOperationsBoardForApartmentWindow() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+        syncIcalSource(accessToken, icalSourceId, ICS_TEXT);
+
+        mockMvc
+            .perform(
+                get("/apartments/{apartmentId}/operations-board", apartmentId)
+                    .queryParam("date", "2026-06-01")
+                    .queryParam("days", "7")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apartmentId").value(apartmentId))
+            .andExpect(jsonPath("$.date").value("2026-06-01"))
+            .andExpect(jsonPath("$.days").value(7))
+            .andExpect(jsonPath("$.timezone").value("America/Sao_Paulo"))
+            .andExpect(jsonPath("$.checkIns.count").value(1))
+            .andExpect(jsonPath("$.checkOuts.count").value(0))
+            .andExpect(jsonPath("$.inHouse.count").value(1))
+            .andExpect(jsonPath("$.upcoming.count").value(0))
+            .andExpect(jsonPath("$.totals.checkIns").value(1))
+            .andExpect(jsonPath("$.checkIns.reservations[0].rawSummary").value("Guest Maria"));
+    }
+
+    @Test
+    void rejectsInvalidOperationsBoardWindow() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+
+        mockMvc
+            .perform(
+                get("/apartments/{apartmentId}/operations-board", apartmentId)
+                    .queryParam("date", "2026-06-01")
+                    .queryParam("days", "45")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+    }
+
+    @Test
     void updatesExistingReservationWhenSyncedAgain() throws Exception {
         String accessToken = signUpHost("host@example.com", "Host Ops");
         String apartmentId = createApartment(accessToken, "Apto 204");
