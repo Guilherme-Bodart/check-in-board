@@ -260,3 +260,60 @@ Validation:
 Best next step:
 
 - Start reservations ingestion in Spring: schema for reservations/sync runs, iCal parsing, listing reservations by apartment, and the first sync service tests.
+
+## d6e158e - Update Spring iCal migration log
+
+Added:
+
+- Commit-log entry for the iCal source schema/API migration;
+- next-step guidance toward reservation ingestion.
+
+Validation:
+
+- Documentation-only commit.
+
+Best next step:
+
+- Add reservation and sync-run persistence before implementing parser and sync endpoints.
+
+## 01ba0a5 - Add Spring reservations schema
+
+Added:
+
+- Flyway migration for `reservations`;
+- Flyway migration for `sync_runs`;
+- reservation status constraints for `confirmed`, `cancelled`, and `missing_in_feed`;
+- sync-run status constraints for `running`, `succeeded`, `failed`, and `skipped`;
+- unique source/event key constraint for idempotent iCal upserts;
+- indexes for apartment reservation lists, iCal source reservation lookup, and sync history.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Implement the iCal parser, manual sync endpoint, reservation listing endpoint, and controller tests.
+
+## a42f229 - Add Spring reservation sync API
+
+Added:
+
+- `GET /apartments/{apartmentId}/reservations`;
+- `POST /ical-sources/{icalSourceId}/sync`;
+- iCal4j-based parser for `VEVENT` reservations;
+- JPA entities and repositories for reservations and sync runs;
+- idempotent reservation upsert by iCal source and external event key;
+- sync success/failure timestamps on iCal sources;
+- apartment access checks for listing;
+- integration-management checks for sync execution;
+- tests for sync/list, idempotent update, permission rejection, apartment access rejection, and invalid iCal payloads.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`;
+- Ran `pnpm build:backend-spring`.
+
+Best next step:
+
+- Add stored URL sync: decrypt the saved iCal URL, fetch it with tight timeouts and bounded retries, then reuse the current parser/upsert pipeline. After that, start the first operational view APIs for the web/mobile experience.
