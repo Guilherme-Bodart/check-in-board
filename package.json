@@ -9,7 +9,10 @@
     "test": "pnpm -r test",
     "format": "pnpm -r format",
     "dev:mobile": "pnpm --filter @check-in-board/mobile dev",
-    "dev:backend": "pnpm --filter @check-in-board/backend dev"
+    "dev:backend": "pnpm --filter @check-in-board/backend dev",
+    "dev:backend-spring": "cd apps/backend-spring && mvnw.cmd spring-boot:run",
+    "test:backend-spring": "cd apps/backend-spring && mvnw.cmd clean test",
+    "build:backend-spring": "cd apps/backend-spring && mvnw.cmd clean package"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
