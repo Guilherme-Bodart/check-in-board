@@ -79,3 +79,62 @@ Validation:
 Best next step:
 
 - Start migrating the auth module into Spring with endpoint parity for sign-up, sign-in, and `/auth/me`.
+
+## eecd80d - Add Spring auth schema migration
+
+Added:
+
+- Flyway migration for `users`;
+- Flyway migration for `organizations`;
+- Flyway migration for `organization_memberships`;
+- role check constraint for `host_admin`, `co_host`, and `team`;
+- basic indexes and uniqueness constraints used by auth.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Add JPA entities, repositories, JWT issuing/verification, and password hashing for auth.
+
+## 54a774d - Add Spring auth domain
+
+Added:
+
+- JPA entities for users, organizations, and organization memberships;
+- Spring Data repositories;
+- auth DTO records;
+- auth service for sign-up, sign-in, and `/auth/me` response mapping;
+- JWT service using HS256;
+- BCrypt password encoder for new Spring-created users;
+- app properties for service name and JWT secret;
+- Java standards note about pending Node `scrypt$...` password-hash compatibility.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Expose auth controllers and wire JWT bearer authentication into Spring Security.
+
+## 79abe12 - Add Spring auth endpoints
+
+Added:
+
+- `POST /auth/sign-up`;
+- `POST /auth/sign-in`;
+- `GET /auth/me`;
+- bearer-token authentication filter;
+- authenticated principal model;
+- auth service exception handling through the standard error envelope;
+- tests for sign-up, sign-in, duplicate email, invalid password, `/auth/me`, missing bearer token, and invalid payloads.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Add password reset/change-password parity or start apartments, depending on whether account hardening or product flow continuity matters more for the next cut.
