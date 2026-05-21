@@ -134,4 +134,13 @@ public class IcalSourceEntity {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    public void markSyncSuccess() {
+        lastSuccessAt = Instant.now();
+        lastFailureAt = null;
+    }
+
+    public void markSyncFailure() {
+        lastFailureAt = Instant.now();
+    }
 }
