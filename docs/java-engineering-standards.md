@@ -88,6 +88,8 @@ Keep controllers thin. Put business rules in services. Keep persistence details 
 - Host-only actions must be enforced in services, not just hidden in the UI.
 - Never log passwords, JWTs, iCal URLs, reset tokens, or invite tokens.
 - Passwords must be hashed with a modern password encoder.
+- New Spring-created passwords use BCrypt.
+- Existing Node-created `scrypt$...` password hashes are not verified by the Spring backend yet; add a compatibility verifier before cutting existing production users over to Spring.
 
 ## Transactions
 

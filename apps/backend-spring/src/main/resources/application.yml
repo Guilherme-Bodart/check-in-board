@@ -29,6 +29,10 @@ springdoc:
   swagger-ui:
     enabled: ${SWAGGER_UI_ENABLED:true}
 
+check-in-board:
+  service-name: ${SERVICE_NAME:check-in-board-backend}
+  auth-jwt-secret: ${AUTH_JWT_SECRET:dev-auth-local-secret-not-for-production}
+
 logging:
   level:
     root: INFO
