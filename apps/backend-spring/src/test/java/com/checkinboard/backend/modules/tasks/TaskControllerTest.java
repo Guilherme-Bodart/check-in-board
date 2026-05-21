@@ -1,10 +1,9 @@
-package com.checkinboard.backend.modules.icalsources;
+package com.checkinboard.backend.modules.tasks;
 
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,7 +23,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest(classes = BackendSpringApplication.class)
 @AutoConfigureMockMvc
-class IcalSourceControllerTest {
+class TaskControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -50,64 +49,65 @@ class IcalSourceControllerTest {
     }
 
     @Test
-    void createsAndListsIcalSourcesForApartmentManager() throws Exception {
+    void createsListsAndShowsTodayTask() throws Exception {
         String accessToken = signUpHost("host@example.com", "Host Ops");
         String apartmentId = createApartment(accessToken, "Apto 204");
 
         mockMvc
             .perform(
-                post("/apartments/{apartmentId}/ical-sources", apartmentId)
+                post("/apartments/{apartmentId}/tasks", apartmentId)
                     .header("Authorization", "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
                         {
-                          "provider": "airbnb",
-                          "label": "Airbnb Apto 204",
-                          "icalUrl": "https://93.184.216.34/calendar.ics"
+                          "title": "Buy coffee filters",
+                          "description": "For tomorrow checkout prep",
+                          "dueAt": "2099-05-21T16:30:00.000Z"
                         }
                         """
                     )
             )
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.icalSource.id", notNullValue()))
-            .andExpect(jsonPath("$.icalSource.provider").value("airbnb"))
-            .andExpect(jsonPath("$.icalSource.label").value("Airbnb Apto 204"))
-            .andExpect(jsonPath("$.icalSource.syncEnabled").value(true))
-            .andExpect(jsonPath("$.icalSource.lastSuccessAt").doesNotExist())
-            .andExpect(jsonPath("$.icalSource.lastFailureAt").doesNotExist());
-
-        String encryptedUrl = jdbcTemplate.queryForObject(
-            "select ical_url_encrypted from ical_sources",
-            String.class
-        );
-
-        org.hamcrest.MatcherAssert.assertThat(encryptedUrl, startsWith("v1:"));
-        org.hamcrest.MatcherAssert.assertThat(
-            encryptedUrl,
-            not("https://93.184.216.34/calendar.ics")
-        );
+            .andExpect(jsonPath("$.task.id", notNullValue()))
+            .andExpect(jsonPath("$.task.apartmentId").value(apartmentId))
+            .andExpect(jsonPath("$.task.apartmentName").value("Apto 204"))
+            .andExpect(jsonPath("$.task.title").value("Buy coffee filters"))
+            .andExpect(jsonPath("$.task.status").value("pending"));
 
         mockMvc
             .perform(
-                get("/apartments/{apartmentId}/ical-sources", apartmentId)
+                get("/apartments/{apartmentId}/tasks", apartmentId)
                     .header("Authorization", "Bearer " + accessToken)
             )
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.icalSources", hasSize(1)))
-            .andExpect(jsonPath("$.icalSources[0].provider").value("airbnb"));
+            .andExpect(jsonPath("$.tasks", hasSize(1)))
+            .andExpect(jsonPath("$.tasks[0].title").value("Buy coffee filters"));
+
+        mockMvc
+            .perform(
+                get("/tasks/today")
+                    .queryParam("date", "2099-05-21")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.date").value("2099-05-21"))
+            .andExpect(jsonPath("$.boardItems", hasSize(1)))
+            .andExpect(jsonPath("$.boardItems[0].kind").value("task"))
+            .andExpect(jsonPath("$.boardItems[0].headline").value("Buy coffee filters"));
     }
 
     @Test
-    void rejectsIcalSourceCreationWithoutManagementPermission() throws Exception {
+    void letsTaskUpdaterMarkTaskDone() throws Exception {
         String accessToken = signUpHost("host@example.com", "Host Ops");
         String apartmentId = createApartment(accessToken, "Apto 204");
+        String taskId = createTask(accessToken, apartmentId, "Restock soap");
         String userId = userIdByEmail("host@example.com");
 
         jdbcTemplate.update(
             """
             update apartment_memberships
-            set role = 'co_host', can_manage_integrations = false
+            set role = 'team', can_update_task_status = true
             where apartment_id = ? and user_id = ?
             """,
             apartmentId,
@@ -116,83 +116,100 @@ class IcalSourceControllerTest {
 
         mockMvc
             .perform(
-                post("/apartments/{apartmentId}/ical-sources", apartmentId)
+                patch("/tasks/{taskId}/status", taskId)
                     .header("Authorization", "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
                         {
-                          "provider": "airbnb",
-                          "label": "Airbnb Apto 204",
-                          "icalUrl": "https://93.184.216.34/calendar.ics"
+                          "status": "done"
                         }
                         """
                     )
             )
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"))
-            .andExpect(
-                jsonPath("$.error.message").value(
-                    "You do not have permission to manage iCal sources."
-                )
-            );
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.task.status").value("done"))
+            .andExpect(jsonPath("$.task.completedByUserId").value(userId))
+            .andExpect(jsonPath("$.task.completedAt", notNullValue()));
     }
 
     @Test
-    void rejectsPrivateNetworkIcalUrls() throws Exception {
+    void requiresNoteWhenMarkingTaskNotDone() throws Exception {
         String accessToken = signUpHost("host@example.com", "Host Ops");
         String apartmentId = createApartment(accessToken, "Apto 204");
+        String taskId = createTask(accessToken, apartmentId, "Inspect leak");
 
         mockMvc
             .perform(
-                post("/apartments/{apartmentId}/ical-sources", apartmentId)
+                patch("/tasks/{taskId}/status", taskId)
                     .header("Authorization", "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
                         {
-                          "provider": "airbnb",
-                          "label": "Airbnb Apto 204",
-                          "icalUrl": "http://127.0.0.1/calendar.ics"
+                          "status": "not_done"
                         }
                         """
                     )
             )
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error.code").value("UNSAFE_ICAL_URL"))
-            .andExpect(
-                jsonPath("$.error.message").value(
-                    "Private network iCal URLs are not allowed."
-                )
-            );
+            .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
     }
 
     @Test
-    void rejectsIcalSourceListingWithoutApartmentAccess() throws Exception {
-        String hostAccessToken = signUpHost("host@example.com", "Host Ops");
-        String apartmentId = createApartment(hostAccessToken, "Apto 204");
-        String otherAccessToken = signUpHost("other@example.com", "Other Ops");
+    void rejectsTaskCreationWithoutHostAdminRole() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String userId = userIdByEmail("host@example.com");
+
+        jdbcTemplate.update(
+            """
+            update apartment_memberships
+            set role = 'team', can_update_task_status = true
+            where apartment_id = ? and user_id = ?
+            """,
+            apartmentId,
+            userId
+        );
 
         mockMvc
             .perform(
-                get("/apartments/{apartmentId}/ical-sources", apartmentId)
-                    .header("Authorization", "Bearer " + otherAccessToken)
+                post("/apartments/{apartmentId}/tasks", apartmentId)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "title": "Buy towels",
+                          "dueAt": "2099-05-21T16:30:00.000Z"
+                        }
+                        """
+                    )
             )
             .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"))
-            .andExpect(
-                jsonPath("$.error.message").value(
-                    "You do not have access to this apartment."
-                )
-            );
+            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
 
-    @Test
-    void requiresAuthenticationToListIcalSources() throws Exception {
-        mockMvc
-            .perform(get("/apartments/apartment-1/ical-sources"))
-            .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+    private String createTask(String accessToken, String apartmentId, String title)
+        throws Exception {
+        MvcResult result = mockMvc
+            .perform(
+                post("/apartments/{apartmentId}/tasks", apartmentId)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "title": "%s",
+                          "dueAt": "2099-05-21T16:30:00.000Z"
+                        }
+                        """.formatted(title)
+                    )
+            )
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        return readJson(result).get("task").get("id").asText();
     }
 
     private String signUpHost(String email, String organizationName) throws Exception {

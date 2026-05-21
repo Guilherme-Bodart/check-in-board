@@ -1,6 +1,7 @@
 package com.checkinboard.backend.modules.apartments.repository;
 
 import com.checkinboard.backend.modules.apartments.model.ApartmentMembershipEntity;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,4 +11,6 @@ public interface ApartmentMembershipRepository
         String apartmentId,
         String userId
     );
+
+    List<ApartmentMembershipEntity> findByUser_IdAndCanViewTrue(String userId);
 }

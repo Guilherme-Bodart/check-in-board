@@ -60,6 +60,7 @@ class ReservationControllerTest {
     void cleanDatabase() {
         reset(icalFeedClient);
         jdbcTemplate.update("delete from password_reset_tokens");
+        jdbcTemplate.update("delete from tasks");
         jdbcTemplate.update("delete from sync_runs");
         jdbcTemplate.update("delete from reservations");
         jdbcTemplate.update("delete from ical_sources");
