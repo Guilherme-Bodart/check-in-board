@@ -491,3 +491,18 @@ Validation:
 Best next step:
 
 - Split the web app into dedicated Next screens for login, dashboard, apartments, iCal sources, tasks, and future admin views.
+
+## f1be07b - Ignore generated Next env types
+
+Added:
+
+- `apps/web/next-env.d.ts` to `.gitignore`;
+- removal of the generated Next environment type file from version control.
+
+Validation:
+
+- Confirmed the worktree stayed clean after starting the Next dev server.
+
+Best next step:
+
+- Keep using `next build` and `next dev` as the source of generated Next type files.
