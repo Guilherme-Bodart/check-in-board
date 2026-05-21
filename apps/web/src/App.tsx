@@ -1,3 +1,5 @@
+"use client";
+
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
@@ -10,6 +12,7 @@ import {
   type AuthResponse,
   type IcalSource,
   type OperationsBoard,
+  type ReservationCard,
   type Task,
 } from "./api";
 
@@ -23,6 +26,10 @@ type Session = {
 type LoadState = "idle" | "loading" | "error";
 
 function readStoredSession(): Session | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   const stored = window.localStorage.getItem(sessionStorageKey);
 
   if (!stored) {
@@ -368,12 +375,36 @@ export function App() {
     inHouse: 0,
     upcoming: 0,
   };
-  const reservations = [
-    ...(board?.checkIns.reservations ?? []),
-    ...(board?.checkOuts.reservations ?? []),
-    ...(board?.inHouse.reservations ?? []),
-    ...(board?.upcoming.reservations ?? []),
-  ];
+  const boardSections = [
+    {
+      id: "checkIns",
+      title: "Check-ins",
+      description: "Reservas que começam na data selecionada.",
+      tone: "info",
+      section: board?.checkIns,
+    },
+    {
+      id: "checkOuts",
+      title: "Check-outs",
+      description: "Reservas que terminam na data selecionada.",
+      tone: "warning",
+      section: board?.checkOuts,
+    },
+    {
+      id: "inHouse",
+      title: "Em estadia",
+      description: "Reservas que atravessam ou ocupam a data selecionada.",
+      tone: "success",
+      section: board?.inHouse,
+    },
+    {
+      id: "upcoming",
+      title: "Próximas",
+      description: "Reservas futuras dentro da janela do board.",
+      tone: "primary",
+      section: board?.upcoming,
+    },
+  ] as const;
 
   return (
     <main className="appShell">
@@ -441,12 +472,15 @@ export function App() {
           <Metric label="Próximas" tone="primary" value={totals.upcoming} />
         </section>
 
-        <section className="contentGrid">
-          <div className="panel" id="reservas">
+        <section className="contentGrid boardContentGrid">
+          <div className="panel boardPanel" id="reservas">
             <div className="panelHeader">
               <div>
-                <p className="eyebrow">{selectedApartment?.timezone ?? "America/Sao_Paulo"}</p>
-                <h2>Reservas e ações</h2>
+                <p className="eyebrow">
+                  {board?.date ?? boardDate} | {board?.days ?? 7} dias |{" "}
+                  {board?.timezone ?? selectedApartment?.timezone ?? "America/Sao_Paulo"}
+                </p>
+                <h2>Reservas por seção</h2>
               </div>
               <button
                 disabled={!session || !selectedApartmentId}
@@ -456,22 +490,17 @@ export function App() {
                 Atualizar
               </button>
             </div>
-            <div className="reservationList">
-              {reservations.length === 0 ? (
-                <p className="mutedText">Nenhuma reserva nessa janela.</p>
-              ) : (
-                reservations.map((reservation) => (
-                  <article className="reservationRow" key={`${reservation.id}-${reservation.startsAt}`}>
-                    <div>
-                      <strong>{reservation.rawSummary ?? "Reserva"}</strong>
-                      <span>{reservation.provider}</span>
-                    </div>
-                    <span>{reservation.status}</span>
-                    <span>{formatTime(reservation.startsAt)} - {formatTime(reservation.endsAt)}</span>
-                    <time>{board?.date}</time>
-                  </article>
-                ))
-              )}
+            <div className="boardSectionGrid">
+              {boardSections.map((item) => (
+                <BoardSectionCard
+                  description={item.description}
+                  key={item.id}
+                  reservations={item.section?.reservations ?? []}
+                  title={item.title}
+                  tone={item.tone}
+                  total={item.section?.count ?? 0}
+                />
+              ))}
             </div>
           </div>
 
@@ -580,6 +609,60 @@ function Metric({
     <article className={`metricCard ${tone}`}>
       <span>{label}</span>
       <strong>{String(value).padStart(2, "0")}</strong>
+    </article>
+  );
+}
+
+function BoardSectionCard({
+  description,
+  reservations,
+  title,
+  tone,
+  total,
+}: {
+  description: string;
+  reservations: ReservationCard[];
+  title: string;
+  tone: "info" | "warning" | "success" | "primary";
+  total: number;
+}) {
+  return (
+    <article className={`boardSectionCard ${tone}`}>
+      <header>
+        <div>
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+        <strong>{total}</strong>
+      </header>
+      <div className="reservationList">
+        {reservations.length === 0 ? (
+          <p className="mutedText">Nenhuma reserva.</p>
+        ) : (
+          reservations.map((reservation) => (
+            <ReservationCardView
+              key={`${reservation.id}-${reservation.startsAt}-${title}`}
+              reservation={reservation}
+            />
+          ))
+        )}
+      </div>
+    </article>
+  );
+}
+
+function ReservationCardView({ reservation }: { reservation: ReservationCard }) {
+  return (
+    <article className="reservationCard">
+      <div>
+        <strong>{reservation.rawSummary ?? "Reserva"}</strong>
+        <span>
+          {reservation.provider} | {reservation.status}
+        </span>
+      </div>
+      <time>
+        {formatTime(reservation.startsAt)} - {formatTime(reservation.endsAt)}
+      </time>
     </article>
   );
 }

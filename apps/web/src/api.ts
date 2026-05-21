@@ -1,7 +1,7 @@
 const fallbackApiUrl = "http://localhost:3333";
 
 export const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? fallbackApiUrl;
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? fallbackApiUrl;
 
 export type ApiError = {
   error?: {

@@ -143,6 +143,12 @@ h2 {
   font-size: 18px;
 }
 
+h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
 .apiPill {
   border: 1px solid var(--cib-color-border);
   border-radius: var(--cib-radius-md);
@@ -262,11 +268,70 @@ h2 {
   grid-template-columns: minmax(0, 1fr) 360px;
 }
 
+.boardContentGrid {
+  align-items: start;
+}
+
 .panel {
   border: 1px solid var(--cib-color-border);
   border-radius: var(--cib-radius-md);
   background: var(--cib-color-surface);
   padding: var(--cib-space-5);
+}
+
+.boardPanel {
+  display: grid;
+  gap: var(--cib-space-5);
+}
+
+.boardSectionGrid {
+  display: grid;
+  gap: var(--cib-space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.boardSectionCard {
+  display: grid;
+  gap: var(--cib-space-4);
+  min-height: 220px;
+  border: 1px solid var(--cib-color-border);
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-surface);
+  padding: var(--cib-space-4);
+}
+
+.boardSectionCard header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cib-space-4);
+}
+
+.boardSectionCard header p {
+  margin: var(--cib-space-1) 0 0;
+  color: var(--cib-color-text-secondary);
+  font-size: 13px;
+}
+
+.boardSectionCard header strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.boardSectionCard.info {
+  border-color: var(--cib-color-info);
+}
+
+.boardSectionCard.warning {
+  border-color: var(--cib-color-warning);
+}
+
+.boardSectionCard.success {
+  border-color: var(--cib-color-success);
+}
+
+.boardSectionCard.primary {
+  border-color: var(--cib-color-primary);
 }
 
 .emptyPanel {
@@ -296,8 +361,24 @@ h2 {
   gap: var(--cib-space-1);
 }
 
+.reservationCard {
+  display: grid;
+  align-items: center;
+  gap: var(--cib-space-3);
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-top: 1px solid var(--cib-color-border);
+  padding-top: var(--cib-space-3);
+}
+
+.reservationCard div {
+  display: grid;
+  gap: var(--cib-space-1);
+}
+
 .reservationRow span,
 .reservationRow time,
+.reservationCard span,
+.reservationCard time,
 .syncRow span,
 .syncRow time {
   color: var(--cib-color-text-secondary);
@@ -388,6 +469,10 @@ h2 {
     grid-template-columns: 1fr 1fr;
   }
 
+  .boardSectionGrid {
+    grid-template-columns: 1fr;
+  }
+
   .panel.compact,
   .taskBand {
     grid-column: 1 / -1;
@@ -410,6 +495,7 @@ h2 {
   .metricGrid,
   .contentGrid,
   .reservationRow,
+  .reservationCard,
   .syncRow,
   .taskRow {
     grid-template-columns: 1fr;
