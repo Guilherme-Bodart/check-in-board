@@ -317,3 +317,100 @@ Validation:
 Best next step:
 
 - Add stored URL sync: decrypt the saved iCal URL, fetch it with tight timeouts and bounded retries, then reuse the current parser/upsert pipeline. After that, start the first operational view APIs for the web/mobile experience.
+
+## af3e451 - Add Spring stored iCal sync
+
+Added:
+
+- decryption support for stored iCal URLs;
+- HTTP iCal feed client with timeout, no redirects, and bounded retry;
+- sync by saved URL when `POST /ical-sources/{icalSourceId}/sync` is called without `icsText`;
+- `GET /ical-sources/{icalSourceId}/sync-runs`;
+- persisted failed sync runs by avoiding rollback for expected API sync errors;
+- tests for stored URL sync, sync history, and failed fetch recording.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Add operational board APIs that organize reservations into check-ins, check-outs, stays, and upcoming work.
+
+## eebfaeb - Add Spring operations board API
+
+Added:
+
+- `GET /apartments/{apartmentId}/operations-board`;
+- date/window parameters for predictable web and mobile views;
+- apartment-timezone aware sections for check-ins, check-outs, in-house stays, and upcoming reservations;
+- board totals and focused reservation cards;
+- tests for board output and invalid window validation.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Add tasks/checklists so the board can combine reservations with operational work.
+
+## dd00394 - Add Spring tasks schema
+
+Added:
+
+- Flyway migration for `tasks`;
+- optional reservation linkage;
+- status lifecycle for `pending`, `done`, `not_done`, and `cancelled`;
+- completion, assignment, creator, and status note columns;
+- indexes for apartment due-date lists, status/due-date lookups, and reservation task lookup.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Add task endpoints with host-admin creation and lightweight mobile status updates.
+
+## 8703d76 - Add Spring tasks API
+
+Added:
+
+- `GET /apartments/{apartmentId}/tasks`;
+- `POST /apartments/{apartmentId}/tasks`;
+- `PATCH /tasks/{taskId}/status`;
+- `GET /tasks/today`;
+- JPA entity and repository for tasks;
+- host-admin-only task creation;
+- task status updates for host admins or members with `canUpdateTaskStatus`;
+- note requirement for `not_done`;
+- tests for create/list/today, updater permissions, missing not-done note, and create permission rejection.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Create shared design tokens and start the web app shell so frontend and mobile can converge on the same product language.
+
+## 5ed416c - Add shared design system and web app shell
+
+Added:
+
+- `packages/design-system` with shared palette, semantic colors, spacing, radius, typography tokens, and CSS variable helpers;
+- mobile theme color/spacing/radius sources wired to the shared design system package;
+- `apps/web` React/Vite app shell prepared for Vercel;
+- web dashboard first screen with operational metrics, reservations/actions, iCal sync status, and field-task actions;
+- root scripts for `pnpm dev:web` and `pnpm build:web`.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/design-system typecheck`;
+- Ran `pnpm --filter @check-in-board/mobile typecheck`;
+- Ran `pnpm build:web`.
+
+Best next step:
+
+- Wire the web dashboard to real Spring endpoints, then add authenticated web flows for sign-in, apartment selection, board, reservations, iCal sources, and tasks.
