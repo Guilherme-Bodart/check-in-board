@@ -52,6 +52,8 @@ export function App() {
   const [boardDate, setBoardDate] = useState(formatDateInput());
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [message, setMessage] = useState("");
+  const [icalMessage, setIcalMessage] = useState("");
+  const [isIcalSaving, setIsIcalSaving] = useState(false);
   const [newApartmentName, setNewApartmentName] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDueAt, setNewTaskDueAt] = useState("");
@@ -202,10 +204,24 @@ export function App() {
 
   async function createIcalSource(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIcalMessage("");
 
-    if (!session || !selectedApartmentId || !newIcalUrl.trim()) {
+    if (!session) {
+      setIcalMessage("Faça login novamente para adicionar a fonte iCal.");
       return;
     }
+
+    if (!selectedApartmentId) {
+      setIcalMessage("Crie ou selecione um apartamento antes de adicionar iCal.");
+      return;
+    }
+
+    if (!newIcalUrl.trim()) {
+      setIcalMessage("Cole a URL iCal do Airbnb antes de adicionar.");
+      return;
+    }
+
+    setIsIcalSaving(true);
 
     try {
       await apiRequest<{ icalSource: IcalSource }>(
@@ -222,9 +238,14 @@ export function App() {
       );
       setNewIcalLabel("");
       setNewIcalUrl("");
+      setIcalMessage("Fonte iCal adicionada. Agora você pode sincronizar.");
       await loadWorkspace(session.token, selectedApartmentId, boardDate);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao criar fonte iCal.");
+      setIcalMessage(
+        error instanceof Error ? error.message : "Falha ao criar fonte iCal.",
+      );
+    } finally {
+      setIsIcalSaving(false);
     }
   }
 
@@ -468,11 +489,18 @@ export function App() {
               <input
                 onChange={(event) => setNewIcalUrl(event.target.value)}
                 placeholder="https://..."
+                required
                 type="url"
                 value={newIcalUrl}
               />
-              <button type="submit">Adicionar iCal</button>
+              <button
+                disabled={isIcalSaving || !selectedApartmentId}
+                type="submit"
+              >
+                {isIcalSaving ? "Adicionando..." : "Adicionar iCal"}
+              </button>
             </form>
+            {icalMessage ? <p className="inlineMessage">{icalMessage}</p> : null}
             <div className="syncList">
               {icalSources.map((source) => (
                 <div className="syncRow" key={source.id}>
