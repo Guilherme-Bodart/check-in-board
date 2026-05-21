@@ -9,5 +9,6 @@ public record AppProperties(
     String icalUrlEncryptionKey,
     boolean authPasswordResetExposeToken,
     int icalFetchTimeoutSeconds,
-    int icalFetchMaxAttempts
+    int icalFetchMaxAttempts,
+    String corsAllowedOrigins
 ) {}
