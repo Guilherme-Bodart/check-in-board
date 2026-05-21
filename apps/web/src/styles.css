@@ -1,0 +1,263 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--cib-color-background);
+  color: var(--cib-color-text-primary);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button {
+  min-height: 40px;
+  border: 1px solid var(--cib-color-primary);
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-primary);
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0 var(--cib-space-4);
+}
+
+.appShell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cib-space-8);
+  border-right: 1px solid var(--cib-color-border);
+  background: var(--cib-color-surface);
+  padding: var(--cib-space-6);
+}
+
+.brand {
+  font-size: 18px;
+}
+
+.navList {
+  display: grid;
+  gap: var(--cib-space-2);
+}
+
+.navList a {
+  border-radius: var(--cib-radius-md);
+  color: var(--cib-color-text-secondary);
+  font-weight: 700;
+  padding: var(--cib-space-3) var(--cib-space-4);
+  text-decoration: none;
+}
+
+.navList a[aria-current="page"] {
+  background: var(--cib-color-primary-soft);
+  color: var(--cib-color-primary);
+}
+
+.workspace {
+  display: grid;
+  align-content: start;
+  gap: var(--cib-space-6);
+  padding: var(--cib-space-8);
+}
+
+.topbar,
+.panelHeader,
+.taskBand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cib-space-4);
+}
+
+.eyebrow {
+  margin: 0 0 var(--cib-space-1);
+  color: var(--cib-color-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+  line-height: 1.15;
+}
+
+h1 {
+  font-size: 32px;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+.apiPill {
+  border: 1px solid var(--cib-color-border);
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-surface);
+  color: var(--cib-color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  padding: var(--cib-space-2) var(--cib-space-3);
+}
+
+.metricGrid {
+  display: grid;
+  gap: var(--cib-space-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metricCard {
+  border: 1px solid var(--cib-color-border);
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-surface);
+  padding: var(--cib-space-5);
+}
+
+.metricCard span {
+  display: block;
+  color: var(--cib-color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.metricCard strong {
+  display: block;
+  margin-top: var(--cib-space-3);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.metricCard.info {
+  border-color: var(--cib-color-info);
+}
+
+.metricCard.warning {
+  border-color: var(--cib-color-warning);
+}
+
+.metricCard.success {
+  border-color: var(--cib-color-success);
+}
+
+.metricCard.danger {
+  border-color: var(--cib-color-danger);
+}
+
+.contentGrid {
+  display: grid;
+  gap: var(--cib-space-6);
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.panel {
+  border: 1px solid var(--cib-color-border);
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-surface);
+  padding: var(--cib-space-5);
+}
+
+.reservationList,
+.syncList {
+  display: grid;
+  gap: var(--cib-space-3);
+  margin-top: var(--cib-space-5);
+}
+
+.reservationRow {
+  display: grid;
+  align-items: center;
+  gap: var(--cib-space-4);
+  grid-template-columns: minmax(160px, 1.4fr) 90px minmax(140px, 1fr) 80px;
+  border-top: 1px solid var(--cib-color-border);
+  padding-top: var(--cib-space-3);
+}
+
+.reservationRow div {
+  display: grid;
+  gap: var(--cib-space-1);
+}
+
+.reservationRow span,
+.reservationRow time,
+.syncRow span,
+.syncRow time {
+  color: var(--cib-color-text-secondary);
+  font-size: 14px;
+}
+
+.syncRow {
+  display: grid;
+  align-items: center;
+  gap: var(--cib-space-3);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  border-top: 1px solid var(--cib-color-border);
+  padding-top: var(--cib-space-3);
+}
+
+.taskBand {
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-primary-soft);
+  padding: var(--cib-space-6);
+}
+
+.taskActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cib-space-3);
+}
+
+@media (max-width: 920px) {
+  .appShell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--cib-color-border);
+  }
+
+  .navList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .metricGrid,
+  .contentGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .panel.compact,
+  .taskBand {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace {
+    padding: var(--cib-space-4);
+  }
+
+  .topbar,
+  .panelHeader,
+  .taskBand {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .navList,
+  .metricGrid,
+  .contentGrid,
+  .reservationRow {
+    grid-template-columns: 1fr;
+  }
+}

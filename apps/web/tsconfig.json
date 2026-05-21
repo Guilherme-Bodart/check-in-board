@@ -1,0 +1,10 @@
+{
+  "extends": "@check-in-board/tsconfig/base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

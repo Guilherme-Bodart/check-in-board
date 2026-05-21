@@ -1,0 +1,27 @@
+{
+  "name": "@check-in-board/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "lint": "echo \"No lint configured for web yet\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured for web yet\"",
+    "format": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.html\""
+  },
+  "dependencies": {
+    "@check-in-board/design-system": "workspace:*",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@check-in-board/tsconfig": "workspace:*",
+    "@types/react": "~19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.10"
+  }
+}

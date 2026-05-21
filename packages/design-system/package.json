@@ -1,0 +1,17 @@
+{
+  "name": "@check-in-board/design-system",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "echo \"No lint configured for design-system yet\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured for design-system yet\"",
+    "format": "prettier --check \"src/**/*.{ts,css}\""
+  },
+  "devDependencies": {
+    "@check-in-board/tsconfig": "workspace:*",
+    "typescript": "^5.9.3"
+  }
+}

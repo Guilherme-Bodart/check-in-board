@@ -8,6 +8,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "format": "pnpm -r format",
+    "dev:web": "pnpm --filter @check-in-board/web dev",
+    "build:web": "pnpm --filter @check-in-board/web build",
     "dev:mobile": "pnpm --filter @check-in-board/mobile dev",
     "dev:backend": "pnpm --filter @check-in-board/backend dev",
     "dev:backend-spring": "cd apps/backend-spring && mvnw.cmd spring-boot:run",
