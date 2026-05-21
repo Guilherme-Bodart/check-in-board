@@ -25,6 +25,48 @@ button {
   padding: 0 var(--cib-space-4);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+input,
+select {
+  min-height: 40px;
+  min-width: 0;
+  border: 1px solid var(--cib-color-border);
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-surface);
+  color: var(--cib-color-text-primary);
+  font: inherit;
+  padding: 0 var(--cib-space-3);
+}
+
+label {
+  display: grid;
+  gap: var(--cib-space-2);
+  color: var(--cib-color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.authShell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: var(--cib-space-4);
+}
+
+.authPanel {
+  display: grid;
+  width: min(100%, 420px);
+  gap: var(--cib-space-5);
+  border: 1px solid var(--cib-color-border);
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-surface);
+  padding: var(--cib-space-6);
+}
+
 .appShell {
   display: grid;
   min-height: 100vh;
@@ -111,6 +153,52 @@ h2 {
   padding: var(--cib-space-2) var(--cib-space-3);
 }
 
+.toolbar,
+.inlineForm,
+.formStack,
+.taskActions {
+  display: flex;
+  gap: var(--cib-space-3);
+}
+
+.toolbar {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.formStack {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.inlineForm {
+  flex-wrap: wrap;
+}
+
+.inlineForm input {
+  flex: 1 1 220px;
+}
+
+.ghostButton {
+  border-color: var(--cib-color-border);
+  background: var(--cib-color-surface);
+  color: var(--cib-color-text-primary);
+}
+
+.message {
+  margin: 0;
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-info-soft);
+  color: var(--cib-color-info);
+  font-weight: 700;
+  padding: var(--cib-space-3) var(--cib-space-4);
+}
+
+.message.error {
+  background: var(--cib-color-danger-soft);
+  color: var(--cib-color-danger);
+}
+
 .metricGrid {
   display: grid;
   gap: var(--cib-space-4);
@@ -146,6 +234,10 @@ h2 {
   border-color: var(--cib-color-warning);
 }
 
+.metricCard.primary {
+  border-color: var(--cib-color-primary);
+}
+
 .metricCard.success {
   border-color: var(--cib-color-success);
 }
@@ -167,8 +259,14 @@ h2 {
   padding: var(--cib-space-5);
 }
 
+.emptyPanel {
+  display: grid;
+  gap: var(--cib-space-4);
+}
+
 .reservationList,
-.syncList {
+.syncList,
+.taskList {
   display: grid;
   gap: var(--cib-space-3);
   margin-top: var(--cib-space-5);
@@ -200,9 +298,13 @@ h2 {
   display: grid;
   align-items: center;
   gap: var(--cib-space-3);
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   border-top: 1px solid var(--cib-color-border);
   padding-top: var(--cib-space-3);
+}
+
+.compactForm {
+  margin-top: var(--cib-space-5);
 }
 
 .taskBand {
@@ -212,9 +314,49 @@ h2 {
 }
 
 .taskActions {
-  display: flex;
   flex-wrap: wrap;
-  gap: var(--cib-space-3);
+}
+
+.taskActions input:first-child {
+  flex: 1 1 220px;
+}
+
+.taskRow {
+  display: grid;
+  align-items: center;
+  gap: var(--cib-space-4);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  border-top: 1px solid var(--cib-color-border);
+  padding-top: var(--cib-space-3);
+}
+
+.taskRow div {
+  display: grid;
+  gap: var(--cib-space-1);
+}
+
+.taskRow span,
+.mutedText {
+  color: var(--cib-color-text-secondary);
+}
+
+.statusBadge {
+  border-radius: var(--cib-radius-md);
+  background: var(--cib-color-warning-soft);
+  color: var(--cib-color-warning);
+  font-size: 13px;
+  font-weight: 800;
+  padding: var(--cib-space-1) var(--cib-space-2);
+}
+
+.statusBadge.done {
+  background: var(--cib-color-success-soft);
+  color: var(--cib-color-success);
+}
+
+.statusBadge.not_done {
+  background: var(--cib-color-danger-soft);
+  color: var(--cib-color-danger);
 }
 
 @media (max-width: 920px) {
@@ -257,7 +399,9 @@ h2 {
   .navList,
   .metricGrid,
   .contentGrid,
-  .reservationRow {
+  .reservationRow,
+  .syncRow,
+  .taskRow {
     grid-template-columns: 1fr;
   }
 }

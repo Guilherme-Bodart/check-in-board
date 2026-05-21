@@ -1,44 +1,359 @@
-import type { BoardMetric, ReservationRow } from "./api";
-import { apiBaseUrl } from "./api";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
-const metrics: BoardMetric[] = [
-  { label: "Check-ins", value: "08", tone: "info" },
-  { label: "Check-outs", value: "05", tone: "warning" },
-  { label: "Em estadia", value: "17", tone: "success" },
-  { label: "Alertas", value: "02", tone: "danger" },
-];
+import {
+  apiBaseUrl,
+  apiRequest,
+  formatDateInput,
+  formatDateTime,
+  formatTime,
+  type Apartment,
+  type AuthResponse,
+  type IcalSource,
+  type OperationsBoard,
+  type Task,
+} from "./api";
 
-const reservations: ReservationRow[] = [
-  {
-    apartment: "Apto 204",
-    channel: "Airbnb",
-    guest: "Maria Santos",
-    status: "Check-in 15:00",
-    time: "Hoje",
-  },
-  {
-    apartment: "Loft 12",
-    channel: "Booking",
-    guest: "Rafael Lima",
-    status: "Limpeza pendente",
-    time: "11:30",
-  },
-  {
-    apartment: "Casa Jardim",
-    channel: "Direto",
-    guest: "Equipe interna",
-    status: "Comprar café",
-    time: "16:30",
-  },
-];
+const sessionStorageKey = "check-in-board-web-session";
 
-const syncRows = [
-  ["Airbnb Apto 204", "Atualizado", "1 min"],
-  ["Booking Loft 12", "Atenção", "18 min"],
-  ["Airbnb Casa Jardim", "Atualizado", "4 min"],
-];
+type Session = {
+  token: string;
+  user: AuthResponse["user"];
+};
+
+type LoadState = "idle" | "loading" | "error";
+
+function readStoredSession(): Session | null {
+  const stored = window.localStorage.getItem(sessionStorageKey);
+
+  if (!stored) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(stored) as Session;
+  } catch {
+    window.localStorage.removeItem(sessionStorageKey);
+    return null;
+  }
+}
 
 export function App() {
+  const [session, setSession] = useState<Session | null>(() => readStoredSession());
+  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [password, setPassword] = useState("");
+  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [selectedApartmentId, setSelectedApartmentId] = useState("");
+  const [board, setBoard] = useState<OperationsBoard | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [icalSources, setIcalSources] = useState<IcalSource[]>([]);
+  const [boardDate, setBoardDate] = useState(formatDateInput());
+  const [loadState, setLoadState] = useState<LoadState>("idle");
+  const [message, setMessage] = useState("");
+  const [newApartmentName, setNewApartmentName] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDueAt, setNewTaskDueAt] = useState("");
+  const [newIcalUrl, setNewIcalUrl] = useState("");
+  const [newIcalLabel, setNewIcalLabel] = useState("");
+
+  const selectedApartment = useMemo(
+    () => apartments.find((apartment) => apartment.id === selectedApartmentId) ?? null,
+    [apartments, selectedApartmentId],
+  );
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    void loadApartments(session.token);
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || !selectedApartmentId) {
+      return;
+    }
+
+    void loadWorkspace(session.token, selectedApartmentId, boardDate);
+  }, [session, selectedApartmentId, boardDate]);
+
+  function persistSession(nextSession: Session) {
+    window.localStorage.setItem(sessionStorageKey, JSON.stringify(nextSession));
+    setSession(nextSession);
+  }
+
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+
+    try {
+      const response = await apiRequest<AuthResponse>(
+        authMode === "sign-in" ? "/auth/sign-in" : "/auth/sign-up",
+        {
+          method: "POST",
+          body:
+            authMode === "sign-in"
+              ? { email, password }
+              : { email, fullName, organizationName, password },
+        },
+      );
+
+      persistSession({ token: response.accessToken, user: response.user });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao autenticar.");
+    }
+  }
+
+  async function loadApartments(token: string) {
+    setLoadState("loading");
+    setMessage("");
+
+    try {
+      const response = await apiRequest<{ apartments: Apartment[] }>("/apartments", {
+        token,
+      });
+
+      setApartments(response.apartments);
+      setSelectedApartmentId((current) => current || response.apartments[0]?.id || "");
+      setLoadState("idle");
+    } catch (error) {
+      setLoadState("error");
+      setMessage(error instanceof Error ? error.message : "Falha ao carregar apartamentos.");
+    }
+  }
+
+  async function loadWorkspace(token: string, apartmentId: string, date: string) {
+    setLoadState("loading");
+    setMessage("");
+
+    try {
+      const [boardResponse, taskResponse, icalResponse] = await Promise.all([
+        apiRequest<OperationsBoard>(
+          `/apartments/${apartmentId}/operations-board?date=${date}&days=7`,
+          { token },
+        ),
+        apiRequest<{ tasks: Task[] }>(`/apartments/${apartmentId}/tasks`, { token }),
+        apiRequest<{ icalSources: IcalSource[] }>(
+          `/apartments/${apartmentId}/ical-sources`,
+          { token },
+        ),
+      ]);
+
+      setBoard(boardResponse);
+      setTasks(taskResponse.tasks);
+      setIcalSources(icalResponse.icalSources);
+      setLoadState("idle");
+    } catch (error) {
+      setLoadState("error");
+      setMessage(error instanceof Error ? error.message : "Falha ao carregar dashboard.");
+    }
+  }
+
+  async function createApartment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!session || !newApartmentName.trim()) {
+      return;
+    }
+
+    try {
+      const response = await apiRequest<{ apartment: Apartment }>("/apartments", {
+        method: "POST",
+        token: session.token,
+        body: {
+          name: newApartmentName.trim(),
+          timezone: "America/Sao_Paulo",
+        },
+      });
+
+      setApartments((current) => [response.apartment, ...current]);
+      setSelectedApartmentId(response.apartment.id);
+      setNewApartmentName("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao criar apartamento.");
+    }
+  }
+
+  async function createTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!session || !selectedApartmentId || !newTaskTitle.trim() || !newTaskDueAt) {
+      return;
+    }
+
+    try {
+      await apiRequest<{ task: Task }>(`/apartments/${selectedApartmentId}/tasks`, {
+        method: "POST",
+        token: session.token,
+        body: {
+          title: newTaskTitle.trim(),
+          dueAt: new Date(newTaskDueAt).toISOString(),
+        },
+      });
+      setNewTaskTitle("");
+      setNewTaskDueAt("");
+      await loadWorkspace(session.token, selectedApartmentId, boardDate);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao criar tarefa.");
+    }
+  }
+
+  async function createIcalSource(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!session || !selectedApartmentId || !newIcalUrl.trim()) {
+      return;
+    }
+
+    try {
+      await apiRequest<{ icalSource: IcalSource }>(
+        `/apartments/${selectedApartmentId}/ical-sources`,
+        {
+          method: "POST",
+          token: session.token,
+          body: {
+            provider: "airbnb",
+            label: newIcalLabel.trim() || "Airbnb",
+            icalUrl: newIcalUrl.trim(),
+          },
+        },
+      );
+      setNewIcalLabel("");
+      setNewIcalUrl("");
+      await loadWorkspace(session.token, selectedApartmentId, boardDate);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao criar fonte iCal.");
+    }
+  }
+
+  async function markTaskDone(taskId: string) {
+    if (!session || !selectedApartmentId) {
+      return;
+    }
+
+    try {
+      await apiRequest<{ task: Task }>(`/tasks/${taskId}/status`, {
+        method: "PATCH",
+        token: session.token,
+        body: { status: "done" },
+      });
+      await loadWorkspace(session.token, selectedApartmentId, boardDate);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao atualizar tarefa.");
+    }
+  }
+
+  async function syncIcalSource(icalSourceId: string) {
+    if (!session || !selectedApartmentId) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/ical-sources/${icalSourceId}/sync`, {
+        method: "POST",
+        token: session.token,
+      });
+      await loadWorkspace(session.token, selectedApartmentId, boardDate);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao sincronizar iCal.");
+    }
+  }
+
+  function signOut() {
+    window.localStorage.removeItem(sessionStorageKey);
+    setSession(null);
+    setApartments([]);
+    setSelectedApartmentId("");
+    setBoard(null);
+    setTasks([]);
+    setIcalSources([]);
+  }
+
+  if (!session) {
+    return (
+      <main className="authShell">
+        <section className="authPanel">
+          <div>
+            <p className="eyebrow">Check-In Board</p>
+            <h1>{authMode === "sign-in" ? "Entrar no painel" : "Criar primeira conta"}</h1>
+          </div>
+
+          <form className="formStack" onSubmit={submitAuth}>
+            <label>
+              Email
+              <input
+                autoComplete="email"
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                type="email"
+                value={email}
+              />
+            </label>
+            {authMode === "sign-up" ? (
+              <>
+                <label>
+                  Nome
+                  <input
+                    onChange={(event) => setFullName(event.target.value)}
+                    required
+                    type="text"
+                    value={fullName}
+                  />
+                </label>
+                <label>
+                  Organização
+                  <input
+                    onChange={(event) => setOrganizationName(event.target.value)}
+                    type="text"
+                    value={organizationName}
+                  />
+                </label>
+              </>
+            ) : null}
+            <label>
+              Senha
+              <input
+                autoComplete={authMode === "sign-in" ? "current-password" : "new-password"}
+                minLength={8}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type="password"
+                value={password}
+              />
+            </label>
+            <button type="submit">{authMode === "sign-in" ? "Entrar" : "Criar conta"}</button>
+          </form>
+
+          <button
+            className="ghostButton"
+            onClick={() => setAuthMode(authMode === "sign-in" ? "sign-up" : "sign-in")}
+            type="button"
+          >
+            {authMode === "sign-in" ? "Criar conta" : "Já tenho conta"}
+          </button>
+
+          {message ? <p className="message error">{message}</p> : null}
+          <p className="apiPill">{apiBaseUrl}</p>
+        </section>
+      </main>
+    );
+  }
+
+  const totals = board?.totals ?? {
+    checkIns: 0,
+    checkOuts: 0,
+    inHouse: 0,
+    upcoming: 0,
+  };
+  const reservations = [
+    ...(board?.checkIns.reservations ?? []),
+    ...(board?.checkOuts.reservations ?? []),
+    ...(board?.inHouse.reservations ?? []),
+    ...(board?.upcoming.reservations ?? []),
+  ];
+
   return (
     <main className="appShell">
       <aside className="sidebar" aria-label="Navegação principal">
@@ -49,44 +364,93 @@ export function App() {
           <a href="#tarefas">Tarefas</a>
           <a href="#sync">Sync</a>
         </nav>
+        <button className="ghostButton" onClick={signOut} type="button">
+          Sair
+        </button>
       </aside>
 
       <section className="workspace">
-        <header className="topbar">
+        <header className="topbar" id="board">
           <div>
-            <p className="eyebrow">Operação de hoje</p>
+            <p className="eyebrow">{session.user.email}</p>
             <h1>Board de hospedagem</h1>
           </div>
-          <div className="apiPill">{apiBaseUrl}</div>
+          <div className="toolbar">
+            <input
+              aria-label="Data do board"
+              onChange={(event) => setBoardDate(event.target.value)}
+              type="date"
+              value={boardDate}
+            />
+            <select
+              aria-label="Apartamento"
+              onChange={(event) => setSelectedApartmentId(event.target.value)}
+              value={selectedApartmentId}
+            >
+              {apartments.map((apartment) => (
+                <option key={apartment.id} value={apartment.id}>
+                  {apartment.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </header>
 
+        {message ? <p className={`message ${loadState === "error" ? "error" : ""}`}>{message}</p> : null}
+
+        {apartments.length === 0 ? (
+          <section className="panel emptyPanel">
+            <h2>Crie o primeiro apartamento</h2>
+            <form className="inlineForm" onSubmit={createApartment}>
+              <input
+                onChange={(event) => setNewApartmentName(event.target.value)}
+                placeholder="Apto 204"
+                type="text"
+                value={newApartmentName}
+              />
+              <button type="submit">Criar</button>
+            </form>
+          </section>
+        ) : null}
+
         <section className="metricGrid" aria-label="Resumo operacional">
-          {metrics.map((metric) => (
-            <article className={`metricCard ${metric.tone}`} key={metric.label}>
-              <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
-            </article>
-          ))}
+          <Metric label="Check-ins" tone="info" value={totals.checkIns} />
+          <Metric label="Check-outs" tone="warning" value={totals.checkOuts} />
+          <Metric label="Em estadia" tone="success" value={totals.inHouse} />
+          <Metric label="Próximas" tone="primary" value={totals.upcoming} />
         </section>
 
         <section className="contentGrid">
           <div className="panel" id="reservas">
             <div className="panelHeader">
-              <h2>Reservas e ações</h2>
-              <button type="button">Atualizar</button>
+              <div>
+                <p className="eyebrow">{selectedApartment?.timezone ?? "America/Sao_Paulo"}</p>
+                <h2>Reservas e ações</h2>
+              </div>
+              <button
+                disabled={!session || !selectedApartmentId}
+                onClick={() => session && loadWorkspace(session.token, selectedApartmentId, boardDate)}
+                type="button"
+              >
+                Atualizar
+              </button>
             </div>
             <div className="reservationList">
-              {reservations.map((reservation) => (
-                <article className="reservationRow" key={reservation.apartment}>
-                  <div>
-                    <strong>{reservation.apartment}</strong>
-                    <span>{reservation.guest}</span>
-                  </div>
-                  <span>{reservation.channel}</span>
-                  <span>{reservation.status}</span>
-                  <time>{reservation.time}</time>
-                </article>
-              ))}
+              {reservations.length === 0 ? (
+                <p className="mutedText">Nenhuma reserva nessa janela.</p>
+              ) : (
+                reservations.map((reservation) => (
+                  <article className="reservationRow" key={`${reservation.id}-${reservation.startsAt}`}>
+                    <div>
+                      <strong>{reservation.rawSummary ?? "Reserva"}</strong>
+                      <span>{reservation.provider}</span>
+                    </div>
+                    <span>{reservation.status}</span>
+                    <span>{formatTime(reservation.startsAt)} - {formatTime(reservation.endsAt)}</span>
+                    <time>{board?.date}</time>
+                  </article>
+                ))
+              )}
             </div>
           </div>
 
@@ -94,12 +458,30 @@ export function App() {
             <div className="panelHeader">
               <h2>Fontes iCal</h2>
             </div>
+            <form className="formStack compactForm" onSubmit={createIcalSource}>
+              <input
+                onChange={(event) => setNewIcalLabel(event.target.value)}
+                placeholder="Airbnb Apto 204"
+                type="text"
+                value={newIcalLabel}
+              />
+              <input
+                onChange={(event) => setNewIcalUrl(event.target.value)}
+                placeholder="https://..."
+                type="url"
+                value={newIcalUrl}
+              />
+              <button type="submit">Adicionar iCal</button>
+            </form>
             <div className="syncList">
-              {syncRows.map(([source, status, time]) => (
-                <div className="syncRow" key={source}>
-                  <span>{source}</span>
-                  <strong>{status}</strong>
-                  <time>{time}</time>
+              {icalSources.map((source) => (
+                <div className="syncRow" key={source.id}>
+                  <span>{source.label}</span>
+                  <strong>{source.lastFailureAt ? "Atenção" : "OK"}</strong>
+                  <button onClick={() => syncIcalSource(source.id)} type="button">
+                    Sync
+                  </button>
+                  <time>{formatDateTime(source.lastSuccessAt)}</time>
                 </div>
               ))}
             </div>
@@ -108,15 +490,68 @@ export function App() {
 
         <section className="taskBand" id="tarefas">
           <div>
-            <p className="eyebrow">Mobile first</p>
-            <h2>Tarefas rápidas para equipe em campo</h2>
+            <p className="eyebrow">Equipe em campo</p>
+            <h2>Tarefas rápidas</h2>
           </div>
-          <div className="taskActions">
-            <button type="button">Marcar feito</button>
-            <button type="button">Adicionar compra</button>
+          <form className="taskActions" onSubmit={createTask}>
+            <input
+              onChange={(event) => setNewTaskTitle(event.target.value)}
+              placeholder="Comprar café"
+              type="text"
+              value={newTaskTitle}
+            />
+            <input
+              onChange={(event) => setNewTaskDueAt(event.target.value)}
+              type="datetime-local"
+              value={newTaskDueAt}
+            />
+            <button type="submit">Adicionar</button>
+          </form>
+        </section>
+
+        <section className="panel">
+          <div className="panelHeader">
+            <h2>Checklist</h2>
+          </div>
+          <div className="taskList">
+            {tasks.length === 0 ? (
+              <p className="mutedText">Nenhuma tarefa criada para este apartamento.</p>
+            ) : (
+              tasks.map((task) => (
+                <article className="taskRow" key={task.id}>
+                  <div>
+                    <strong>{task.title}</strong>
+                    <span>{task.description ?? formatDateTime(task.dueAt)}</span>
+                  </div>
+                  <span className={`statusBadge ${task.status}`}>{task.status.replace("_", " ")}</span>
+                  {task.status === "pending" ? (
+                    <button onClick={() => markTaskDone(task.id)} type="button">
+                      Feito
+                    </button>
+                  ) : null}
+                </article>
+              ))
+            )}
           </div>
         </section>
       </section>
     </main>
+  );
+}
+
+function Metric({
+  label,
+  tone,
+  value,
+}: {
+  label: string;
+  tone: "info" | "warning" | "success" | "primary";
+  value: number;
+}) {
+  return (
+    <article className={`metricCard ${tone}`}>
+      <span>{label}</span>
+      <strong>{String(value).padStart(2, "0")}</strong>
+    </article>
   );
 }
