@@ -64,7 +64,7 @@ Best next step:
 
 - Add root scripts for running, testing, and building the Spring backend, then start the first domain migration with auth.
 
-## Add Spring backend scripts
+## bfd05a7 - Add Spring backend scripts
 
 Added:
 
@@ -108,8 +108,7 @@ Added:
 - auth service for sign-up, sign-in, and `/auth/me` response mapping;
 - JWT service using HS256;
 - BCrypt password encoder for new Spring-created users;
-- app properties for service name and JWT secret;
-- Java standards note about pending Node `scrypt$...` password-hash compatibility.
+- app properties for service name and JWT secret.
 
 Validation:
 
@@ -138,3 +137,41 @@ Validation:
 Best next step:
 
 - Add password reset/change-password parity or start apartments, depending on whether account hardening or product flow continuity matters more for the next cut.
+
+## 1628629 - Add Spring password reset schema
+
+Added:
+
+- Flyway migration for `password_reset_tokens`;
+- hashed token storage instead of raw reset token storage;
+- expiration and single-use columns;
+- indexes for user lookup, token lookup, and token cleanup.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Implement account password flows on top of the new schema.
+
+## 2e9f8ef - Add Spring account password flows
+
+Added:
+
+- protected `POST /auth/change-password`;
+- public `POST /auth/password-reset/request`;
+- public `POST /auth/password-reset/confirm`;
+- password reset token entity and repository;
+- secure random reset tokens with SHA-256 token hashes;
+- opt-in `AUTH_PASSWORD_RESET_EXPOSE_TOKEN` config for local/test flows before an email provider exists;
+- tests for password change, wrong current password, reset token use, reset token reuse, and unknown reset email behavior.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`;
+- Ran `pnpm build:backend-spring`.
+
+Best next step:
+
+- Start the apartments module in Spring: schema, organization-scoped ownership, CRUD endpoints, and tests. This is the first product domain needed before the future frontend and mobile flows can share the same API.

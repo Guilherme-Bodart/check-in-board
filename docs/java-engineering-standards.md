@@ -48,7 +48,7 @@ Keep controllers thin. Put business rules in services. Keep persistence details 
 
 ## API Design
 
-- Keep the existing REST paths stable while replacing the Node backend.
+- Keep REST paths stable once introduced, and version or document intentional contract changes.
 - Return JSON only.
 - Use request and response DTOs instead of exposing JPA entities.
 - Use Java `record` types for DTOs when they are simple data carriers.
@@ -89,7 +89,7 @@ Keep controllers thin. Put business rules in services. Keep persistence details 
 - Never log passwords, JWTs, iCal URLs, reset tokens, or invite tokens.
 - Passwords must be hashed with a modern password encoder.
 - New Spring-created passwords use BCrypt.
-- Existing Node-created `scrypt$...` password hashes are not verified by the Spring backend yet; add a compatibility verifier before cutting existing production users over to Spring.
+- Legacy password hashes from previous backend experiments are not part of the Spring cutover.
 
 ## Transactions
 
@@ -128,4 +128,4 @@ Keep controllers thin. Put business rules in services. Keep persistence details 
 
 ## Migration Rule
 
-Until the Spring backend reaches parity, the Node backend remains a reference implementation. New Spring endpoints should match existing request and response behavior unless we explicitly decide to improve the contract.
+The Spring backend is the new backend direction. Existing code can be used as product reference, but new Spring contracts should prioritize the SaaS shape we want for web and mobile clients.
