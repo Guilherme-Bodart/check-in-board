@@ -218,3 +218,45 @@ Validation:
 Best next step:
 
 - Start iCal source management in Spring: encrypted source URL storage, apartment access checks, create/list endpoints, and tests. That unlocks reservation ingestion after it.
+
+## d822472 - Add Spring iCal source schema
+
+Added:
+
+- Flyway migration for `ical_sources`;
+- apartment ownership for calendar sources;
+- encrypted iCal URL storage column;
+- sync status and sync metadata columns;
+- soft delete column for future source removal;
+- index for apartment-scoped sync queries.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Add iCal source entities, encrypted URL handling, URL safety policy, endpoints, and tests.
+
+## 94778db - Add Spring iCal source API
+
+Added:
+
+- `GET /apartments/{apartmentId}/ical-sources`;
+- `POST /apartments/{apartmentId}/ical-sources`;
+- JPA entity and repository for iCal sources;
+- AES-GCM secret encryption service for iCal URLs;
+- `ICAL_URL_ENCRYPTION_KEY` app config with JWT-secret fallback for local development;
+- iCal URL safety policy for HTTP/HTTPS only, no credentials, no local hosts, and no private network targets;
+- apartment access checks for listing;
+- integration management checks for creation;
+- tests for create/list, encrypted URL storage, missing management permission, private URL rejection, cross-apartment access rejection, and missing auth.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`;
+- Ran `pnpm build:backend-spring`.
+
+Best next step:
+
+- Start reservations ingestion in Spring: schema for reservations/sync runs, iCal parsing, listing reservations by apartment, and the first sync service tests.
