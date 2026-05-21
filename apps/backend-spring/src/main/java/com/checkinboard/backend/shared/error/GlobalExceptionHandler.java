@@ -1,5 +1,6 @@
 package com.checkinboard.backend.shared.error;
 
+import com.checkinboard.backend.modules.auth.service.AuthServiceException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ApiErrorResponse> handleApiException(ApiException exception) {
+        return ResponseEntity
+            .status(exception.getStatus())
+            .body(ApiErrorResponse.of(exception.getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(AuthServiceException.class)
+    ResponseEntity<ApiErrorResponse> handleAuthServiceException(
+        AuthServiceException exception
+    ) {
         return ResponseEntity
             .status(exception.getStatus())
             .body(ApiErrorResponse.of(exception.getCode(), exception.getMessage()));

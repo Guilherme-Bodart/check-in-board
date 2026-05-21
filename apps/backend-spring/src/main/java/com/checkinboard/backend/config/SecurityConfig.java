@@ -1,6 +1,7 @@
 package com.checkinboard.backend.config;
 
 import com.checkinboard.backend.shared.security.JsonSecurityErrorHandler;
+import com.checkinboard.backend.shared.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -10,15 +11,21 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final JsonSecurityErrorHandler securityErrorHandler;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JsonSecurityErrorHandler securityErrorHandler) {
+    public SecurityConfig(
+        JsonSecurityErrorHandler securityErrorHandler,
+        JwtAuthenticationFilter jwtAuthenticationFilter
+    ) {
         this.securityErrorHandler = securityErrorHandler;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -34,6 +41,8 @@ public class SecurityConfig {
                     .requestMatchers(
                         "/health",
                         "/actuator/health",
+                        "/auth/sign-up",
+                        "/auth/sign-in",
                         "/v3/api-docs/**",
                         "/swagger-ui.html",
                         "/swagger-ui/**"
@@ -63,7 +72,11 @@ public class SecurityConfig {
             )
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
-            .logout(AbstractHttpConfigurer::disable);
+            .logout(AbstractHttpConfigurer::disable)
+            .addFilterBefore(
+                jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
 
         return http.build();
     }
