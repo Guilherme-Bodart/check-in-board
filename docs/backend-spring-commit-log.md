@@ -453,3 +453,41 @@ Validation:
 Best next step:
 
 - Add route structure and richer admin flows: edit apartment, manage team permissions, inspect sync history, and replace the single-page state with dedicated screens.
+
+## 8173bdf - Document operations board contract
+
+Added:
+
+- golden contract documentation for `GET /apartments/{apartmentId}/operations-board`;
+- field-by-field reference for `apartmentId`, `date`, `days`, `timezone`, board sections, reservation cards, and totals;
+- frontend interpretation rules for `checkIns`, `checkOuts`, `inHouse`, and `upcoming`;
+- guidance that the UI should preserve each section instead of flattening reservations into a single list.
+
+Validation:
+
+- Documentation-only commit.
+
+Best next step:
+
+- Migrate the web app from Vite to Next and make the operations board UI follow this contract directly.
+
+## c0859ce - Migrate web app to Next
+
+Added:
+
+- Next App Router setup for `apps/web`;
+- Vite entrypoint removal and Next scripts for dev, build, and start;
+- `NEXT_PUBLIC_API_BASE_URL` support for browser API configuration;
+- shared design-system CSS variables applied through the Next root layout;
+- operations board rendering by contract section: `checkIns`, `checkOuts`, `inHouse`, and `upcoming`;
+- local CORS default for `http://localhost:3000`;
+- `.next/` ignored as build output.
+
+Validation:
+
+- Ran `pnpm build:web`;
+- Ran `pnpm build:backend-spring`.
+
+Best next step:
+
+- Split the web app into dedicated Next screens for login, dashboard, apartments, iCal sources, tasks, and future admin views.
