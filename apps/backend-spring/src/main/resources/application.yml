@@ -34,6 +34,8 @@ check-in-board:
   auth-jwt-secret: ${AUTH_JWT_SECRET:dev-auth-local-secret-not-for-production}
   ical-url-encryption-key: ${ICAL_URL_ENCRYPTION_KEY:${AUTH_JWT_SECRET:dev-auth-local-secret-not-for-production}}
   auth-password-reset-expose-token: ${AUTH_PASSWORD_RESET_EXPOSE_TOKEN:false}
+  ical-fetch-timeout-seconds: ${ICAL_FETCH_TIMEOUT_SECONDS:8}
+  ical-fetch-max-attempts: ${ICAL_FETCH_MAX_ATTEMPTS:2}
 
 logging:
   level:

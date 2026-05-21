@@ -69,6 +69,48 @@ public class SecretEncryptionService {
         }
     }
 
+    public String decrypt(String encryptedValue) {
+        if (encryptedValue == null || !encryptedValue.startsWith(PREFIX)) {
+            throw new IllegalArgumentException("Unsupported encrypted secret format.");
+        }
+
+        try {
+            byte[] payload = Base64
+                .getUrlDecoder()
+                .decode(encryptedValue.substring(PREFIX.length()));
+            int tagLength = TAG_LENGTH_BITS / 8;
+            int minimumPayloadLength = IV_LENGTH + tagLength + 1;
+
+            if (payload.length < minimumPayloadLength) {
+                throw new IllegalArgumentException("Encrypted secret payload is invalid.");
+            }
+
+            byte[] iv = Arrays.copyOfRange(payload, 0, IV_LENGTH);
+            byte[] authTag = Arrays.copyOfRange(payload, IV_LENGTH, IV_LENGTH + tagLength);
+            byte[] ciphertext = Arrays.copyOfRange(
+                payload,
+                IV_LENGTH + tagLength,
+                payload.length
+            );
+            ByteBuffer encrypted = ByteBuffer.allocate(ciphertext.length + authTag.length);
+            encrypted.put(ciphertext);
+            encrypted.put(authTag);
+
+            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                encryptionKey,
+                new GCMParameterSpec(TAG_LENGTH_BITS, iv)
+            );
+
+            return new String(cipher.doFinal(encrypted.array()), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IllegalStateException("Secret decryption failed.", exception);
+        }
+    }
+
     private byte[] sha256(String value) {
         try {
             return MessageDigest

@@ -68,4 +68,36 @@ public class SyncRunEntity {
         finishedAt = Instant.now();
         this.errorMessage = errorMessage;
     }
+
+    public String getId() {
+        return id;
+    }
+
+    public IcalSourceEntity getIcalSource() {
+        return icalSource;
+    }
+
+    public SyncRunStatus getStatus() {
+        return status;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getFinishedAt() {
+        return finishedAt;
+    }
+
+    public int getEventsSeen() {
+        return eventsSeen;
+    }
+
+    public int getReservationsUpserted() {
+        return reservationsUpserted;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
 }

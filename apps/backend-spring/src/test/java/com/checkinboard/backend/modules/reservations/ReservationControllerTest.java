@@ -2,12 +2,17 @@ package com.checkinboard.backend.modules.reservations;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.checkinboard.backend.BackendSpringApplication;
+import com.checkinboard.backend.integrations.ical.IcalFeedClient;
+import com.checkinboard.backend.integrations.ical.IcalFeedFetchException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
@@ -47,8 +53,12 @@ class ReservationControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @MockBean
+    private IcalFeedClient icalFeedClient;
+
     @BeforeEach
     void cleanDatabase() {
+        reset(icalFeedClient);
         jdbcTemplate.update("delete from password_reset_tokens");
         jdbcTemplate.update("delete from sync_runs");
         jdbcTemplate.update("delete from reservations");
@@ -93,6 +103,34 @@ class ReservationControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.reservations", hasSize(1)))
             .andExpect(jsonPath("$.reservations[0].externalUid").value("booking-1"));
+    }
+
+    @Test
+    void syncsStoredIcalUrlWhenRequestBodyIsEmpty() throws Exception {
+        when(icalFeedClient.fetch(any())).thenReturn(ICS_TEXT);
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+
+        mockMvc
+            .perform(
+                post("/ical-sources/{icalSourceId}/sync", icalSourceId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.summary.eventsSeen").value(1))
+            .andExpect(jsonPath("$.reservations", hasSize(1)))
+            .andExpect(jsonPath("$.reservations[0].externalEventKey").value("booking-1"));
+
+        mockMvc
+            .perform(
+                get("/ical-sources/{icalSourceId}/sync-runs", icalSourceId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.syncRuns", hasSize(1)))
+            .andExpect(jsonPath("$.syncRuns[0].status").value("succeeded"))
+            .andExpect(jsonPath("$.syncRuns[0].eventsSeen").value(1));
     }
 
     @Test
@@ -195,6 +233,33 @@ class ReservationControllerTest {
             )
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void recordsFailedStoredUrlSync() throws Exception {
+        when(icalFeedClient.fetch(any()))
+            .thenThrow(new IcalFeedFetchException("iCal feed returned HTTP 500."));
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+
+        mockMvc
+            .perform(
+                post("/ical-sources/{icalSourceId}/sync", icalSourceId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isBadGateway())
+            .andExpect(jsonPath("$.error.code").value("ICAL_FETCH_FAILED"));
+
+        mockMvc
+            .perform(
+                get("/ical-sources/{icalSourceId}/sync-runs", icalSourceId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.syncRuns", hasSize(1)))
+            .andExpect(jsonPath("$.syncRuns[0].status").value("failed"))
+            .andExpect(jsonPath("$.syncRuns[0].errorMessage").value("iCal feed returned HTTP 500."));
     }
 
     private void syncIcalSource(String accessToken, String icalSourceId, String icsText)

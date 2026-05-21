@@ -7,5 +7,7 @@ public record AppProperties(
     String serviceName,
     String authJwtSecret,
     String icalUrlEncryptionKey,
-    boolean authPasswordResetExposeToken
+    boolean authPasswordResetExposeToken,
+    int icalFetchTimeoutSeconds,
+    int icalFetchMaxAttempts
 ) {}

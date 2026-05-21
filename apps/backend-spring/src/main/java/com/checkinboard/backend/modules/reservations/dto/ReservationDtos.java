@@ -1,6 +1,7 @@
 package com.checkinboard.backend.modules.reservations.dto;
 
 import com.checkinboard.backend.modules.reservations.model.ReservationStatus;
+import com.checkinboard.backend.modules.reservations.model.SyncRunStatus;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
@@ -37,4 +38,17 @@ public final class ReservationDtos {
         List<ReservationResponse> reservations,
         ManualSyncSummary summary
     ) {}
+
+    public record SyncRunResponse(
+        String id,
+        String icalSourceId,
+        SyncRunStatus status,
+        Instant startedAt,
+        Instant finishedAt,
+        int eventsSeen,
+        int reservationsUpserted,
+        String errorMessage
+    ) {}
+
+    public record SyncRunsResponse(List<SyncRunResponse> syncRuns) {}
 }

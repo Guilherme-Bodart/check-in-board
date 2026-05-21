@@ -3,6 +3,7 @@ package com.checkinboard.backend.modules.reservations;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ReservationsResponse;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.SyncRunsResponse;
 import com.checkinboard.backend.modules.reservations.service.ReservationService;
 import com.checkinboard.backend.shared.security.AuthenticatedUserPrincipal;
 import jakarta.validation.Valid;
@@ -34,8 +35,16 @@ public class ReservationController {
     ManualSyncResponse sync(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
         @PathVariable String icalSourceId,
-        @Valid @RequestBody ManualSyncRequest request
+        @Valid @RequestBody(required = false) ManualSyncRequest request
     ) {
-        return reservationService.syncFromText(principal.userId(), icalSourceId, request);
+        return reservationService.sync(principal.userId(), icalSourceId, request);
+    }
+
+    @GetMapping("/ical-sources/{icalSourceId}/sync-runs")
+    SyncRunsResponse syncRuns(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable String icalSourceId
+    ) {
+        return reservationService.syncRuns(principal.userId(), icalSourceId);
     }
 }
