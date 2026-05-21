@@ -6,5 +6,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AppProperties(
     String serviceName,
     String authJwtSecret,
+    String icalUrlEncryptionKey,
     boolean authPasswordResetExposeToken
 ) {}
