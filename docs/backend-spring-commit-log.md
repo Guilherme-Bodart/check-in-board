@@ -414,3 +414,42 @@ Validation:
 Best next step:
 
 - Wire the web dashboard to real Spring endpoints, then add authenticated web flows for sign-in, apartment selection, board, reservations, iCal sources, and tasks.
+
+## 0184fdf - Configure Spring CORS for web app
+
+Added:
+
+- `CORS_ALLOWED_ORIGINS` application setting;
+- default local Vite origins for `http://localhost:5173` and `http://localhost:5174`;
+- explicit Spring `CorsConfigurationSource` for authenticated browser calls;
+- allowed HTTP methods and headers used by the web app.
+
+Validation:
+
+- Ran `pnpm build:backend-spring`.
+
+Best next step:
+
+- Connect the web app to real Spring endpoints now that browser requests are allowed.
+
+## da14e59 - Connect web dashboard to Spring API
+
+Added:
+
+- API client for Spring requests and standard API error messages;
+- local web session persistence with JWT bearer token;
+- sign-in and first-account sign-up flows;
+- apartment loading, selection, and first-apartment creation;
+- live operations board data from `GET /apartments/{apartmentId}/operations-board`;
+- live iCal source listing, source creation, and manual sync trigger;
+- live task listing, task creation, and mark-done action;
+- connected empty states and loading/error messages for the dashboard.
+
+Validation:
+
+- Ran `pnpm build:web`;
+- Ran `pnpm build:backend-spring`.
+
+Best next step:
+
+- Add route structure and richer admin flows: edit apartment, manage team permissions, inspect sync history, and replace the single-page state with dedicated screens.
