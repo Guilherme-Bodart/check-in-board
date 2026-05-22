@@ -69,6 +69,11 @@ export type ReservationCard = {
   rawSummary: string | null;
 };
 
+export type Reservation = ReservationCard & {
+  externalEventKey: string;
+  externalUid: string | null;
+};
+
 export type BoardSection = {
   count: number;
   reservations: ReservationCard[];
