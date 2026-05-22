@@ -11,12 +11,14 @@ public final class ApartmentDtos {
 
     public record CreateApartmentRequest(
         @NotBlank @Size(max = 120) String name,
-        @NotBlank @Size(max = 120) String timezone
+        @NotBlank @Size(max = 120) String timezone,
+        @Size(max = 64) String ownerId
     ) {}
 
     public record UpdateApartmentRequest(
         @NotBlank @Size(max = 120) String name,
-        @NotBlank @Size(max = 120) String timezone
+        @NotBlank @Size(max = 120) String timezone,
+        @Size(max = 64) String ownerId
     ) {}
 
     public record ApartmentMembershipResponse(
@@ -32,8 +34,11 @@ public final class ApartmentDtos {
         ApartmentMembershipResponse membership,
         String name,
         String organizationId,
+        ApartmentOwnerResponse owner,
         String timezone
     ) {}
+
+    public record ApartmentOwnerResponse(String id, String name, String type) {}
 
     public record ApartmentEnvelope(ApartmentResponse apartment) {}
 

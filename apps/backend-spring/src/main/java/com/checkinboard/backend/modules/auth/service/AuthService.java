@@ -22,6 +22,9 @@ import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRe
 import com.checkinboard.backend.modules.auth.repository.OrganizationRepository;
 import com.checkinboard.backend.modules.auth.repository.PasswordResetTokenRepository;
 import com.checkinboard.backend.modules.auth.repository.UserRepository;
+import com.checkinboard.backend.modules.owners.model.OwnerEntity;
+import com.checkinboard.backend.modules.owners.model.OwnerType;
+import com.checkinboard.backend.modules.owners.repository.OwnerRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -48,6 +51,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AppProperties appProperties;
+    private final OwnerRepository ownerRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthService(
@@ -57,7 +61,8 @@ public class AuthService {
         PasswordResetTokenRepository passwordResetTokenRepository,
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
-        AppProperties appProperties
+        AppProperties appProperties,
+        OwnerRepository ownerRepository
     ) {
         this.userRepository = userRepository;
         this.organizationRepository = organizationRepository;
@@ -66,6 +71,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.appProperties = appProperties;
+        this.ownerRepository = ownerRepository;
     }
 
     @Transactional
@@ -119,6 +125,18 @@ public class AuthService {
                         AuthRole.host_admin
                     )
                 );
+            ownerRepository.save(
+                new OwnerEntity(
+                    newId(),
+                    organization,
+                    organization.getName() + " - Imoveis proprios",
+                    OwnerType.internal,
+                    user.getFullName(),
+                    user.getEmail(),
+                    null,
+                    null
+                )
+            );
         }
 
         return toAuthResponse(

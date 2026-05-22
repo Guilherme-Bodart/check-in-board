@@ -1,25 +1,22 @@
-package com.checkinboard.backend.modules.apartments.model;
+package com.checkinboard.backend.modules.owners.model;
 
 import com.checkinboard.backend.modules.auth.model.OrganizationEntity;
-import com.checkinboard.backend.modules.owners.model.OwnerEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
-@Table(name = "apartments")
-public class ApartmentEntity {
+@Table(name = "owners")
+public class OwnerEntity {
 
     @Id
     private String id;
@@ -31,12 +28,18 @@ public class ApartmentEntity {
     @Column(nullable = false)
     private String name;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String timezone;
+    private OwnerType type;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private OwnerEntity owner;
+    @Column(name = "contact_name")
+    private String contactName;
+
+    private String email;
+
+    private String phone;
+
+    private String notes;
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
@@ -47,24 +50,26 @@ public class ApartmentEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    @OneToMany(mappedBy = "apartment")
-    @OrderBy("createdAt asc")
-    private List<ApartmentMembershipEntity> memberships = new ArrayList<>();
+    protected OwnerEntity() {}
 
-    protected ApartmentEntity() {}
-
-    public ApartmentEntity(
+    public OwnerEntity(
         String id,
         OrganizationEntity organization,
-        OwnerEntity owner,
         String name,
-        String timezone
+        OwnerType type,
+        String contactName,
+        String email,
+        String phone,
+        String notes
     ) {
         this.id = id;
         this.organization = organization;
-        this.owner = owner;
         this.name = name;
-        this.timezone = timezone;
+        this.type = type;
+        this.contactName = contactName;
+        this.email = email;
+        this.phone = phone;
+        this.notes = notes;
     }
 
     @PrePersist
@@ -91,12 +96,24 @@ public class ApartmentEntity {
         return name;
     }
 
-    public String getTimezone() {
-        return timezone;
+    public OwnerType getType() {
+        return type;
     }
 
-    public OwnerEntity getOwner() {
-        return owner;
+    public String getContactName() {
+        return contactName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public String getNotes() {
+        return notes;
     }
 
     public Instant getDeletedAt() {
@@ -111,14 +128,20 @@ public class ApartmentEntity {
         return updatedAt;
     }
 
-    public List<ApartmentMembershipEntity> getMemberships() {
-        return memberships;
-    }
-
-    public void updateDetails(String name, String timezone, OwnerEntity owner) {
+    public void updateDetails(
+        String name,
+        OwnerType type,
+        String contactName,
+        String email,
+        String phone,
+        String notes
+    ) {
         this.name = name;
-        this.timezone = timezone;
-        this.owner = owner;
+        this.type = type;
+        this.contactName = contactName;
+        this.email = email;
+        this.phone = phone;
+        this.notes = notes;
     }
 
     public void markDeleted() {

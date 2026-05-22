@@ -2,6 +2,7 @@ package com.checkinboard.backend.modules.apartments.service;
 
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentEnvelope;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentMembershipResponse;
+import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentOwnerResponse;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentResponse;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentsResponse;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.CreateApartmentRequest;
@@ -13,6 +14,9 @@ import com.checkinboard.backend.modules.apartments.repository.ApartmentRepositor
 import com.checkinboard.backend.modules.auth.model.AuthRole;
 import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
 import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRepository;
+import com.checkinboard.backend.modules.owners.model.OwnerEntity;
+import com.checkinboard.backend.modules.owners.model.OwnerType;
+import com.checkinboard.backend.modules.owners.repository.OwnerRepository;
 import com.checkinboard.backend.shared.error.ApiException;
 import java.time.DateTimeException;
 import java.time.ZoneId;
@@ -27,15 +31,18 @@ public class ApartmentService {
     private final ApartmentRepository apartmentRepository;
     private final ApartmentMembershipRepository apartmentMembershipRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
+    private final OwnerRepository ownerRepository;
 
     public ApartmentService(
         ApartmentRepository apartmentRepository,
         ApartmentMembershipRepository apartmentMembershipRepository,
-        OrganizationMembershipRepository organizationMembershipRepository
+        OrganizationMembershipRepository organizationMembershipRepository,
+        OwnerRepository ownerRepository
     ) {
         this.apartmentRepository = apartmentRepository;
         this.apartmentMembershipRepository = apartmentMembershipRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
+        this.ownerRepository = ownerRepository;
     }
 
     @Transactional(readOnly = true)
@@ -66,6 +73,7 @@ public class ApartmentService {
             new ApartmentEntity(
                 newId(),
                 organizationAccess.getOrganization(),
+                resolveOwner(organizationAccess, request.ownerId()),
                 normalizeName(request.name()),
                 normalizeTimezone(request.timezone())
             )
@@ -104,7 +112,8 @@ public class ApartmentService {
         assertCanManageApartment(userId, apartment);
         apartment.updateDetails(
             normalizeName(request.name()),
-            normalizeTimezone(request.timezone())
+            normalizeTimezone(request.timezone()),
+            resolveOwner(apartment.getOrganization().getId(), request.ownerId())
         );
 
         ApartmentEntity savedApartment = apartmentRepository.save(apartment);
@@ -188,8 +197,57 @@ public class ApartmentService {
             ),
             apartment.getName(),
             apartment.getOrganization().getId(),
+            new ApartmentOwnerResponse(
+                apartment.getOwner().getId(),
+                apartment.getOwner().getName(),
+                apartment.getOwner().getType().name()
+            ),
             apartment.getTimezone()
         );
+    }
+
+    private OwnerEntity resolveOwner(
+        OrganizationMembershipEntity organizationAccess,
+        String ownerId
+    ) {
+        return resolveOwner(organizationAccess.getOrganization().getId(), ownerId);
+    }
+
+    private OwnerEntity resolveOwner(String organizationId, String ownerId) {
+        if (ownerId != null && !ownerId.isBlank()) {
+            OwnerEntity owner = ownerRepository
+                .findByIdAndDeletedAtIsNull(ownerId.trim())
+                .orElseThrow(() ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "OWNER_NOT_FOUND",
+                        "Owner was not found."
+                    )
+                );
+
+            if (!owner.getOrganization().getId().equals(organizationId)) {
+                throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN",
+                    "You do not have permission to use this owner."
+                );
+            }
+
+            return owner;
+        }
+
+        return ownerRepository
+            .findFirstByOrganization_IdAndTypeAndDeletedAtIsNullOrderByCreatedAtAsc(
+                organizationId,
+                OwnerType.internal
+            )
+            .orElseThrow(() ->
+                new ApiException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "OWNER_NOT_CONFIGURED",
+                    "Default owner was not configured."
+                )
+            );
     }
 
     private String normalizeName(String name) {

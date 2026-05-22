@@ -14,6 +14,7 @@ public interface ApartmentRepository extends JpaRepository<ApartmentEntity, Stri
         select distinct apartment
         from ApartmentEntity apartment
         join fetch apartment.organization
+        join fetch apartment.owner
         join fetch apartment.memberships membership
         where apartment.deletedAt is null
             and membership.user.id = :userId
@@ -23,6 +24,6 @@ public interface ApartmentRepository extends JpaRepository<ApartmentEntity, Stri
     )
     List<ApartmentEntity> findAccessibleByUserId(@Param("userId") String userId);
 
-    @EntityGraph(attributePaths = { "organization", "memberships" })
+    @EntityGraph(attributePaths = { "organization", "owner", "memberships" })
     Optional<ApartmentEntity> findByIdAndDeletedAtIsNull(String id);
 }

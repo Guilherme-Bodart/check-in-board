@@ -71,6 +71,9 @@ class ApartmentControllerTest {
             .andExpect(jsonPath("$.apartment.id", notNullValue()))
             .andExpect(jsonPath("$.apartment.name").value("Apto 204"))
             .andExpect(jsonPath("$.apartment.timezone").value("America/Sao_Paulo"))
+            .andExpect(jsonPath("$.apartment.owner.id", notNullValue()))
+            .andExpect(jsonPath("$.apartment.owner.name").value("Host Ops - Imoveis proprios"))
+            .andExpect(jsonPath("$.apartment.owner.type").value("internal"))
             .andExpect(jsonPath("$.apartment.membership.role").value("host_admin"))
             .andExpect(jsonPath("$.apartment.membership.canView").value(true))
             .andExpect(jsonPath("$.apartment.membership.canManageIntegrations").value(true))
@@ -84,7 +87,8 @@ class ApartmentControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.apartments", hasSize(1)))
             .andExpect(jsonPath("$.apartments[0].id").value(apartmentId))
-            .andExpect(jsonPath("$.apartments[0].name").value("Apto 204"));
+            .andExpect(jsonPath("$.apartments[0].name").value("Apto 204"))
+            .andExpect(jsonPath("$.apartments[0].owner.type").value("internal"));
 
         mockMvc
             .perform(
