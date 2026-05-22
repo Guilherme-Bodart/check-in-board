@@ -567,3 +567,45 @@ Validation:
 Best next step:
 
 - Re-sync affected iCal sources locally so previously stored UTC-midnight reservations are rewritten with the corrected timezone instants.
+
+## 33905d8 - Document frontend product architecture
+
+Added:
+
+- product architecture document for the SaaS frontend direction;
+- business model for organization, platform user, owner, apartment, iCal source, reservation, and task;
+- owner separation between own/internal properties and third-party client properties;
+- authenticated route plan for dashboard, apartments, clients, reservations, calendar, and settings;
+- Tailwind/shadcn-style UI direction and implementation priorities.
+
+Validation:
+
+- Documentation-only commit.
+
+Best next step:
+
+- Start the Tailwind migration and authenticated route structure while keeping real API data where endpoints already exist.
+
+## 37f90c1 - Add Tailwind authenticated web routes
+
+Added:
+
+- Tailwind CSS v4/PostCSS setup for the web app;
+- authenticated App Router layout with fixed sidebar and clean header;
+- `/login`, `/dashboard`, `/apartamentos`, `/clientes`, `/reservas`, `/calendario`, and `/configuracoes` routes;
+- Tailwind rewrite of the existing dashboard components;
+- real dashboard data under `/dashboard`;
+- `Todos os apartamentos` aggregation in the dashboard by fetching each apartment board;
+- Recharts operational volume chart from real board sections;
+- apartments management screen consuming real `GET /apartments`;
+- apartment create UI with optional iCal creation;
+- clients/owners page scaffold for the upcoming backend owner model.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm build:web`.
+
+Best next step:
+
+- Implement the backend Owner model and Apartment -> Owner relationship, then replace the temporary owner UI note with persisted owner data.
