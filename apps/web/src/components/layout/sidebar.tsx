@@ -1,22 +1,67 @@
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  UsersRound,
+  ClipboardList,
+} from "lucide-react";
+
+import { cn } from "../../lib/utils";
+
 const navigationItems = [
-  { href: "#board", label: "Board" },
-  { href: "#reservas", label: "Reservas" },
-  { href: "#tarefas", label: "Tarefas" },
-  { href: "#sync", label: "Sync" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/apartamentos", icon: Building2, label: "Meus Apartamentos" },
+  { href: "/clientes", icon: UsersRound, label: "Clientes" },
+  { href: "/reservas", icon: ClipboardList, label: "Reservas" },
+  { href: "/calendario", icon: CalendarDays, label: "Calendário" },
+  { href: "/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
-export function Sidebar({ onSignOut }: { onSignOut: () => void }) {
+export function Sidebar({
+  currentPath,
+  onSignOut,
+}: {
+  currentPath: string;
+  onSignOut: () => void;
+}) {
   return (
-    <aside className="sidebar" aria-label="Navegação principal">
-      <strong className="brand">Check-In Board</strong>
-      <nav className="navList">
-        {navigationItems.map((item, index) => (
-          <a aria-current={index === 0 ? "page" : undefined} href={item.href} key={item.href}>
+    <aside
+      className="flex min-h-screen flex-col border-r border-border bg-surface px-5 py-6"
+      aria-label="Navegação principal"
+    >
+      <div className="mb-8">
+        <strong className="block text-lg font-semibold tracking-tight text-text-primary">
+          Check-In Board
+        </strong>
+        <span className="mt-1 block text-xs font-medium text-text-muted">
+          Gestão operacional
+        </span>
+      </div>
+      <nav className="grid gap-1">
+        {navigationItems.map((item) => (
+          <Link
+            aria-current={currentPath === item.href ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary transition hover:bg-primary-soft hover:text-primary",
+              currentPath === item.href && "bg-primary-soft text-primary",
+            )}
+            href={item.href}
+            key={item.href}
+          >
+            <item.icon aria-hidden className="h-4 w-4" />
             {item.label}
-          </a>
+          </Link>
         ))}
       </nav>
-      <button className="ghostButton" onClick={onSignOut} type="button">
+      <button
+        className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
+        onClick={onSignOut}
+        type="button"
+      >
+        <LogOut aria-hidden className="h-4 w-4" />
         Sair
       </button>
     </aside>

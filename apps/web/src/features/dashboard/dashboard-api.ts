@@ -1,36 +1,15 @@
 import {
   apiRequest,
   type Apartment,
-  type AuthResponse,
   type IcalSource,
   type OperationsBoard,
   type Task,
 } from "../../api";
 import type {
-  AuthFormValues,
-  AuthMode,
   CreateIcalSourceValues,
   CreateTaskValues,
   WorkspaceData,
 } from "./types";
-
-export async function authenticate(mode: AuthMode, values: AuthFormValues) {
-  return apiRequest<AuthResponse>(
-    mode === "sign-in" ? "/auth/sign-in" : "/auth/sign-up",
-    {
-      method: "POST",
-      body:
-        mode === "sign-in"
-          ? { email: values.email, password: values.password }
-          : {
-              email: values.email,
-              fullName: values.fullName,
-              organizationName: values.organizationName,
-              password: values.password,
-            },
-    },
-  );
-}
 
 export async function fetchApartments(token: string) {
   const response = await apiRequest<{ apartments: Apartment[] }>("/apartments", {
@@ -64,13 +43,17 @@ export async function fetchWorkspace(
   };
 }
 
-export async function createApartment(token: string, name: string) {
+export async function createApartment(
+  token: string,
+  name: string,
+  timezone = "America/Sao_Paulo",
+) {
   const response = await apiRequest<{ apartment: Apartment }>("/apartments", {
     method: "POST",
     token,
     body: {
       name,
-      timezone: "America/Sao_Paulo",
+      timezone,
     },
   });
 

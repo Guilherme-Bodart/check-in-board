@@ -31,18 +31,26 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
   }
 
   return (
-    <main className="authShell">
-      <section className="authPanel">
+    <main className="grid min-h-screen place-items-center bg-background px-4 py-10">
+      <section className="w-full max-w-md rounded-3xl border border-border bg-surface p-6 shadow-sm md:p-8">
         <div>
-          <p className="eyebrow">Check-In Board</p>
-          <h1>{mode === "sign-in" ? "Entrar no painel" : "Criar primeira conta"}</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
+            Check-In Board
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary">
+            {mode === "sign-in" ? "Entrar no painel" : "Criar primeira conta"}
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-text-secondary">
+            Acesse a operação dos seus apartamentos, reservas e tarefas em um só lugar.
+          </p>
         </div>
 
-        <form className="formStack" onSubmit={submitAuth}>
-          <label>
+        <form className="mt-7 grid gap-4" onSubmit={submitAuth}>
+          <label className="grid gap-2 text-sm font-medium text-text-secondary">
             Email
             <input
               autoComplete="email"
+              className="h-11 rounded-xl border border-border bg-surface px-3 text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
               onChange={(event) => updateField("email", event.target.value)}
               required
               type="email"
@@ -51,18 +59,20 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
           </label>
           {mode === "sign-up" ? (
             <>
-              <label>
+              <label className="grid gap-2 text-sm font-medium text-text-secondary">
                 Nome
                 <input
+                  className="h-11 rounded-xl border border-border bg-surface px-3 text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                   onChange={(event) => updateField("fullName", event.target.value)}
                   required
                   type="text"
                   value={values.fullName}
                 />
               </label>
-              <label>
+              <label className="grid gap-2 text-sm font-medium text-text-secondary">
                 Organização
                 <input
+                  className="h-11 rounded-xl border border-border bg-surface px-3 text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                   onChange={(event) => updateField("organizationName", event.target.value)}
                   type="text"
                   value={values.organizationName}
@@ -70,10 +80,11 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
               </label>
             </>
           ) : null}
-          <label>
+          <label className="grid gap-2 text-sm font-medium text-text-secondary">
             Senha
             <input
               autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+              className="h-11 rounded-xl border border-border bg-surface px-3 text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
               minLength={8}
               onChange={(event) => updateField("password", event.target.value)}
               required
@@ -81,19 +92,30 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
               value={values.password}
             />
           </label>
-          <button type="submit">{mode === "sign-in" ? "Entrar" : "Criar conta"}</button>
+          <button
+            className="mt-2 h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
+            type="submit"
+          >
+            {mode === "sign-in" ? "Entrar" : "Criar conta"}
+          </button>
         </form>
 
         <button
-          className="ghostButton"
+          className="mt-3 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
           onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
           type="button"
         >
           {mode === "sign-in" ? "Criar conta" : "Já tenho conta"}
         </button>
 
-        {message ? <p className="message error">{message}</p> : null}
-        <p className="apiPill">{apiBaseUrl}</p>
+        {message ? (
+          <p className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
+            {message}
+          </p>
+        ) : null}
+        <p className="mt-5 rounded-xl border border-border bg-surface-muted px-3 py-2 text-xs font-medium text-text-muted">
+          {apiBaseUrl}
+        </p>
       </section>
     </main>
   );

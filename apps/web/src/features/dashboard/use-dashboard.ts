@@ -9,8 +9,8 @@ import {
   type Session,
 } from "../../lib/session-storage";
 import { formatDateInput } from "../../lib/date-formatters";
+import { authenticate } from "../auth/auth-api";
 import {
-  authenticate,
   createApartment as createApartmentRequest,
   createIcalSource as createIcalSourceRequest,
   createTask as createTaskRequest,
@@ -33,6 +33,8 @@ import {
   emptyBoardTotals,
 } from "./operations-board-view-model";
 
+const allApartmentsValue = "all";
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -40,7 +42,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function useDashboard() {
   const [session, setSession] = useState<Session | null>(() => readStoredSession());
   const [apartments, setApartments] = useState<Apartment[]>([]);
-  const [selectedApartmentId, setSelectedApartmentId] = useState("");
+  const [selectedApartmentId, setSelectedApartmentId] = useState(allApartmentsValue);
   const [board, setBoard] = useState<OperationsBoard | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [icalSources, setIcalSources] = useState<IcalSource[]>([]);
@@ -86,7 +88,7 @@ export function useDashboard() {
       const nextApartments = await fetchApartments(token);
 
       setApartments(nextApartments);
-      setSelectedApartmentId((current) => current || nextApartments[0]?.id || "");
+      setSelectedApartmentId((current) => current || allApartmentsValue);
       setLoadState("idle");
     } catch (error) {
       setLoadState("error");
@@ -100,6 +102,19 @@ export function useDashboard() {
       setMessage("");
 
       try {
+        if (apartmentId === allApartmentsValue) {
+          const workspaces = await Promise.all(
+            apartments.map((apartment) => fetchWorkspace(token, apartment.id, date)),
+          );
+          const aggregateBoard = aggregateBoards(workspaces.map((item) => item.board));
+
+          setBoard(aggregateBoard);
+          setTasks(workspaces.flatMap((item) => item.tasks));
+          setIcalSources(workspaces.flatMap((item) => item.icalSources));
+          setLoadState("idle");
+          return;
+        }
+
         const workspace = await fetchWorkspace(token, apartmentId, date);
 
         setBoard(workspace.board);
@@ -111,7 +126,7 @@ export function useDashboard() {
         setMessage(getErrorMessage(error, "Falha ao carregar dashboard."));
       }
     },
-    [],
+    [apartments],
   );
 
   useEffect(() => {
@@ -123,7 +138,7 @@ export function useDashboard() {
   }, [loadApartmentList, session]);
 
   useEffect(() => {
-    if (!session || !selectedApartmentId) {
+    if (!session || !selectedApartmentId || apartments.length === 0) {
       return;
     }
 
@@ -166,6 +181,11 @@ export function useDashboard() {
       return false;
     }
 
+    if (selectedApartmentId === allApartmentsValue) {
+      setMessage("Selecione um apartamento específico para criar tarefa.");
+      return false;
+    }
+
     try {
       await createTaskRequest(session.token, selectedApartmentId, {
         title: values.title.trim(),
@@ -187,7 +207,7 @@ export function useDashboard() {
       return false;
     }
 
-    if (!selectedApartmentId) {
+    if (!selectedApartmentId || selectedApartmentId === allApartmentsValue) {
       setIcalMessage("Crie ou selecione um apartamento antes de adicionar iCal.");
       return false;
     }
@@ -216,7 +236,7 @@ export function useDashboard() {
   }
 
   async function markTaskDone(taskId: string) {
-    if (!session || !selectedApartmentId) {
+    if (!session || !selectedApartmentId || selectedApartmentId === allApartmentsValue) {
       return;
     }
 
@@ -253,7 +273,7 @@ export function useDashboard() {
     clearStoredSession();
     setSession(null);
     setApartments([]);
-    setSelectedApartmentId("");
+    setSelectedApartmentId(allApartmentsValue);
     setBoard(null);
     setTasks([]);
     setIcalSources([]);
@@ -277,6 +297,46 @@ export function useDashboard() {
       signOut,
       submitAuth,
       syncIcalSource,
+    },
+  };
+}
+
+function aggregateBoards(boards: OperationsBoard[]): OperationsBoard {
+  const firstBoard = boards[0];
+
+  if (!firstBoard) {
+    return {
+      apartmentId: allApartmentsValue,
+      date: formatDateInput(),
+      days: 7,
+      timezone: "America/Sao_Paulo",
+      checkIns: { count: 0, reservations: [] },
+      checkOuts: { count: 0, reservations: [] },
+      inHouse: { count: 0, reservations: [] },
+      upcoming: { count: 0, reservations: [] },
+      totals: emptyBoardTotals,
+    };
+  }
+
+  const checkIns = boards.flatMap((board) => board.checkIns.reservations);
+  const checkOuts = boards.flatMap((board) => board.checkOuts.reservations);
+  const inHouse = boards.flatMap((board) => board.inHouse.reservations);
+  const upcoming = boards.flatMap((board) => board.upcoming.reservations);
+
+  return {
+    apartmentId: allApartmentsValue,
+    date: firstBoard.date,
+    days: firstBoard.days,
+    timezone: "Todos",
+    checkIns: { count: checkIns.length, reservations: checkIns },
+    checkOuts: { count: checkOuts.length, reservations: checkOuts },
+    inHouse: { count: inHouse.length, reservations: inHouse },
+    upcoming: { count: upcoming.length, reservations: upcoming },
+    totals: {
+      checkIns: checkIns.length,
+      checkOuts: checkOuts.length,
+      inHouse: inHouse.length,
+      upcoming: upcoming.length,
     },
   };
 }

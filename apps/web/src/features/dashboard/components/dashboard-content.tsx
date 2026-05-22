@@ -7,6 +7,7 @@ import { DashboardTopbar } from "./dashboard-topbar";
 import { IcalSourcesPanel } from "./ical-sources-panel";
 import { OperationsBoardPanel } from "./operations-board-panel";
 import { OperationsMetrics } from "./operations-metrics";
+import { ReservationVolumeChart } from "./reservation-volume-chart";
 import { TaskCreateBand } from "./task-create-band";
 import { TaskListPanel } from "./task-list-panel";
 import type {
@@ -44,8 +45,10 @@ export function DashboardContent({
   session: Session;
   snapshot: DashboardSnapshot;
 }) {
+  const isAllApartments = snapshot.selectedApartmentId === "all";
+
   return (
-    <>
+    <div className="grid gap-6">
       <DashboardTopbar
         apartments={snapshot.apartments}
         boardDate={snapshot.boardDate}
@@ -62,8 +65,9 @@ export function DashboardContent({
       ) : null}
 
       <OperationsMetrics totals={snapshot.totals} />
+      <ReservationVolumeChart sections={snapshot.boardSections} />
 
-      <section className="contentGrid boardContentGrid">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
         <OperationsBoardPanel
           board={snapshot.board}
           boardDate={snapshot.boardDate}
@@ -74,6 +78,7 @@ export function DashboardContent({
         />
 
         <IcalSourcesPanel
+          canCreateSource={!isAllApartments}
           icalSources={snapshot.icalSources}
           isSaving={isIcalSaving}
           message={icalMessage}
@@ -83,8 +88,8 @@ export function DashboardContent({
         />
       </section>
 
-      <TaskCreateBand onCreateTask={actions.createTask} />
+      <TaskCreateBand disabled={isAllApartments} onCreateTask={actions.createTask} />
       <TaskListPanel onMarkDone={actions.markTaskDone} tasks={snapshot.tasks} />
-    </>
+    </div>
   );
 }

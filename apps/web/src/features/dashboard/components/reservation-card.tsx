@@ -3,14 +3,16 @@ import { formatReservationDateRange } from "../../../lib/date-formatters";
 
 export function ReservationCard({ reservation }: { reservation: ReservationCardType }) {
   return (
-    <article className="reservationCard">
+    <article className="grid gap-3 border-t border-border pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <div>
-        <strong>{reservation.rawSummary ?? "Reserva"}</strong>
-        <span>
+        <strong className="block text-sm font-semibold text-text-primary">
+          {reservation.rawSummary ?? "Reserva"}
+        </strong>
+        <span className="mt-1 block text-sm text-text-secondary">
           {reservation.provider} | {reservation.status}
         </span>
       </div>
-      <time>
+      <time className="text-sm font-medium text-text-secondary">
         {formatReservationDateRange(reservation.startsAt, reservation.endsAt)}
       </time>
     </article>

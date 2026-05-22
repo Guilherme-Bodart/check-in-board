@@ -7,6 +7,7 @@ import { formatDateTime } from "../../../lib/date-formatters";
 import type { CreateIcalSourceValues } from "../types";
 
 export function IcalSourcesPanel({
+  canCreateSource,
   icalSources,
   isSaving,
   message,
@@ -14,6 +15,7 @@ export function IcalSourcesPanel({
   onSyncSource,
   selectedApartmentId,
 }: {
+  canCreateSource: boolean;
   icalSources: IcalSource[];
   isSaving: boolean;
   message: string;
@@ -35,38 +37,61 @@ export function IcalSourcesPanel({
   }
 
   return (
-    <div className="panel compact" id="sync">
-      <div className="panelHeader">
-        <h2>Fontes iCal</h2>
+    <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm" id="sync">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold tracking-tight text-text-primary">
+          Fontes iCal
+        </h2>
       </div>
-      <form className="formStack compactForm" onSubmit={submitSource}>
+      <form className="mt-5 grid gap-3" onSubmit={submitSource}>
         <input
+          className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
           onChange={(event) => setLabel(event.target.value)}
           placeholder="Airbnb Apto 204"
           type="text"
           value={label}
         />
         <input
+          className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
           onChange={(event) => setUrl(event.target.value)}
           placeholder="https://..."
           required
           type="url"
           value={url}
         />
-        <button disabled={isSaving || !selectedApartmentId} type="submit">
+        <button
+          className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isSaving || !selectedApartmentId || !canCreateSource}
+          type="submit"
+        >
           {isSaving ? "Adicionando..." : "Adicionar iCal"}
         </button>
       </form>
-      {message ? <p className="inlineMessage">{message}</p> : null}
-      <div className="syncList">
+      {message ? (
+        <p className="mt-4 rounded-xl bg-surface-muted px-3 py-2 text-sm font-medium text-text-secondary">
+          {message}
+        </p>
+      ) : null}
+      <div className="mt-5 grid gap-3">
         {icalSources.map((source) => (
-          <div className="syncRow" key={source.id}>
-            <span>{source.label}</span>
-            <strong>{source.lastFailureAt ? "Atenção" : "OK"}</strong>
-            <button onClick={() => onSyncSource(source.id)} type="button">
+          <div
+            className="grid gap-3 border-t border-border pt-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center"
+            key={source.id}
+          >
+            <span className="font-medium text-text-primary">{source.label}</span>
+            <strong className={source.lastFailureAt ? "text-warning" : "text-success"}>
+              {source.lastFailureAt ? "Atenção" : "OK"}
+            </strong>
+            <button
+              className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
+              onClick={() => onSyncSource(source.id)}
+              type="button"
+            >
               Sync
             </button>
-            <time>{formatDateTime(source.lastSuccessAt)}</time>
+            <time className="text-text-secondary">
+              {formatDateTime(source.lastSuccessAt)}
+            </time>
           </div>
         ))}
       </div>

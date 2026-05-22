@@ -1,7 +1,5 @@
 "use client";
 
-import { AuthPanel } from "../auth/auth-panel";
-import { WorkspaceShell } from "../../components/layout/workspace-shell";
 import { DashboardContent } from "./components/dashboard-content";
 import { useDashboard } from "./use-dashboard";
 
@@ -17,20 +15,18 @@ export function DashboardPage() {
   } = useDashboard();
 
   if (!session) {
-    return <AuthPanel message={message} onSubmit={actions.submitAuth} />;
+    return null;
   }
 
   return (
-    <WorkspaceShell onSignOut={actions.signOut}>
-      <DashboardContent
-        actions={actions}
-        icalMessage={icalMessage}
-        isIcalSaving={isIcalSaving}
-        loadState={loadState}
-        message={message}
-        session={session}
-        snapshot={snapshot}
-      />
-    </WorkspaceShell>
+    <DashboardContent
+      actions={actions}
+      icalMessage={icalMessage}
+      isIcalSaving={isIcalSaving}
+      loadState={loadState}
+      message={message}
+      session={session}
+      snapshot={snapshot}
+    />
   );
 }

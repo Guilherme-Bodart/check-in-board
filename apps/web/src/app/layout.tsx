@@ -1,6 +1,4 @@
-import { cssVariables } from "@check-in-board/design-system";
 import type { Metadata } from "next";
-import type { CSSProperties } from "react";
 
 import "./globals.css";
 
@@ -15,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" style={cssVariables as CSSProperties}>
+    <html lang="pt-BR">
       <body>{children}</body>
     </html>
   );

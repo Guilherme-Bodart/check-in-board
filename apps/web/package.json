@@ -14,14 +14,22 @@
   },
   "dependencies": {
     "@check-in-board/design-system": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
     "next": "^16.2.6",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@check-in-board/tsconfig": "workspace:*",
+    "@tailwindcss/postcss": "^4.3.0",
     "@types/react": "~19.1.0",
     "@types/react-dom": "^19.1.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3"
   }
 }
