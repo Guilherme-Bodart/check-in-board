@@ -1,5 +1,5 @@
 import type { ReservationCard as ReservationCardType } from "../../../api";
-import { formatTime } from "../../../lib/date-formatters";
+import { formatReservationDateRange } from "../../../lib/date-formatters";
 
 export function ReservationCard({ reservation }: { reservation: ReservationCardType }) {
   return (
@@ -11,7 +11,7 @@ export function ReservationCard({ reservation }: { reservation: ReservationCardT
         </span>
       </div>
       <time>
-        {formatTime(reservation.startsAt)} - {formatTime(reservation.endsAt)}
+        {formatReservationDateRange(reservation.startsAt, reservation.endsAt)}
       </time>
     </article>
   );

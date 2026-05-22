@@ -13,9 +13,16 @@ export function formatDateTime(value: string | null) {
   }).format(new Date(value));
 }
 
-export function formatTime(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+export function formatIsoDateOnly(value: string) {
+  const [year, month, day] = value.slice(0, 10).split("-");
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+export function formatReservationDateRange(startsAt: string, endsAt: string) {
+  return `${formatIsoDateOnly(startsAt)} - ${formatIsoDateOnly(endsAt)}`;
 }
