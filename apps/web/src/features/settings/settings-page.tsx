@@ -6,6 +6,7 @@ import { Building2, KeyRound, ShieldCheck, UserRound } from "lucide-react";
 import type { MeResponse } from "../../api";
 import { readStoredSession } from "../../lib/session-storage";
 import { changePassword, fetchMe } from "../auth/auth-api";
+import { TeamManagementPanel } from "./team-management-panel";
 
 const roleLabels: Record<string, string> = {
   co_host: "Co-host",
@@ -213,6 +214,8 @@ export function SettingsPage() {
           </button>
         </form>
       </section>
+
+      <TeamManagementPanel />
     </div>
   );
 }

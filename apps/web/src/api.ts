@@ -40,6 +40,26 @@ export type MeResponse = {
   memberships: AuthMembership[];
 };
 
+export type AuthRole = "host_admin" | "co_host" | "team";
+
+export type TeamApartmentPermission = {
+  apartmentId: string;
+  apartmentName: string;
+  canView: boolean;
+  canUpdateTaskStatus: boolean;
+  canManageIntegrations: boolean;
+};
+
+export type TeamMember = {
+  membershipId: string;
+  userId: string;
+  email: string;
+  fullName: string;
+  role: AuthRole;
+  active: boolean;
+  apartmentPermissions: TeamApartmentPermission[];
+};
+
 export type OwnerType = "internal" | "client";
 
 export type Owner = {
