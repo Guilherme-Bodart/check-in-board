@@ -347,20 +347,6 @@ h3 {
   margin-top: var(--cib-space-5);
 }
 
-.reservationRow {
-  display: grid;
-  align-items: center;
-  gap: var(--cib-space-4);
-  grid-template-columns: minmax(160px, 1.4fr) 90px minmax(140px, 1fr) 80px;
-  border-top: 1px solid var(--cib-color-border);
-  padding-top: var(--cib-space-3);
-}
-
-.reservationRow div {
-  display: grid;
-  gap: var(--cib-space-1);
-}
-
 .reservationCard {
   display: grid;
   align-items: center;
@@ -375,8 +361,6 @@ h3 {
   gap: var(--cib-space-1);
 }
 
-.reservationRow span,
-.reservationRow time,
 .reservationCard span,
 .reservationCard time,
 .syncRow span,
@@ -494,7 +478,6 @@ h3 {
   .navList,
   .metricGrid,
   .contentGrid,
-  .reservationRow,
   .reservationCard,
   .syncRow,
   .taskRow {

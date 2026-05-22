@@ -2,7 +2,7 @@ import { cssVariables } from "@check-in-board/design-system";
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 
-import "../styles.css";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Check-In Board",
