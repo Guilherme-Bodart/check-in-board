@@ -609,3 +609,86 @@ Validation:
 Best next step:
 
 - Implement the backend Owner model and Apartment -> Owner relationship, then replace the temporary owner UI note with persisted owner data.
+
+## 07ae389 - Update frontend architecture log
+
+Added:
+
+- commit-log entry for the Tailwind authenticated route work;
+- next-step guidance toward the backend owner model and persisted apartment-owner relationships.
+
+Validation:
+
+- Documentation-only commit.
+
+Best next step:
+
+- Add the owner foundation in Spring so apartments can belong either to the SaaS user/organization itself or to client owners.
+
+## 75ecd7c - Add owner foundation to Spring backend
+
+Added:
+
+- Flyway migration for `owners`;
+- required `apartments.owner_id` relationship;
+- default internal owner per organization for own properties;
+- owner creation during host sign-up;
+- apartment response owner data;
+- optional `ownerId` support on apartment create/update;
+- apartment owner validation scoped to the active organization;
+- regression coverage for default apartment owner behavior.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`.
+
+Best next step:
+
+- Add owner CRUD endpoints so the frontend can manage clients and own-property buckets directly.
+
+## 9ebf454 - Add owner management API
+
+Added:
+
+- `GET /owners`;
+- `POST /owners`;
+- `GET /owners/{ownerId}`;
+- `PUT /owners/{ownerId}`;
+- `DELETE /owners/{ownerId}`;
+- owner DTOs, service rules, and controller;
+- apartment counts per owner;
+- delete conflict when an owner still has apartments linked;
+- authorization rules for same-organization access and host-admin management;
+- tests for list, create, update, delete, linked-apartment conflict, role rejection, and cross-organization rejection.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Connect `/clientes` and `/apartamentos` in the Next frontend to the real `/owners` API.
+
+## 83e4300 - Connect owners to web management
+
+Added:
+
+- shared web `Owner` and `OwnerType` API types;
+- owners API client helpers for list/create/update/delete;
+- `/clientes` screen backed by real `/owners` data;
+- owner summary metrics, search, type filter, create/edit/delete form, and linked-apartment delete guard;
+- `/apartamentos` screen loading real apartments and owners together;
+- apartment create/edit/delete flow with real `ownerId` selection;
+- optional iCal creation while creating an apartment;
+- dashboard API helpers for apartment update/delete and provider-aware iCal creation.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm --filter @check-in-board/web build`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Improve admin UX around apartment details and iCal source management: show sources per apartment, allow source sync/history outside the dashboard, and add safer confirmation/modals instead of browser confirm.
