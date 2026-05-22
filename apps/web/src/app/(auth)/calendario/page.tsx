@@ -1,11 +1,5 @@
-import { PlaceholderPage } from "../../../components/layout/placeholder-page";
+import { CalendarPage } from "../../../features/calendar/calendar-page";
 
 export default function CalendarRoute() {
-  return (
-    <PlaceholderPage
-      eyebrow="Calendário"
-      title="Calendário"
-      description="O calendário consolidado de estadias e bloqueios será construído nesta área."
-    />
-  );
+  return <CalendarPage />;
 }
