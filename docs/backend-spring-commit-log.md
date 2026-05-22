@@ -533,3 +533,37 @@ Validation:
 Best next step:
 
 - Add route groups/screens for dashboard, apartments, iCal sources, tasks, and admin settings when those flows grow beyond the current single dashboard screen.
+
+## 906c394 - Show reservation date ranges instead of times
+
+Added:
+
+- reservation cards now render date ranges instead of clock times;
+- date-only formatting helper for reservation cards.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm build:web`.
+
+Best next step:
+
+- Fix the backend parser so all-day iCal dates are stored in the apartment timezone instead of UTC midnight.
+
+## 261e571 - Parse all-day iCal reservations in apartment timezone
+
+Added:
+
+- apartment timezone passed into iCal parsing;
+- all-day `VALUE=DATE` events converted at apartment local midnight;
+- local datetime fallback converted with the apartment timezone instead of UTC;
+- regression test for Airbnb-style all-day reservations in `America/Sao_Paulo`.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`;
+- Ran `pnpm --filter @check-in-board/web typecheck`.
+
+Best next step:
+
+- Re-sync affected iCal sources locally so previously stored UTC-midnight reservations are rewritten with the corrected timezone instants.
