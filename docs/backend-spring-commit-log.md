@@ -692,3 +692,60 @@ Validation:
 Best next step:
 
 - Improve admin UX around apartment details and iCal source management: show sources per apartment, allow source sync/history outside the dashboard, and add safer confirmation/modals instead of browser confirm.
+
+## 60dde42 - Fix dashboard hydration session state
+
+Added:
+
+- dashboard session state now starts SSR-safe and reads local storage only after client mount;
+- board date initialization moved to the client mount path to avoid server/client date mismatches.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`.
+
+Best next step:
+
+- Continue apartment administration work with iCal management outside the dashboard.
+
+## 41aa993 - Add iCal source deletion API
+
+Added:
+
+- `DELETE /apartments/{apartmentId}/ical-sources/{icalSourceId}`;
+- soft-delete behavior for iCal sources;
+- permission checks matching iCal source creation;
+- apartment/source ownership validation;
+- test coverage for deleting a source and hiding it from future list responses.
+
+Validation:
+
+- Ran `pnpm test:backend-spring`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Add the apartment-screen iCal management UI: list sources, add sources, sync, inspect sync history, and remove sources.
+
+## 23ee0cc - Add apartment iCal management UI
+
+Added:
+
+- reusable confirmation dialog for destructive actions;
+- `/apartamentos` action to open iCal management for a selected apartment;
+- iCal source list per apartment using real API data;
+- iCal source creation for existing apartments;
+- manual source sync from the apartments screen;
+- sync-run history display from `GET /ical-sources/{icalSourceId}/sync-runs`;
+- iCal source removal with confirmation modal;
+- apartment removal now uses the confirmation dialog instead of `window.confirm`.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm --filter @check-in-board/web build`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Restart the local backend so the in-memory H2 database applies the owner/iCal changes, then smoke-test `/clientes`, `/apartamentos`, iCal create/sync/history/delete, and dashboard aggregation together.
