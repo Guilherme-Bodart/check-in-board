@@ -60,6 +60,40 @@ export type TeamMember = {
   apartmentPermissions: TeamApartmentPermission[];
 };
 
+export type FinancialEntryType = "revenue" | "expense";
+
+export type FinancialEntry = {
+  id: string;
+  apartmentId: string;
+  apartmentName: string;
+  ownerId: string;
+  ownerName: string;
+  type: FinancialEntryType;
+  category: string;
+  description: string | null;
+  amountCents: number;
+  currency: string;
+  occurredOn: string;
+};
+
+export type FinancialSummaryItem = {
+  id: string;
+  name: string;
+  revenueCents: number;
+  expenseCents: number;
+  profitCents: number;
+};
+
+export type FinancialSummary = {
+  dateFrom: string;
+  dateTo: string;
+  revenueCents: number;
+  expenseCents: number;
+  profitCents: number;
+  byOwner: FinancialSummaryItem[];
+  byApartment: FinancialSummaryItem[];
+};
+
 export type OwnerType = "internal" | "client";
 
 export type Owner = {

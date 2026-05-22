@@ -2,11 +2,12 @@ import Link from "next/link";
 import {
   Building2,
   CalendarDays,
+  CircleDollarSign,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   Settings,
   UsersRound,
-  ClipboardList,
 } from "lucide-react";
 
 import { cn } from "../../lib/utils";
@@ -16,8 +17,9 @@ const navigationItems = [
   { href: "/apartamentos", icon: Building2, label: "Meus Apartamentos" },
   { href: "/clientes", icon: UsersRound, label: "Clientes" },
   { href: "/reservas", icon: ClipboardList, label: "Reservas" },
-  { href: "/calendario", icon: CalendarDays, label: "Calendário" },
-  { href: "/configuracoes", icon: Settings, label: "Configurações" },
+  { href: "/calendario", icon: CalendarDays, label: "Calendario" },
+  { href: "/financeiro", icon: CircleDollarSign, label: "Financeiro" },
+  { href: "/configuracoes", icon: Settings, label: "Configuracoes" },
 ];
 
 export function Sidebar({
@@ -29,15 +31,15 @@ export function Sidebar({
 }) {
   return (
     <aside
+      aria-label="Navegacao principal"
       className="flex min-h-screen flex-col border-r border-border bg-surface px-5 py-6"
-      aria-label="Navegação principal"
     >
       <div className="mb-8">
         <strong className="block text-lg font-semibold tracking-tight text-text-primary">
           Check-In Board
         </strong>
         <span className="mt-1 block text-xs font-medium text-text-muted">
-          Gestão operacional
+          Gestao operacional
         </span>
       </div>
       <nav className="grid gap-1">

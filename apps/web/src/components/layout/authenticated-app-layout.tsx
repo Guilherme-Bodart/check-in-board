@@ -11,12 +11,13 @@ import {
 import { Sidebar } from "./sidebar";
 
 const pageTitles: Record<string, { eyebrow: string; title: string }> = {
-  "/dashboard": { eyebrow: "Operação", title: "Dashboard" },
-  "/apartamentos": { eyebrow: "Gestão", title: "Meus apartamentos" },
-  "/clientes": { eyebrow: "Gestão", title: "Clientes e proprietários" },
-  "/reservas": { eyebrow: "Operação", title: "Reservas" },
-  "/calendario": { eyebrow: "Operação", title: "Calendário" },
-  "/configuracoes": { eyebrow: "Conta", title: "Configurações" },
+  "/apartamentos": { eyebrow: "Gestao", title: "Meus apartamentos" },
+  "/calendario": { eyebrow: "Operacao", title: "Calendario" },
+  "/clientes": { eyebrow: "Gestao", title: "Clientes e proprietarios" },
+  "/configuracoes": { eyebrow: "Conta", title: "Configuracoes" },
+  "/dashboard": { eyebrow: "Operacao", title: "Dashboard" },
+  "/financeiro": { eyebrow: "Gestao", title: "Financeiro" },
+  "/reservas": { eyebrow: "Operacao", title: "Reservas" },
 };
 
 export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
@@ -38,7 +39,7 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
   }, [router]);
 
   const pageTitle = useMemo(
-    () => pageTitles[pathname] ?? { eyebrow: "Check-In Board", title: "Operação" },
+    () => pageTitles[pathname] ?? { eyebrow: "Check-In Board", title: "Operacao" },
     [pathname],
   );
 
