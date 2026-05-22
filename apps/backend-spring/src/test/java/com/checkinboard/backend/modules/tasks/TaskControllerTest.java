@@ -38,6 +38,7 @@ class TaskControllerTest {
     void cleanDatabase() {
         jdbcTemplate.update("delete from password_reset_tokens");
         jdbcTemplate.update("delete from tasks");
+        jdbcTemplate.update("delete from financial_entries");
         jdbcTemplate.update("delete from sync_runs");
         jdbcTemplate.update("delete from reservations");
         jdbcTemplate.update("delete from ical_sources");

@@ -1,4 +1,4 @@
-package com.checkinboard.backend.modules.team;
+package com.checkinboard.backend.modules.finance;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest(classes = BackendSpringApplication.class)
 @AutoConfigureMockMvc
-class TeamControllerTest {
+class FinanceControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -52,141 +52,146 @@ class TeamControllerTest {
     }
 
     @Test
-    void createsListsUpdatesAndDeactivatesTeamMember() throws Exception {
+    void createsListsSummarizesUpdatesAndDeletesFinancialEntries() throws Exception {
         String accessToken = signUpHost("host@example.com", "Host Ops");
         String apartmentId = createApartment(accessToken, "Apto 204");
 
-        MvcResult createResult = mockMvc
-            .perform(
-                post("/team-members")
-                    .header("Authorization", "Bearer " + accessToken)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        """
-                        {
-                          "email": "cleaner@example.com",
-                          "fullName": "Cleaner One",
-                          "password": "secure-password",
-                          "role": "team",
-                          "apartmentPermissions": [
-                            {
-                              "apartmentId": "%s",
-                              "canView": true,
-                              "canUpdateTaskStatus": true,
-                              "canManageIntegrations": false
-                            }
-                          ]
-                        }
-                        """.formatted(apartmentId)
-                    )
-            )
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.teamMember.membershipId", notNullValue()))
-            .andExpect(jsonPath("$.teamMember.email").value("cleaner@example.com"))
-            .andExpect(jsonPath("$.teamMember.role").value("team"))
-            .andExpect(jsonPath("$.teamMember.active").value(true))
-            .andExpect(jsonPath("$.teamMember.apartmentPermissions", hasSize(1)))
-            .andExpect(
-                jsonPath("$.teamMember.apartmentPermissions[0].canUpdateTaskStatus")
-                    .value(true)
-            )
-            .andReturn();
-
-        String membershipId = readJson(createResult)
-            .get("teamMember")
-            .get("membershipId")
-            .asText();
-
-        mockMvc
-            .perform(get("/team-members").header("Authorization", "Bearer " + accessToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.teamMembers", hasSize(2)));
+        MvcResult revenue = createEntry(
+            accessToken,
+            apartmentId,
+            "revenue",
+            "Hospedagem",
+            120000
+        );
+        createEntry(accessToken, apartmentId, "expense", "Limpeza", 20000);
+        String entryId = readJson(revenue).get("financialEntry").get("id").asText();
 
         mockMvc
             .perform(
-                put("/team-members/{membershipId}", membershipId)
+                get("/financial-entries")
                     .header("Authorization", "Bearer " + accessToken)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        """
-                        {
-                          "role": "co_host",
-                          "active": true,
-                          "apartmentPermissions": [
-                            {
-                              "apartmentId": "%s",
-                              "canView": true,
-                              "canUpdateTaskStatus": true,
-                              "canManageIntegrations": true
-                            }
-                          ]
-                        }
-                        """.formatted(apartmentId)
-                    )
+                    .param("dateFrom", "2026-05-01")
+                    .param("dateTo", "2026-05-31")
             )
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.teamMember.role").value("co_host"))
-            .andExpect(
-                jsonPath("$.teamMember.apartmentPermissions[0].canManageIntegrations")
-                    .value(true)
-            );
+            .andExpect(jsonPath("$.financialEntries", hasSize(2)));
 
         mockMvc
             .perform(
-                delete("/team-members/{membershipId}", membershipId)
+                get("/financial-summary")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .param("dateFrom", "2026-05-01")
+                    .param("dateTo", "2026-05-31")
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.revenueCents").value(120000))
+            .andExpect(jsonPath("$.expenseCents").value(20000))
+            .andExpect(jsonPath("$.profitCents").value(100000))
+            .andExpect(jsonPath("$.byOwner", hasSize(1)))
+            .andExpect(jsonPath("$.byApartment", hasSize(1)));
+
+        mockMvc
+            .perform(
+                put("/financial-entries/{entryId}", entryId)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(entryPayload(apartmentId, "revenue", "Hospedagem", 150000))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.financialEntry.amountCents").value(150000));
+
+        mockMvc
+            .perform(
+                delete("/financial-entries/{entryId}", entryId)
                     .header("Authorization", "Bearer " + accessToken)
             )
             .andExpect(status().isNoContent());
 
         mockMvc
-            .perform(get("/team-members").header("Authorization", "Bearer " + accessToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.teamMembers[1].active").value(false))
-            .andExpect(jsonPath("$.teamMembers[1].apartmentPermissions", hasSize(0)));
-    }
-
-    @Test
-    void rejectsDuplicateActiveTeamMember() throws Exception {
-        String accessToken = signUpHost("host@example.com", "Host Ops");
-        String apartmentId = createApartment(accessToken, "Apto 204");
-        createTeamMember(accessToken, apartmentId, "cleaner@example.com");
-
-        mockMvc
             .perform(
-                post("/team-members")
+                get("/financial-entries")
                     .header("Authorization", "Bearer " + accessToken)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(createTeamMemberPayload(apartmentId, "cleaner@example.com"))
+                    .param("dateFrom", "2026-05-01")
+                    .param("dateTo", "2026-05-31")
             )
-            .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.error.code").value("TEAM_MEMBER_ALREADY_EXISTS"));
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.financialEntries", hasSize(1)));
     }
 
     @Test
-    void rejectsTeamManagementForNonHostAdmin() throws Exception {
+    void rejectsFinancialManagementForNonHostAdmin() throws Exception {
         String accessToken = signUpHost("host@example.com", "Host Ops");
         String apartmentId = createApartment(accessToken, "Apto 204");
         createTeamMember(accessToken, apartmentId, "cleaner@example.com");
         String teamAccessToken = signIn("cleaner@example.com", "secure-password");
 
         mockMvc
-            .perform(get("/team-members").header("Authorization", "Bearer " + teamAccessToken))
+            .perform(get("/financial-summary").header("Authorization", "Bearer " + teamAccessToken))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
 
     @Test
-    void rejectsSelfDeactivation() throws Exception {
+    void rejectsCrossOrganizationApartmentEntry() throws Exception {
         String accessToken = signUpHost("host@example.com", "Host Ops");
-        String membershipId = firstMembershipId(accessToken);
+        String otherAccessToken = signUpHost("other@example.com", "Other Ops");
+        String otherApartmentId = createApartment(otherAccessToken, "Outro Apto");
 
         mockMvc
             .perform(
-                delete("/team-members/{membershipId}", membershipId)
+                post("/financial-entries")
                     .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        entryPayload(
+                            otherApartmentId,
+                            "revenue",
+                            "Hospedagem",
+                            10000
+                        )
+                    )
             )
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error.code").value("CANNOT_DEACTIVATE_SELF"));
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    private MvcResult createEntry(
+        String accessToken,
+        String apartmentId,
+        String type,
+        String category,
+        long amountCents
+    ) throws Exception {
+        return mockMvc
+            .perform(
+                post("/financial-entries")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(entryPayload(apartmentId, type, category, amountCents))
+            )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.financialEntry.id", notNullValue()))
+            .andExpect(jsonPath("$.financialEntry.type").value(type))
+            .andReturn();
+    }
+
+    private String entryPayload(
+        String apartmentId,
+        String type,
+        String category,
+        long amountCents
+    ) {
+        return """
+            {
+              "apartmentId": "%s",
+              "type": "%s",
+              "category": "%s",
+              "description": "Lancamento manual",
+              "amountCents": %d,
+              "currency": "BRL",
+              "occurredOn": "2026-05-21"
+            }
+            """.formatted(apartmentId, type, category, amountCents);
     }
 
     private String signUpHost(String email, String organizationName) throws Exception {
@@ -259,40 +264,29 @@ class TeamControllerTest {
                 post("/team-members")
                     .header("Authorization", "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(createTeamMemberPayload(apartmentId, email))
+                    .content(
+                        """
+                        {
+                          "email": "%s",
+                          "fullName": "Cleaner One",
+                          "password": "secure-password",
+                          "role": "team",
+                          "apartmentPermissions": [
+                            {
+                              "apartmentId": "%s",
+                              "canView": true,
+                              "canUpdateTaskStatus": true,
+                              "canManageIntegrations": false
+                            }
+                          ]
+                        }
+                        """.formatted(email, apartmentId)
+                    )
             )
             .andExpect(status().isCreated())
             .andReturn();
 
         return readJson(result).get("teamMember").get("membershipId").asText();
-    }
-
-    private String createTeamMemberPayload(String apartmentId, String email) {
-        return """
-            {
-              "email": "%s",
-              "fullName": "Cleaner One",
-              "password": "secure-password",
-              "role": "team",
-              "apartmentPermissions": [
-                {
-                  "apartmentId": "%s",
-                  "canView": true,
-                  "canUpdateTaskStatus": true,
-                  "canManageIntegrations": false
-                }
-              ]
-            }
-            """.formatted(email, apartmentId);
-    }
-
-    private String firstMembershipId(String accessToken) throws Exception {
-        MvcResult result = mockMvc
-            .perform(get("/team-members").header("Authorization", "Bearer " + accessToken))
-            .andExpect(status().isOk())
-            .andReturn();
-
-        return readJson(result).get("teamMembers").get(0).get("membershipId").asText();
     }
 
     private JsonNode readJson(MvcResult result) throws Exception {
