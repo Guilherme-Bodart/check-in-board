@@ -86,6 +86,36 @@ public class IcalSourceService {
         return new IcalSourceEnvelope(toResponse(icalSource));
     }
 
+    @Transactional
+    public void delete(String userId, String apartmentId, String icalSourceId) {
+        ApartmentMembershipEntity membership = getMembership(userId, apartmentId);
+
+        if (!canManageIcalSources(membership)) {
+            throw new ApiException(
+                HttpStatus.FORBIDDEN,
+                "FORBIDDEN",
+                "You do not have permission to manage iCal sources."
+            );
+        }
+
+        IcalSourceEntity icalSource = icalSourceRepository
+            .findByIdAndDeletedAtIsNull(icalSourceId)
+            .orElseThrow(() ->
+                new ApiException(
+                    HttpStatus.NOT_FOUND,
+                    "ICAL_SOURCE_NOT_FOUND",
+                    "iCal source was not found."
+                )
+            );
+
+        if (!icalSource.getApartment().getId().equals(apartmentId)) {
+            throw forbiddenApartmentAccess();
+        }
+
+        icalSource.markDeleted();
+        icalSourceRepository.save(icalSource);
+    }
+
     private ApartmentEntity findActiveApartment(String apartmentId) {
         return apartmentRepository
             .findByIdAndDeletedAtIsNull(apartmentId)

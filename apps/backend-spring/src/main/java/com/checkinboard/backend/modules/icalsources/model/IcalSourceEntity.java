@@ -143,4 +143,8 @@ public class IcalSourceEntity {
     public void markSyncFailure() {
         lastFailureAt = Instant.now();
     }
+
+    public void markDeleted() {
+        deletedAt = Instant.now();
+    }
 }

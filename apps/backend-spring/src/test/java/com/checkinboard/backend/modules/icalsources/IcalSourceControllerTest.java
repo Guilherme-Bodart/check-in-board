@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -96,6 +97,31 @@ class IcalSourceControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.icalSources", hasSize(1)))
             .andExpect(jsonPath("$.icalSources[0].provider").value("airbnb"));
+    }
+
+    @Test
+    void deletesIcalSourceForApartmentManager() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+
+        mockMvc
+            .perform(
+                delete(
+                    "/apartments/{apartmentId}/ical-sources/{icalSourceId}",
+                    apartmentId,
+                    icalSourceId
+                ).header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isNoContent());
+
+        mockMvc
+            .perform(
+                get("/apartments/{apartmentId}/ical-sources", apartmentId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.icalSources", hasSize(0)));
     }
 
     @Test
@@ -236,6 +262,29 @@ class IcalSourceControllerTest {
             .andReturn();
 
         return readJson(result).get("apartment").get("id").asText();
+    }
+
+    private String createIcalSource(String accessToken, String apartmentId)
+        throws Exception {
+        MvcResult result = mockMvc
+            .perform(
+                post("/apartments/{apartmentId}/ical-sources", apartmentId)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "provider": "airbnb",
+                          "label": "Airbnb Apto 204",
+                          "icalUrl": "https://93.184.216.34/calendar.ics"
+                        }
+                        """
+                    )
+            )
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        return readJson(result).get("icalSource").get("id").asText();
     }
 
     private String userIdByEmail(String email) {

@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,5 +44,15 @@ public class IcalSourceController {
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(icalSourceService.create(principal.userId(), apartmentId, request));
+    }
+
+    @DeleteMapping("/{icalSourceId}")
+    ResponseEntity<Void> delete(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable String apartmentId,
+        @PathVariable String icalSourceId
+    ) {
+        icalSourceService.delete(principal.userId(), apartmentId, icalSourceId);
+        return ResponseEntity.noContent().build();
     }
 }
