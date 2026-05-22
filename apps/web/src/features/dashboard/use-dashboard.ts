@@ -40,17 +40,22 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export function useDashboard() {
-  const [session, setSession] = useState<Session | null>(() => readStoredSession());
+  const [session, setSession] = useState<Session | null>(null);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [selectedApartmentId, setSelectedApartmentId] = useState(allApartmentsValue);
   const [board, setBoard] = useState<OperationsBoard | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [icalSources, setIcalSources] = useState<IcalSource[]>([]);
-  const [boardDate, setBoardDate] = useState(formatDateInput());
+  const [boardDate, setBoardDate] = useState("");
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [message, setMessage] = useState("");
   const [icalMessage, setIcalMessage] = useState("");
   const [isIcalSaving, setIsIcalSaving] = useState(false);
+
+  useEffect(() => {
+    setSession(readStoredSession());
+    setBoardDate(formatDateInput());
+  }, []);
 
   const selectedApartment = useMemo(
     () => apartments.find((apartment) => apartment.id === selectedApartmentId) ?? null,
