@@ -808,3 +808,52 @@ Validation:
 Best next step:
 
 - Smoke-test the whole authenticated web flow with a restarted backend, then start the next backend domain for team members/permissions or financial reporting by owner/apartment.
+
+## 03f2953 - Add team management API
+
+Added:
+
+- `GET /team-members`;
+- `POST /team-members`;
+- `PUT /team-members/{membershipId}`;
+- `DELETE /team-members/{membershipId}`;
+- team DTOs, service rules, and controller;
+- organization-scoped team membership management;
+- creation of password-based team users before email invites exist;
+- role updates for `host_admin`, `co_host`, and `team`;
+- apartment-level permissions for view, task status updates, and iCal/integration management;
+- deactivation flow that removes apartment access;
+- guard against deactivating your own membership;
+- tests for create/list/update/deactivate, duplicate active member, non-admin rejection, and self-deactivation rejection.
+
+Validation:
+
+- Ran `cd apps/backend-spring; .\mvnw.cmd -Dtest=TeamControllerTest test`;
+- Ran `pnpm test:backend-spring`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Connect team management to the authenticated web settings screen.
+
+## 4992201 - Add team management settings UI
+
+Added:
+
+- team API helpers for list/create/update/deactivate;
+- shared web types for team members, auth roles, and apartment permissions;
+- team management panel in `/configuracoes`;
+- member list with active state, role, and apartment access count;
+- create/edit form with role selection and per-apartment permissions;
+- initial password field for new members;
+- deactivation confirmation modal.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm --filter @check-in-board/web build`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Start financial reporting foundations: store reservation financial amounts or create manual revenue entries, then aggregate by apartment and owner.
