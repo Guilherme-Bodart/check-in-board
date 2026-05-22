@@ -857,3 +857,51 @@ Validation:
 Best next step:
 
 - Start financial reporting foundations: store reservation financial amounts or create manual revenue entries, then aggregate by apartment and owner.
+
+## ffb2ace - Add financial entries API
+
+Added:
+
+- Flyway migration for `financial_entries`;
+- manual revenue/expense entries linked to organization, apartment, and owner;
+- `GET /financial-entries`;
+- `POST /financial-entries`;
+- `PUT /financial-entries/{entryId}`;
+- `DELETE /financial-entries/{entryId}`;
+- `GET /financial-summary`;
+- date/apartment/owner filters;
+- revenue, expense, and profit aggregation by owner and apartment;
+- host-admin-only finance access;
+- tests for create/list/summary/update/delete, non-admin rejection, and cross-organization apartment rejection.
+
+Validation:
+
+- Ran `cd apps/backend-spring; .\mvnw.cmd -Dtest=FinanceControllerTest test`;
+- Ran `pnpm test:backend-spring`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Add a finance screen to the Next frontend.
+
+## ab7d195 - Add financial reporting screen
+
+Added:
+
+- `/financeiro` route and sidebar navigation item;
+- finance API helpers for entries and summary;
+- money formatting/parsing helpers;
+- summary cards for revenue, expenses, and profit;
+- manual entry create/edit/delete form;
+- date, apartment, owner, and search filters;
+- result breakdown by owner and apartment.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm --filter @check-in-board/web build`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Smoke-test the full SaaS flow after restarting backend/frontend, then refine finance UX with CSV export, recurring expenses, and reservation-linked revenue when source data is available.
