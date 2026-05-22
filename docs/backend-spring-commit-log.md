@@ -506,3 +506,30 @@ Validation:
 Best next step:
 
 - Keep using `next build` and `next dev` as the source of generated Next type files.
+
+## a5725f3 - Refactor web dashboard into Next feature modules
+
+Added:
+
+- Next-style route entry with `src/app/page.tsx` delegating to a dashboard client boundary;
+- `features/auth` for the authentication panel;
+- `features/dashboard` for dashboard orchestration, API calls, types, operations-board view model, and UI sections;
+- shared layout components for sidebar and workspace shell;
+- shared UI components for messages and metric cards;
+- `lib` helpers for session storage and date formatting;
+- `src/app/globals.css` as the App Router global stylesheet.
+
+Removed:
+
+- monolithic `src/App.tsx`;
+- dashboard-specific formatting helpers from the generic API client;
+- stale reservation row CSS left over from the first dashboard pass.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm build:web`.
+
+Best next step:
+
+- Add route groups/screens for dashboard, apartments, iCal sources, tasks, and admin settings when those flows grow beyond the current single dashboard screen.
