@@ -1,11 +1,5 @@
-import { PlaceholderPage } from "../../../components/layout/placeholder-page";
+import { SettingsPage } from "../../../features/settings/settings-page";
 
 export default function SettingsRoute() {
-  return (
-    <PlaceholderPage
-      eyebrow="Configurações"
-      title="Configurações"
-      description="Preferências da organização, usuários e permissões ficarão concentradas aqui."
-    />
-  );
+  return <SettingsPage />;
 }

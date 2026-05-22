@@ -25,6 +25,21 @@ export type AuthResponse = {
   };
 };
 
+export type AuthMembership = {
+  id: string;
+  role: "host_admin" | "co_host" | "team";
+  isActive: boolean;
+  organization: {
+    id: string;
+    name: string;
+  };
+};
+
+export type MeResponse = {
+  user: AuthUser;
+  memberships: AuthMembership[];
+};
+
 export type OwnerType = "internal" | "client";
 
 export type Owner = {

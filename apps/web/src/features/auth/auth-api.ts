@@ -1,4 +1,4 @@
-import { apiRequest, type AuthResponse } from "../../api";
+import { apiRequest, type AuthResponse, type MeResponse } from "../../api";
 import type { AuthFormValues, AuthMode } from "../dashboard/types";
 
 export async function authenticate(mode: AuthMode, values: AuthFormValues) {
@@ -17,4 +17,19 @@ export async function authenticate(mode: AuthMode, values: AuthFormValues) {
             },
     },
   );
+}
+
+export async function fetchMe(token: string) {
+  return apiRequest<MeResponse>("/auth/me", { token });
+}
+
+export async function changePassword(
+  token: string,
+  values: { currentPassword: string; newPassword: string },
+) {
+  return apiRequest<{ ok: boolean }>("/auth/change-password", {
+    method: "POST",
+    token,
+    body: values,
+  });
 }
