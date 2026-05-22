@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
 import java.util.ArrayList;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class IcalReservationParser {
 
-    public List<ParsedIcalReservation> parse(String icsText) {
+    public List<ParsedIcalReservation> parse(String icsText, ZoneId defaultZone) {
         try {
             Calendar calendar = new CalendarBuilder().build(new StringReader(icsText));
             List<ParsedIcalReservation> reservations = new ArrayList<>();
@@ -30,8 +30,8 @@ public class IcalReservationParser {
                 String summary = event.getSummary() != null
                     ? event.getSummary().getValue()
                     : null;
-                Instant startsAt = toInstant(event.getStartDate().get().getDate());
-                Instant endsAt = toInstant(event.getEndDate().get().getDate());
+                Instant startsAt = toInstant(event.getStartDate().get().getDate(), defaultZone);
+                Instant endsAt = toInstant(event.getEndDate().get().getDate(), defaultZone);
                 String externalEventKey = uid != null
                     ? uid
                     : startsAt + "-" + endsAt + "-" + index;
@@ -65,7 +65,7 @@ public class IcalReservationParser {
         return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
-    private Instant toInstant(Temporal temporal) {
+    private Instant toInstant(Temporal temporal, ZoneId defaultZone) {
         if (temporal instanceof Instant instant) {
             return instant;
         }
@@ -79,11 +79,11 @@ public class IcalReservationParser {
         }
 
         if (temporal instanceof LocalDateTime localDateTime) {
-            return localDateTime.toInstant(ZoneOffset.UTC);
+            return localDateTime.atZone(defaultZone).toInstant();
         }
 
         if (temporal instanceof LocalDate localDate) {
-            return localDate.atStartOfDay().toInstant(ZoneOffset.UTC);
+            return localDate.atStartOfDay(defaultZone).toInstant();
         }
 
         return Instant.parse(temporal.toString());

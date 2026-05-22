@@ -193,7 +193,11 @@ public class ReservationService {
 
         try {
             String icsText = resolveIcsText(icalSource, request);
-            List<ParsedIcalReservation> parsedReservations = icalReservationParser.parse(icsText);
+            ZoneId apartmentZone = ZoneId.of(icalSource.getApartment().getTimezone());
+            List<ParsedIcalReservation> parsedReservations = icalReservationParser.parse(
+                icsText,
+                apartmentZone
+            );
             List<ReservationResponse> reservations = new ArrayList<>();
 
             for (ParsedIcalReservation parsedReservation : parsedReservations) {

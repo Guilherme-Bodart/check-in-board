@@ -44,6 +44,20 @@ class ReservationControllerTest {
         END:VCALENDAR
         """;
 
+    private static final String ALL_DAY_ICS_TEXT =
+        """
+        BEGIN:VCALENDAR
+        VERSION:2.0
+        BEGIN:VEVENT
+        UID:booking-all-day-1
+        DTSTAMP:20260521T120000Z
+        DTSTART;VALUE=DATE:20260522
+        DTEND;VALUE=DATE:20260525
+        SUMMARY:Reserved
+        END:VEVENT
+        END:VCALENDAR
+        """;
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -159,6 +173,28 @@ class ReservationControllerTest {
             .andExpect(jsonPath("$.upcoming.count").value(0))
             .andExpect(jsonPath("$.totals.checkIns").value(1))
             .andExpect(jsonPath("$.checkIns.reservations[0].rawSummary").value("Guest Maria"));
+    }
+
+    @Test
+    void keepsAllDayReservationsOnApartmentTimezoneDates() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+        syncIcalSource(accessToken, icalSourceId, ALL_DAY_ICS_TEXT);
+
+        mockMvc
+            .perform(
+                get("/apartments/{apartmentId}/operations-board", apartmentId)
+                    .queryParam("date", "2026-05-22")
+                    .queryParam("days", "7")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.checkIns.count").value(1))
+            .andExpect(jsonPath("$.inHouse.count").value(1))
+            .andExpect(jsonPath("$.upcoming.count").value(0))
+            .andExpect(jsonPath("$.checkIns.reservations[0].startsAt").value("2026-05-22T03:00:00Z"))
+            .andExpect(jsonPath("$.checkIns.reservations[0].endsAt").value("2026-05-25T03:00:00Z"));
     }
 
     @Test
