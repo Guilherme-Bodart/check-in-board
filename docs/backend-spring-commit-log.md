@@ -749,3 +749,62 @@ Validation:
 Best next step:
 
 - Restart the local backend so the in-memory H2 database applies the owner/iCal changes, then smoke-test `/clientes`, `/apartamentos`, iCal create/sync/history/delete, and dashboard aggregation together.
+
+## c73cd85 - Add real reservations screen
+
+Added:
+
+- `/reservas` route backed by real `GET /apartments/{apartmentId}/reservations` data;
+- shared web reservation API helper;
+- reservation view-model helpers for apartment/owner enrichment and nights calculation;
+- apartment selector with "Todos os apartamentos";
+- reservation search and summary metrics.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Build the calendar route with the same real reservation data.
+
+## c6d416c - Add real calendar screen
+
+Added:
+
+- `/calendario` route backed by real reservations;
+- month picker and previous/next month navigation;
+- apartment selector with all-apartment aggregation;
+- reservation search;
+- monthly occupancy grid with per-day reservation density;
+- monthly reservation summary list.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm --filter @check-in-board/web build`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Replace the settings placeholder with a useful account/security screen.
+
+## 46907c3 - Add account settings screen
+
+Added:
+
+- `/configuracoes` route backed by `GET /auth/me`;
+- account, organization, and role summary;
+- password-change form using `POST /auth/change-password`;
+- auth API helpers for `/auth/me` and password changes.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm --filter @check-in-board/web build`;
+- Ran `git diff --check`.
+
+Best next step:
+
+- Smoke-test the whole authenticated web flow with a restarted backend, then start the next backend domain for team members/permissions or financial reporting by owner/apartment.
