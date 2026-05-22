@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Building2,
   CalendarCheck,
+  CalendarDays,
   Pencil,
   Plus,
   Search,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 
 import type { Apartment, Owner } from "../../api";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { readStoredSession } from "../../lib/session-storage";
 import {
   createApartment,
@@ -22,6 +24,7 @@ import {
   updateApartment,
 } from "../dashboard/dashboard-api";
 import { fetchOwners } from "../owners/owners-api";
+import { IcalSourcesManagement } from "./components/ical-sources-management";
 
 type ApartmentFormState = {
   name: string;
@@ -46,8 +49,11 @@ export function ApartmentsPage() {
   const [owners, setOwners] = useState<Owner[]>([]);
   const [form, setForm] = useState<ApartmentFormState>(emptyApartmentForm);
   const [editingApartmentId, setEditingApartmentId] = useState<string | null>(null);
+  const [selectedIcalApartmentId, setSelectedIcalApartmentId] = useState("");
+  const [apartmentToDelete, setApartmentToDelete] = useState<Apartment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
 
@@ -111,6 +117,9 @@ export function ApartmentsPage() {
     [apartments],
   );
 
+  const selectedIcalApartment =
+    apartments.find((apartment) => apartment.id === selectedIcalApartmentId) ?? null;
+
   async function submitApartment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const session = readStoredSession();
@@ -154,28 +163,29 @@ export function ApartmentsPage() {
     }
   }
 
-  async function removeApartment(apartment: Apartment) {
+  async function removeApartment() {
     const session = readStoredSession();
 
-    if (!session) {
+    if (!session || !apartmentToDelete) {
       return;
     }
 
-    const canDelete = window.confirm(`Remover ${apartment.name}?`);
-
-    if (!canDelete) {
-      return;
-    }
-
+    setIsDeleting(true);
     setMessage("");
 
     try {
-      await deleteApartment(session.token, apartment.id);
+      await deleteApartment(session.token, apartmentToDelete.id);
+      setApartmentToDelete(null);
+      if (selectedIcalApartmentId === apartmentToDelete.id) {
+        setSelectedIcalApartmentId("");
+      }
       await loadData();
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Falha ao remover apartamento.",
       );
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -287,6 +297,14 @@ export function ApartmentsPage() {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <button
+                            aria-label="Gerenciar iCal"
+                            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
+                            onClick={() => setSelectedIcalApartmentId(apartment.id)}
+                            type="button"
+                          >
+                            <CalendarDays aria-hidden className="h-4 w-4" />
+                          </button>
+                          <button
                             aria-label="Editar apartamento"
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                             onClick={() => startEdit(apartment)}
@@ -297,7 +315,7 @@ export function ApartmentsPage() {
                           <button
                             aria-label="Remover apartamento"
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-danger hover:text-danger"
-                            onClick={() => void removeApartment(apartment)}
+                            onClick={() => setApartmentToDelete(apartment)}
                             type="button"
                           >
                             <Trash2 aria-hidden className="h-4 w-4" />
@@ -429,6 +447,21 @@ export function ApartmentsPage() {
           </button>
         </form>
       </section>
+
+      <IcalSourcesManagement
+        apartment={selectedIcalApartment}
+        onClose={() => setSelectedIcalApartmentId("")}
+      />
+
+      <ConfirmDialog
+        confirmLabel="Remover apartamento"
+        description={`O apartamento ${apartmentToDelete?.name ?? ""} sera removido da operacao. Use isso apenas quando ele nao deve mais aparecer no dashboard.`}
+        isOpen={Boolean(apartmentToDelete)}
+        isWorking={isDeleting}
+        onCancel={() => setApartmentToDelete(null)}
+        onConfirm={() => void removeApartment()}
+        title="Remover apartamento?"
+      />
     </div>
   );
 }

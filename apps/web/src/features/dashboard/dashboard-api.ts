@@ -3,6 +3,7 @@ import {
   type Apartment,
   type IcalSource,
   type OperationsBoard,
+  type SyncRun,
   type Task,
 } from "../../api";
 import type {
@@ -133,6 +134,29 @@ export async function createIcalSource(
   );
 }
 
+export async function fetchIcalSources(token: string, apartmentId: string) {
+  const response = await apiRequest<{ icalSources: IcalSource[] }>(
+    `/apartments/${apartmentId}/ical-sources`,
+    { token },
+  );
+
+  return response.icalSources;
+}
+
+export async function deleteIcalSource(
+  token: string,
+  apartmentId: string,
+  icalSourceId: string,
+) {
+  await apiRequest<void>(
+    `/apartments/${apartmentId}/ical-sources/${icalSourceId}`,
+    {
+      method: "DELETE",
+      token,
+    },
+  );
+}
+
 export async function markTaskDone(token: string, taskId: string) {
   return apiRequest<{ task: Task }>(`/tasks/${taskId}/status`, {
     method: "PATCH",
@@ -146,4 +170,13 @@ export async function syncIcalSource(token: string, icalSourceId: string) {
     method: "POST",
     token,
   });
+}
+
+export async function fetchIcalSyncRuns(token: string, icalSourceId: string) {
+  const response = await apiRequest<{ syncRuns: SyncRun[] }>(
+    `/ical-sources/${icalSourceId}/sync-runs`,
+    { token },
+  );
+
+  return response.syncRuns;
 }

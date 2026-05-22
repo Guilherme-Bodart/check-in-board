@@ -100,6 +100,17 @@ export type IcalSource = {
   lastFailureAt: string | null;
 };
 
+export type SyncRun = {
+  id: string;
+  icalSourceId: string;
+  status: "running" | "succeeded" | "failed" | "skipped";
+  startedAt: string;
+  finishedAt: string | null;
+  eventsSeen: number;
+  reservationsUpserted: number;
+  errorMessage: string | null;
+};
+
 export type TaskStatus = "pending" | "done" | "not_done" | "cancelled";
 
 export type Task = {
