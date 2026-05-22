@@ -27,5 +27,9 @@ public interface ApartmentRepository extends JpaRepository<ApartmentEntity, Stri
     @EntityGraph(attributePaths = { "organization", "owner", "memberships" })
     Optional<ApartmentEntity> findByIdAndDeletedAtIsNull(String id);
 
+    List<ApartmentEntity> findByOrganization_IdAndDeletedAtIsNullOrderByNameAsc(
+        String organizationId
+    );
+
     long countByOwner_IdAndDeletedAtIsNull(String ownerId);
 }

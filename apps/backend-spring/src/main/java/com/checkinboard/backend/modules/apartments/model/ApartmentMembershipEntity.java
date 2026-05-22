@@ -109,6 +109,18 @@ public class ApartmentMembershipEntity {
         return canManageIntegrations;
     }
 
+    public void updatePermissions(
+        AuthRole role,
+        boolean canView,
+        boolean canUpdateTaskStatus,
+        boolean canManageIntegrations
+    ) {
+        this.role = role;
+        this.canView = canView;
+        this.canUpdateTaskStatus = canUpdateTaskStatus;
+        this.canManageIntegrations = canManageIntegrations;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

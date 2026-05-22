@@ -87,6 +87,18 @@ public class OrganizationMembershipEntity {
         return active;
     }
 
+    public void updateRole(AuthRole role) {
+        this.role = role;
+    }
+
+    public void activate() {
+        active = true;
+    }
+
+    public void deactivate() {
+        active = false;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
