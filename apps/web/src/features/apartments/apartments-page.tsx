@@ -1,47 +1,57 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Building2, CalendarCheck, Plus, Search } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Building2,
+  CalendarCheck,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  UserRound,
+  X,
+} from "lucide-react";
 
-import type { Apartment } from "../../api";
+import type { Apartment, Owner } from "../../api";
 import { readStoredSession } from "../../lib/session-storage";
 import {
   createApartment,
   createIcalSource,
+  deleteApartment,
   fetchApartments,
+  updateApartment,
 } from "../dashboard/dashboard-api";
+import { fetchOwners } from "../owners/owners-api";
 
-type ApartmentListItem = Apartment & {
-  nickname?: string;
-  owner?: {
-    id: string;
-    name: string;
-    type: "internal" | "client";
-  };
-  ical?: {
-    enabled: boolean;
-    provider: string | null;
-    lastFailureAt: string | null;
-    lastSuccessAt: string | null;
-  };
+type ApartmentFormState = {
+  name: string;
+  timezone: string;
+  ownerId: string;
+  icalUrl: string;
+  icalProvider: string;
+};
+
+const emptyApartmentForm: ApartmentFormState = {
+  name: "",
+  timezone: "America/Sao_Paulo",
+  ownerId: "",
+  icalUrl: "",
+  icalProvider: "airbnb",
 };
 
 const timezones = ["America/Sao_Paulo", "America/New_York", "Europe/Lisbon"];
 
 export function ApartmentsPage() {
-  const [apartments, setApartments] = useState<ApartmentListItem[]>([]);
+  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [owners, setOwners] = useState<Owner[]>([]);
+  const [form, setForm] = useState<ApartmentFormState>(emptyApartmentForm);
+  const [editingApartmentId, setEditingApartmentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
-  const [name, setName] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [timezone, setTimezone] = useState("America/Sao_Paulo");
-  const [ownerName, setOwnerName] = useState("");
-  const [ownerType, setOwnerType] = useState<"internal" | "client">("internal");
-  const [icalUrl, setIcalUrl] = useState("");
-  const [icalProvider, setIcalProvider] = useState("airbnb");
 
-  async function loadApartments() {
+  async function loadData() {
     const session = readStoredSession();
 
     if (!session) {
@@ -52,8 +62,17 @@ export function ApartmentsPage() {
     setMessage("");
 
     try {
-      const response = await fetchApartments(session.token);
-      setApartments(response);
+      const [apartmentResponse, ownerResponse] = await Promise.all([
+        fetchApartments(session.token),
+        fetchOwners(session.token),
+      ]);
+
+      setApartments(apartmentResponse);
+      setOwners(ownerResponse);
+      setForm((current) => ({
+        ...current,
+        ownerId: current.ownerId || ownerResponse[0]?.id || "",
+      }));
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Falha ao carregar apartamentos.",
@@ -64,7 +83,7 @@ export function ApartmentsPage() {
   }
 
   useEffect(() => {
-    void loadApartments();
+    void loadData();
   }, []);
 
   const filteredApartments = useMemo(() => {
@@ -75,53 +94,124 @@ export function ApartmentsPage() {
     }
 
     return apartments.filter((apartment) =>
-      [apartment.name, apartment.nickname, apartment.owner?.name]
+      [apartment.name, apartment.owner?.name, apartment.timezone]
         .filter(Boolean)
         .some((value) => value?.toLowerCase().includes(normalizedQuery)),
     );
   }, [apartments, query]);
 
+  const summary = useMemo(
+    () => ({
+      total: apartments.length,
+      internal: apartments.filter((apartment) => apartment.owner?.type === "internal")
+        .length,
+      client: apartments.filter((apartment) => apartment.owner?.type === "client")
+        .length,
+    }),
+    [apartments],
+  );
+
   async function submitApartment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const session = readStoredSession();
 
-    if (!session || !name.trim()) {
+    if (!session || !form.name.trim()) {
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage("");
+
+    try {
+      if (editingApartmentId) {
+        await updateApartment(session.token, editingApartmentId, {
+          name: form.name.trim(),
+          timezone: form.timezone,
+          ownerId: form.ownerId || undefined,
+        });
+      } else {
+        const apartment = await createApartment(session.token, {
+          name: form.name.trim(),
+          timezone: form.timezone,
+          ownerId: form.ownerId || undefined,
+        });
+
+        if (form.icalUrl.trim()) {
+          await createIcalSource(session.token, apartment.id, {
+            provider: form.icalProvider,
+            label: `${form.icalProvider.toUpperCase()} - ${form.name.trim()}`,
+            url: form.icalUrl.trim(),
+          });
+        }
+      }
+
+      cancelEdit();
+      await loadData();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao salvar apartamento.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function removeApartment(apartment: Apartment) {
+    const session = readStoredSession();
+
+    if (!session) {
+      return;
+    }
+
+    const canDelete = window.confirm(`Remover ${apartment.name}?`);
+
+    if (!canDelete) {
       return;
     }
 
     setMessage("");
 
     try {
-      const apartment = await createApartment(session.token, name.trim(), timezone);
-
-      if (icalUrl.trim()) {
-        await createIcalSource(session.token, apartment.id, {
-          label: `${icalProvider.toUpperCase()} - ${name.trim()}`,
-          url: icalUrl.trim(),
-        });
-      }
-
-      setName("");
-      setNickname("");
-      setOwnerName("");
-      setOwnerType("internal");
-      setIcalUrl("");
-      setIcalProvider("airbnb");
-      setTimezone("America/Sao_Paulo");
-      await loadApartments();
+      await deleteApartment(session.token, apartment.id);
+      await loadData();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao criar apartamento.");
+      setMessage(
+        error instanceof Error ? error.message : "Falha ao remover apartamento.",
+      );
     }
+  }
+
+  function startEdit(apartment: Apartment) {
+    setEditingApartmentId(apartment.id);
+    setForm({
+      name: apartment.name,
+      timezone: apartment.timezone,
+      ownerId: apartment.owner?.id ?? owners[0]?.id ?? "",
+      icalUrl: "",
+      icalProvider: "airbnb",
+    });
+  }
+
+  function cancelEdit() {
+    setEditingApartmentId(null);
+    setForm({
+      ...emptyApartmentForm,
+      ownerId: owners[0]?.id ?? "",
+    });
   }
 
   return (
     <div className="grid gap-6">
+      <section className="grid gap-4 md:grid-cols-3">
+        <SummaryCard label="Apartamentos" value={summary.total} />
+        <SummaryCard label="Proprios" value={summary.internal} />
+        <SummaryCard label="De clientes" value={summary.client} />
+      </section>
+
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                Imóveis
+                Imoveis
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
                 Lista de apartamentos
@@ -135,7 +225,7 @@ export function ApartmentsPage() {
               <input
                 className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft md:w-72"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por imóvel ou proprietário"
+                placeholder="Buscar por imovel ou proprietario"
                 value={query}
               />
             </div>
@@ -152,9 +242,9 @@ export function ApartmentsPage() {
               <thead className="bg-surface-muted text-xs uppercase tracking-[0.12em] text-text-muted">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Apartamento</th>
-                  <th className="px-4 py-3 font-semibold">Proprietário</th>
+                  <th className="px-4 py-3 font-semibold">Proprietario</th>
                   <th className="px-4 py-3 font-semibold">Timezone</th>
-                  <th className="px-4 py-3 font-semibold">iCal</th>
+                  <th className="px-4 py-3 font-semibold">Acoes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-surface">
@@ -178,26 +268,41 @@ export function ApartmentsPage() {
                           <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary-soft text-primary">
                             <Building2 aria-hidden className="h-4 w-4" />
                           </span>
-                          <div>
-                            <strong className="block font-semibold text-text-primary">
-                              {apartment.name}
-                            </strong>
-                            <span className="text-xs text-text-muted">
-                              {apartment.nickname ?? "Sem apelido"}
-                            </span>
-                          </div>
+                          <strong className="font-semibold text-text-primary">
+                            {apartment.name}
+                          </strong>
                         </div>
                       </td>
                       <td className="px-4 py-4 text-text-secondary">
-                        {apartment.owner?.name ?? "Proprietário não vinculado"}
+                        <div className="grid gap-1">
+                          <span>{apartment.owner?.name ?? "Sem proprietario"}</span>
+                          <span className="text-xs text-text-muted">
+                            {apartment.owner?.type === "client" ? "Cliente" : "Proprio"}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-text-secondary">
                         {apartment.timezone}
                       </td>
                       <td className="px-4 py-4">
-                        <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-text-secondary">
-                          {apartment.ical?.enabled ? "Ativo" : "Manual"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            aria-label="Editar apartamento"
+                            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
+                            onClick={() => startEdit(apartment)}
+                            type="button"
+                          >
+                            <Pencil aria-hidden className="h-4 w-4" />
+                          </button>
+                          <button
+                            aria-label="Remover apartamento"
+                            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-danger hover:text-danger"
+                            onClick={() => void removeApartment(apartment)}
+                            type="button"
+                          >
+                            <Trash2 aria-hidden className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -211,43 +316,64 @@ export function ApartmentsPage() {
           className="rounded-2xl border border-border bg-surface p-6 shadow-sm"
           onSubmit={submitApartment}
         >
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
-              <Plus aria-hidden className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                Novo imóvel
-              </p>
-              <h2 className="text-lg font-semibold text-text-primary">
-                Adicionar apartamento
-              </h2>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
+                <Plus aria-hidden className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
+                  {editingApartmentId ? "Edicao" : "Novo imovel"}
+                </p>
+                <h2 className="text-lg font-semibold text-text-primary">
+                  {editingApartmentId ? "Editar apartamento" : "Adicionar apartamento"}
+                </h2>
+              </div>
             </div>
+            {editingApartmentId ? (
+              <button
+                aria-label="Cancelar edicao"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
+                onClick={cancelEdit}
+                type="button"
+              >
+                <X aria-hidden className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
 
           <div className="mt-6 grid gap-4">
             <Field label="Nome do apartamento">
               <input
                 className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
                 placeholder="Apto 204"
                 required
-                value={name}
+                value={form.name}
               />
             </Field>
-            <Field label="Apelido interno">
-              <input
+            <Field label="Proprietario">
+              <select
                 className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                onChange={(event) => setNickname(event.target.value)}
-                placeholder="Centro 204"
-                value={nickname}
-              />
+                onChange={(event) =>
+                  setForm({ ...form, ownerId: event.target.value })
+                }
+                value={form.ownerId}
+              >
+                {owners.map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.name} - {owner.type === "client" ? "cliente" : "proprio"}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Timezone">
               <select
                 className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                onChange={(event) => setTimezone(event.target.value)}
-                value={timezone}
+                onChange={(event) =>
+                  setForm({ ...form, timezone: event.target.value })
+                }
+                value={form.timezone}
               >
                 {timezones.map((item) => (
                   <option key={item} value={item}>
@@ -256,64 +382,50 @@ export function ApartmentsPage() {
                 ))}
               </select>
             </Field>
-            <div className="grid gap-3 rounded-2xl border border-border bg-surface-muted p-4">
-              <Field label="Proprietário">
-                <input
-                  className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                  onChange={(event) => setOwnerName(event.target.value)}
-                  placeholder="Guilherme Properties ou Cliente João"
-                  value={ownerName}
-                />
-              </Field>
-              <Field label="Tipo de proprietário">
-                <select
-                  className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                  onChange={(event) =>
-                    setOwnerType(event.target.value as "internal" | "client")
-                  }
-                  value={ownerType}
-                >
-                  <option value="internal">Próprio</option>
-                  <option value="client">Cliente</option>
-                </select>
-              </Field>
-              <p className="text-xs leading-5 text-text-muted">
-                O vínculo de proprietário será persistido quando o backend de Owners
-                estiver implementado.
-              </p>
-            </div>
-            <div className="grid gap-3 rounded-2xl border border-border bg-surface-muted p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                <CalendarCheck aria-hidden className="h-4 w-4 text-primary" />
-                iCal opcional
+
+            {editingApartmentId ? null : (
+              <div className="grid gap-3 rounded-2xl border border-border bg-surface-muted p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                  <CalendarCheck aria-hidden className="h-4 w-4 text-primary" />
+                  iCal opcional
+                </div>
+                <Field label="Provider">
+                  <select
+                    className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
+                    onChange={(event) =>
+                      setForm({ ...form, icalProvider: event.target.value })
+                    }
+                    value={form.icalProvider}
+                  >
+                    <option value="airbnb">Airbnb</option>
+                    <option value="booking">Booking</option>
+                  </select>
+                </Field>
+                <Field label="URL iCal">
+                  <input
+                    className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
+                    onChange={(event) =>
+                      setForm({ ...form, icalUrl: event.target.value })
+                    }
+                    placeholder="https://..."
+                    type="url"
+                    value={form.icalUrl}
+                  />
+                </Field>
               </div>
-              <Field label="Provider">
-                <select
-                  className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                  onChange={(event) => setIcalProvider(event.target.value)}
-                  value={icalProvider}
-                >
-                  <option value="airbnb">Airbnb</option>
-                  <option value="booking">Booking</option>
-                </select>
-              </Field>
-              <Field label="URL iCal">
-                <input
-                  className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                  onChange={(event) => setIcalUrl(event.target.value)}
-                  placeholder="https://..."
-                  type="url"
-                  value={icalUrl}
-                />
-              </Field>
-            </div>
+            )}
           </div>
 
           <button
-            className="mt-6 h-11 w-full rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
+            className="mt-6 h-11 w-full rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isSaving || owners.length === 0}
             type="submit"
           >
-            Salvar apartamento
+            {isSaving
+              ? "Salvando..."
+              : editingApartmentId
+                ? "Salvar alteracoes"
+                : "Salvar apartamento"}
           </button>
         </form>
       </section>
@@ -321,13 +433,23 @@ export function ApartmentsPage() {
   );
 }
 
-function Field({
-  children,
-  label,
-}: {
-  children: React.ReactNode;
-  label: string;
-}) {
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <article className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-text-secondary">{label}</span>
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary-soft text-primary">
+          <UserRound aria-hidden className="h-4 w-4" />
+        </span>
+      </div>
+      <strong className="mt-4 block text-3xl font-semibold tracking-tight text-text-primary">
+        {value}
+      </strong>
+    </article>
+  );
+}
+
+function Field({ children, label }: { children: ReactNode; label: string }) {
   return (
     <label className="grid gap-2 text-sm font-medium text-text-secondary">
       {label}

@@ -25,10 +25,29 @@ export type AuthResponse = {
   };
 };
 
+export type OwnerType = "internal" | "client";
+
+export type Owner = {
+  id: string;
+  organizationId: string;
+  name: string;
+  type: OwnerType;
+  contactName: string | null;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  apartmentCount: number;
+};
+
 export type Apartment = {
   id: string;
   name: string;
   organizationId: string;
+  owner: {
+    id: string;
+    name: string;
+    type: OwnerType;
+  };
   timezone: string;
   membership: {
     id: string;

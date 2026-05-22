@@ -19,6 +19,7 @@ export type AuthFormValues = {
 
 export type CreateIcalSourceValues = {
   label: string;
+  provider?: string;
   url: string;
 };
 

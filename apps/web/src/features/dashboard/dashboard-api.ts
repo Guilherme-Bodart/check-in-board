@@ -45,19 +45,58 @@ export async function fetchWorkspace(
 
 export async function createApartment(
   token: string,
-  name: string,
-  timezone = "America/Sao_Paulo",
+  values:
+    | string
+    | {
+        name: string;
+        timezone?: string;
+        ownerId?: string;
+      },
 ) {
+  const payload =
+    typeof values === "string"
+      ? { name: values, timezone: "America/Sao_Paulo" }
+      : {
+          name: values.name,
+          timezone: values.timezone ?? "America/Sao_Paulo",
+          ownerId: values.ownerId,
+        };
+
   const response = await apiRequest<{ apartment: Apartment }>("/apartments", {
     method: "POST",
     token,
-    body: {
-      name,
-      timezone,
-    },
+    body: payload,
   });
 
   return response.apartment;
+}
+
+export async function updateApartment(
+  token: string,
+  apartmentId: string,
+  values: {
+    name: string;
+    timezone: string;
+    ownerId?: string;
+  },
+) {
+  const response = await apiRequest<{ apartment: Apartment }>(
+    `/apartments/${apartmentId}`,
+    {
+      method: "PUT",
+      token,
+      body: values,
+    },
+  );
+
+  return response.apartment;
+}
+
+export async function deleteApartment(token: string, apartmentId: string) {
+  await apiRequest<void>(`/apartments/${apartmentId}`, {
+    method: "DELETE",
+    token,
+  });
 }
 
 export async function createTask(
@@ -86,7 +125,7 @@ export async function createIcalSource(
       method: "POST",
       token,
       body: {
-        provider: "airbnb",
+        provider: values.provider ?? "airbnb",
         label: values.label || "Airbnb",
         icalUrl: values.url,
       },
