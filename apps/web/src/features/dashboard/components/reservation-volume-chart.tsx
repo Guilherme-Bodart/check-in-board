@@ -10,6 +10,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { chartTokens } from "../../../design-system/tokens";
 import type { BoardSectionViewModel } from "../types";
 
 export function ReservationVolumeChart({
@@ -40,28 +41,32 @@ export function ReservationVolumeChart({
       <div className="mt-6 h-72">
         <ResponsiveContainer height="100%" width="100%">
           <BarChart data={data}>
-            <CartesianGrid stroke="#ded8cc" strokeDasharray="4 4" vertical={false} />
+            <CartesianGrid
+              stroke={chartTokens.border}
+              strokeDasharray="4 4"
+              vertical={false}
+            />
             <XAxis
               axisLine={false}
               dataKey="name"
-              tick={{ fill: "#5f6258", fontSize: 12 }}
+              tick={{ fill: chartTokens.textSecondary, fontSize: 12 }}
               tickLine={false}
             />
             <YAxis
               allowDecimals={false}
               axisLine={false}
-              tick={{ fill: "#5f6258", fontSize: 12 }}
+              tick={{ fill: chartTokens.textSecondary, fontSize: 12 }}
               tickLine={false}
             />
             <Tooltip
               contentStyle={{
-                background: "#fffdfa",
-                border: "1px solid #ded8cc",
+                background: chartTokens.surface,
+                border: `1px solid ${chartTokens.border}`,
                 borderRadius: 12,
-                color: "#171714",
+                color: chartTokens.textPrimary,
               }}
             />
-            <Bar dataKey="total" fill="#465936" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="total" fill={chartTokens.bar} radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
