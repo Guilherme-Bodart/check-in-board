@@ -69,6 +69,12 @@ public class SyncRunEntity {
         this.errorMessage = errorMessage;
     }
 
+    public void markSkipped(String reason) {
+        status = SyncRunStatus.skipped;
+        finishedAt = Instant.now();
+        errorMessage = reason;
+    }
+
     public String getId() {
         return id;
     }

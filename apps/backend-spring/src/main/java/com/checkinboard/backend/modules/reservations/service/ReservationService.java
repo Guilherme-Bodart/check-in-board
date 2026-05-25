@@ -191,6 +191,17 @@ public class ReservationService {
 
         SyncRunEntity syncRun = syncRunRepository.save(new SyncRunEntity(newId(), icalSource));
 
+        if (!icalSource.isSyncEnabled()) {
+            String reason = "iCal source sync is paused.";
+            syncRun.markSkipped(reason);
+            syncRunRepository.save(syncRun);
+
+            return new ManualSyncResponse(
+                List.of(),
+                new ManualSyncSummary(0, 0, true, reason)
+            );
+        }
+
         try {
             String icsText = resolveIcsText(icalSource, request);
             ZoneId apartmentZone = ZoneId.of(icalSource.getApartment().getTimezone());

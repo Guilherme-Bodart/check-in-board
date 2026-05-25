@@ -7,6 +7,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -147,6 +148,60 @@ class ReservationControllerTest {
             .andExpect(jsonPath("$.syncRuns", hasSize(1)))
             .andExpect(jsonPath("$.syncRuns[0].status").value("succeeded"))
             .andExpect(jsonPath("$.syncRuns[0].eventsSeen").value(1));
+    }
+
+    @Test
+    void skipsSyncWhenIcalSourceIsPaused() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+
+        mockMvc
+            .perform(
+                put(
+                    "/apartments/{apartmentId}/ical-sources/{icalSourceId}",
+                    apartmentId,
+                    icalSourceId
+                )
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "provider": "airbnb",
+                          "label": "Airbnb Apto 204",
+                          "icalUrl": "",
+                          "syncEnabled": false
+                        }
+                        """
+                    )
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.icalSource.syncEnabled").value(false));
+
+        mockMvc
+            .perform(
+                post("/ical-sources/{icalSourceId}/sync", icalSourceId)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(syncPayload(ICS_TEXT))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.summary.eventsSeen").value(0))
+            .andExpect(jsonPath("$.summary.reservationsUpserted").value(0))
+            .andExpect(jsonPath("$.summary.syncSkipped").value(true))
+            .andExpect(jsonPath("$.summary.syncSkippedReason").value("iCal source sync is paused."))
+            .andExpect(jsonPath("$.reservations", hasSize(0)));
+
+        mockMvc
+            .perform(
+                get("/ical-sources/{icalSourceId}/sync-runs", icalSourceId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.syncRuns", hasSize(1)))
+            .andExpect(jsonPath("$.syncRuns[0].status").value("skipped"))
+            .andExpect(jsonPath("$.syncRuns[0].errorMessage").value("iCal source sync is paused."));
     }
 
     @Test
