@@ -9,6 +9,7 @@ import com.checkinboard.backend.modules.icalsources.dto.IcalSourceDtos.CreateIca
 import com.checkinboard.backend.modules.icalsources.dto.IcalSourceDtos.IcalSourceEnvelope;
 import com.checkinboard.backend.modules.icalsources.dto.IcalSourceDtos.IcalSourceResponse;
 import com.checkinboard.backend.modules.icalsources.dto.IcalSourceDtos.IcalSourcesResponse;
+import com.checkinboard.backend.modules.icalsources.dto.IcalSourceDtos.UpdateIcalSourceRequest;
 import com.checkinboard.backend.modules.icalsources.model.IcalSourceEntity;
 import com.checkinboard.backend.modules.icalsources.repository.IcalSourceRepository;
 import com.checkinboard.backend.shared.crypto.SecretEncryptionService;
@@ -87,6 +88,46 @@ public class IcalSourceService {
     }
 
     @Transactional
+    public IcalSourceEnvelope update(
+        String userId,
+        String apartmentId,
+        String icalSourceId,
+        UpdateIcalSourceRequest request
+    ) {
+        ApartmentMembershipEntity membership = getMembership(userId, apartmentId);
+
+        if (!canManageIcalSources(membership)) {
+            throw new ApiException(
+                HttpStatus.FORBIDDEN,
+                "FORBIDDEN",
+                "You do not have permission to manage iCal sources."
+            );
+        }
+
+        IcalSourceEntity icalSource = findActiveIcalSource(icalSourceId);
+
+        if (!icalSource.getApartment().getId().equals(apartmentId)) {
+            throw forbiddenApartmentAccess();
+        }
+
+        String nextEncryptedUrl = null;
+
+        if (request.icalUrl() != null && !request.icalUrl().isBlank()) {
+            URI icalUrl = safeIcalUrl(request.icalUrl());
+            nextEncryptedUrl = secretEncryptionService.encrypt(icalUrl.toString());
+        }
+
+        icalSource.updateDetails(
+            request.provider().trim(),
+            request.label().trim(),
+            nextEncryptedUrl,
+            request.syncEnabled()
+        );
+
+        return new IcalSourceEnvelope(toResponse(icalSourceRepository.save(icalSource)));
+    }
+
+    @Transactional
     public void delete(String userId, String apartmentId, String icalSourceId) {
         ApartmentMembershipEntity membership = getMembership(userId, apartmentId);
 
@@ -98,7 +139,18 @@ public class IcalSourceService {
             );
         }
 
-        IcalSourceEntity icalSource = icalSourceRepository
+        IcalSourceEntity icalSource = findActiveIcalSource(icalSourceId);
+
+        if (!icalSource.getApartment().getId().equals(apartmentId)) {
+            throw forbiddenApartmentAccess();
+        }
+
+        icalSource.markDeleted();
+        icalSourceRepository.save(icalSource);
+    }
+
+    private IcalSourceEntity findActiveIcalSource(String icalSourceId) {
+        return icalSourceRepository
             .findByIdAndDeletedAtIsNull(icalSourceId)
             .orElseThrow(() ->
                 new ApiException(
@@ -107,13 +159,6 @@ public class IcalSourceService {
                     "iCal source was not found."
                 )
             );
-
-        if (!icalSource.getApartment().getId().equals(apartmentId)) {
-            throw forbiddenApartmentAccess();
-        }
-
-        icalSource.markDeleted();
-        icalSourceRepository.save(icalSource);
     }
 
     private ApartmentEntity findActiveApartment(String apartmentId) {

@@ -15,6 +15,13 @@ public final class IcalSourceDtos {
         @NotBlank @Size(max = 2048) String icalUrl
     ) {}
 
+    public record UpdateIcalSourceRequest(
+        @NotBlank @Size(max = 80) String provider,
+        @NotBlank @Size(max = 120) String label,
+        @Size(max = 2048) String icalUrl,
+        boolean syncEnabled
+    ) {}
+
     public record IcalSourceResponse(
         String id,
         String provider,

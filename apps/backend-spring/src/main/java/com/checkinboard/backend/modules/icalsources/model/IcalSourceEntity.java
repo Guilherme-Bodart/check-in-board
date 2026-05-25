@@ -144,6 +144,21 @@ public class IcalSourceEntity {
         lastFailureAt = Instant.now();
     }
 
+    public void updateDetails(
+        String provider,
+        String label,
+        String icalUrlEncrypted,
+        boolean syncEnabled
+    ) {
+        this.provider = provider;
+        this.label = label;
+        this.syncEnabled = syncEnabled;
+
+        if (icalUrlEncrypted != null) {
+            this.icalUrlEncrypted = icalUrlEncrypted;
+        }
+    }
+
     public void markDeleted() {
         deletedAt = Instant.now();
     }

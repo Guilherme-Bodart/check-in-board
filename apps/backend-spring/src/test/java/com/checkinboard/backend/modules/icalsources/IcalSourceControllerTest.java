@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -98,6 +99,63 @@ class IcalSourceControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.icalSources", hasSize(1)))
             .andExpect(jsonPath("$.icalSources[0].provider").value("airbnb"));
+    }
+
+    @Test
+    void updatesIcalSourceForApartmentManager() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+
+        String previousEncryptedUrl = jdbcTemplate.queryForObject(
+            "select ical_url_encrypted from ical_sources where id = ?",
+            String.class,
+            icalSourceId
+        );
+
+        mockMvc
+            .perform(
+                put(
+                    "/apartments/{apartmentId}/ical-sources/{icalSourceId}",
+                    apartmentId,
+                    icalSourceId
+                )
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "provider": "booking",
+                          "label": "Booking Apto 204",
+                          "icalUrl": "",
+                          "syncEnabled": false
+                        }
+                        """
+                    )
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.icalSource.id").value(icalSourceId))
+            .andExpect(jsonPath("$.icalSource.provider").value("booking"))
+            .andExpect(jsonPath("$.icalSource.label").value("Booking Apto 204"))
+            .andExpect(jsonPath("$.icalSource.syncEnabled").value(false));
+
+        String nextEncryptedUrl = jdbcTemplate.queryForObject(
+            "select ical_url_encrypted from ical_sources where id = ?",
+            String.class,
+            icalSourceId
+        );
+
+        org.hamcrest.MatcherAssert.assertThat(nextEncryptedUrl, org.hamcrest.Matchers.is(previousEncryptedUrl));
+
+        mockMvc
+            .perform(
+                get("/apartments/{apartmentId}/ical-sources", apartmentId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.icalSources", hasSize(1)))
+            .andExpect(jsonPath("$.icalSources[0].provider").value("booking"))
+            .andExpect(jsonPath("$.icalSources[0].syncEnabled").value(false));
     }
 
     @Test
