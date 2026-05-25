@@ -23,6 +23,13 @@ export type CreateIcalSourceValues = {
   url: string;
 };
 
+export type UpdateIcalSourceValues = {
+  label: string;
+  provider: string;
+  syncEnabled: boolean;
+  url?: string;
+};
+
 export type CreateTaskValues = {
   title: string;
   dueAt: string;

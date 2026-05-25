@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   CalendarCheck,
   History,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -20,18 +22,21 @@ import {
   fetchIcalSources,
   fetchIcalSyncRuns,
   syncIcalSource,
+  updateIcalSource,
 } from "../../dashboard/dashboard-api";
 
 type IcalFormState = {
   provider: string;
   label: string;
   url: string;
+  syncEnabled: boolean;
 };
 
 const emptyIcalForm: IcalFormState = {
   provider: "airbnb",
   label: "",
   url: "",
+  syncEnabled: true,
 };
 
 const statusLabels: Record<SyncRun["status"], string> = {
@@ -51,6 +56,7 @@ export function IcalSourcesManagement({
   const [sources, setSources] = useState<IcalSource[]>([]);
   const [syncRuns, setSyncRuns] = useState<SyncRun[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState("");
+  const [editingSourceId, setEditingSourceId] = useState("");
   const [form, setForm] = useState<IcalFormState>(emptyIcalForm);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -63,7 +69,9 @@ export function IcalSourcesManagement({
     [selectedSourceId, sources],
   );
 
-  async function loadSources(nextApartment = apartment) {
+  const isEditing = Boolean(editingSourceId);
+
+  async function loadSources(nextApartment = apartment, preferredSourceId = "") {
     const session = readStoredSession();
 
     if (!session || !nextApartment) {
@@ -76,7 +84,14 @@ export function IcalSourcesManagement({
     try {
       const nextSources = await fetchIcalSources(session.token, nextApartment.id);
       setSources(nextSources);
-      setSelectedSourceId((current) => current || nextSources[0]?.id || "");
+      setSelectedSourceId((current) => {
+        const candidate = preferredSourceId || current;
+        const canKeepCandidate = nextSources.some(
+          (source) => source.id === candidate,
+        );
+
+        return canKeepCandidate ? candidate : nextSources[0]?.id || "";
+      });
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Falha ao carregar fontes iCal.",
@@ -107,6 +122,7 @@ export function IcalSourcesManagement({
     setSources([]);
     setSyncRuns([]);
     setSelectedSourceId("");
+    setEditingSourceId("");
     setForm(emptyIcalForm);
     setMessage("");
     void loadSources(apartment);
@@ -116,11 +132,29 @@ export function IcalSourcesManagement({
     void loadSyncRuns();
   }, [selectedSourceId]);
 
+  function startEditingSource(source: IcalSource) {
+    setEditingSourceId(source.id);
+    setSelectedSourceId(source.id);
+    setForm({
+      provider: source.provider,
+      label: source.label,
+      url: "",
+      syncEnabled: source.syncEnabled,
+    });
+    setMessage("");
+  }
+
+  function cancelEditing() {
+    setEditingSourceId("");
+    setForm(emptyIcalForm);
+    setMessage("");
+  }
+
   async function submitSource(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const session = readStoredSession();
 
-    if (!session || !apartment || !form.url.trim()) {
+    if (!session || !apartment || (!isEditing && !form.url.trim())) {
       return;
     }
 
@@ -131,16 +165,37 @@ export function IcalSourcesManagement({
       const label =
         form.label.trim() || `${form.provider.toUpperCase()} - ${apartment.name}`;
 
-      await createIcalSource(session.token, apartment.id, {
-        provider: form.provider,
-        label,
-        url: form.url.trim(),
-      });
+      let savedSourceId = editingSourceId;
+
+      if (isEditing) {
+        const updatedSource = await updateIcalSource(
+          session.token,
+          apartment.id,
+          editingSourceId,
+          {
+            provider: form.provider,
+            label,
+            syncEnabled: form.syncEnabled,
+            url: form.url.trim() || undefined,
+          },
+        );
+        savedSourceId = updatedSource.id;
+      } else {
+        const response = await createIcalSource(session.token, apartment.id, {
+          provider: form.provider,
+          label,
+          url: form.url.trim(),
+        });
+        savedSourceId = response.icalSource.id;
+      }
 
       setForm(emptyIcalForm);
-      await loadSources();
+      setEditingSourceId("");
+      await loadSources(undefined, savedSourceId);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao criar fonte iCal.");
+      setMessage(
+        error instanceof Error ? error.message : "Falha ao salvar fonte iCal.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -158,8 +213,7 @@ export function IcalSourcesManagement({
 
     try {
       await syncIcalSource(session.token, source.id);
-      await loadSources();
-      setSelectedSourceId(source.id);
+      await loadSources(undefined, source.id);
       await loadSyncRuns(source.id);
     } catch (error) {
       setMessage(
@@ -182,7 +236,12 @@ export function IcalSourcesManagement({
     try {
       await deleteIcalSource(session.token, apartment.id, sourceToDelete.id);
       setSourceToDelete(null);
-      setSelectedSourceId("");
+      setEditingSourceId((current) =>
+        current === sourceToDelete.id ? "" : current,
+      );
+      setForm((current) =>
+        editingSourceId === sourceToDelete.id ? emptyIcalForm : current,
+      );
       await loadSources();
     } catch (error) {
       setMessage(
@@ -220,8 +279,8 @@ export function IcalSourcesManagement({
             Calendarios de {apartment.name}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
-            Adicione fontes do Airbnb ou Booking, sincronize manualmente e acompanhe o
-            historico de importacao sem poluir o dashboard operacional.
+            Adicione fontes do Airbnb ou Booking, sincronize manualmente, pause
+            importacoes e acompanhe o historico sem poluir o dashboard operacional.
           </p>
         </div>
         <button
@@ -245,9 +304,24 @@ export function IcalSourcesManagement({
           className="rounded-2xl border border-border bg-surface-muted p-4"
           onSubmit={submitSource}
         >
-          <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-            <Plus aria-hidden className="h-4 w-4 text-primary" />
-            Nova fonte
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+              {isEditing ? (
+                <Pencil aria-hidden className="h-4 w-4 text-primary" />
+              ) : (
+                <Plus aria-hidden className="h-4 w-4 text-primary" />
+              )}
+              {isEditing ? "Editar fonte" : "Nova fonte"}
+            </div>
+            {isEditing ? (
+              <button
+                className="text-xs font-semibold text-text-muted transition hover:text-primary"
+                onClick={cancelEditing}
+                type="button"
+              >
+                Cancelar
+              </button>
+            ) : null}
           </div>
           <div className="mt-4 grid gap-3">
             <Field label="Provider">
@@ -274,19 +348,38 @@ export function IcalSourcesManagement({
               <input
                 className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                 onChange={(event) => setForm({ ...form, url: event.target.value })}
-                placeholder="https://..."
-                required
+                placeholder={
+                  isEditing ? "Deixe vazio para manter a URL atual" : "https://..."
+                }
+                required={!isEditing}
                 type="url"
                 value={form.url}
               />
             </Field>
+            {isEditing ? (
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface px-3 py-3 text-sm font-medium text-text-secondary">
+                <span>Sincronizacao ativa</span>
+                <input
+                  checked={form.syncEnabled}
+                  className="h-4 w-4 accent-primary"
+                  onChange={(event) =>
+                    setForm({ ...form, syncEnabled: event.target.checked })
+                  }
+                  type="checkbox"
+                />
+              </label>
+            ) : null}
           </div>
           <button
             className="mt-4 h-11 w-full rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSaving}
             type="submit"
           >
-            {isSaving ? "Salvando..." : "Adicionar fonte"}
+            {isSaving
+              ? "Salvando..."
+              : isEditing
+                ? "Salvar alteracoes"
+                : "Adicionar fonte"}
           </button>
         </form>
 
@@ -316,7 +409,12 @@ export function IcalSourcesManagement({
                   </tr>
                 ) : (
                   sources.map((source) => (
-                    <tr key={source.id}>
+                    <tr
+                      className={
+                        selectedSourceId === source.id ? "bg-primary-soft/40" : ""
+                      }
+                      key={source.id}
+                    >
                       <td className="px-4 py-4">
                         <button
                           className="text-left"
@@ -342,9 +440,19 @@ export function IcalSourcesManagement({
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <button
+                            aria-label="Editar fonte"
+                            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
+                            onClick={() => startEditingSource(source)}
+                            type="button"
+                          >
+                            <Pencil aria-hidden className="h-4 w-4" />
+                          </button>
+                          <button
                             aria-label="Sincronizar fonte"
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                            disabled={syncingSourceId === source.id}
+                            disabled={
+                              syncingSourceId === source.id || !source.syncEnabled
+                            }
                             onClick={() => void syncSource(source)}
                             type="button"
                           >
@@ -448,7 +556,7 @@ function Field({
   children,
   label,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   label: string;
 }) {
   return (

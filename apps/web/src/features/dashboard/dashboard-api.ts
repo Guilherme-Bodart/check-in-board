@@ -9,6 +9,7 @@ import {
 import type {
   CreateIcalSourceValues,
   CreateTaskValues,
+  UpdateIcalSourceValues,
   WorkspaceData,
 } from "./types";
 
@@ -141,6 +142,29 @@ export async function fetchIcalSources(token: string, apartmentId: string) {
   );
 
   return response.icalSources;
+}
+
+export async function updateIcalSource(
+  token: string,
+  apartmentId: string,
+  icalSourceId: string,
+  values: UpdateIcalSourceValues,
+) {
+  const response = await apiRequest<{ icalSource: IcalSource }>(
+    `/apartments/${apartmentId}/ical-sources/${icalSourceId}`,
+    {
+      method: "PUT",
+      token,
+      body: {
+        provider: values.provider,
+        label: values.label,
+        icalUrl: values.url ?? "",
+        syncEnabled: values.syncEnabled,
+      },
+    },
+  );
+
+  return response.icalSource;
 }
 
 export async function deleteIcalSource(
