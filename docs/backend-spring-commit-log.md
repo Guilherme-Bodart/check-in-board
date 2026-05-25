@@ -905,3 +905,91 @@ Validation:
 Best next step:
 
 - Smoke-test the full SaaS flow after restarting backend/frontend, then refine finance UX with CSV export, recurring expenses, and reservation-linked revenue when source data is available.
+
+## 2bc069c - Update finance commit log
+
+Added:
+
+- commit-log entry for the finance API and finance screen work;
+- next-step guidance toward SaaS smoke testing and finance refinements.
+
+Validation:
+
+- Documentation-only commit.
+
+Best next step:
+
+- Improve iCal source management outside the dashboard: edit sources, pause sync, inspect history, and keep destructive actions behind explicit confirmation modals.
+
+## b5ec896 - Add iCal source update API
+
+Added:
+
+- `PUT /apartments/{apartmentId}/ical-sources/{icalSourceId}`;
+- editable iCal source provider and label;
+- optional iCal URL replacement while keeping the stored encrypted URL when omitted;
+- `syncEnabled` updates for source-level pause/reactivation;
+- shared lookup logic for active iCal sources;
+- controller coverage for updating source metadata without exposing the stored URL.
+
+Validation:
+
+- Ran `mvn -Dtest=IcalSourceControllerTest test`.
+
+Best next step:
+
+- Make sync execution respect paused sources so the `syncEnabled` flag has real operational behavior.
+
+## cd2d829 - Respect paused iCal sources during sync
+
+Added:
+
+- sync skip behavior when an iCal source is paused;
+- `skipped` sync-run persistence with a clear reason;
+- `syncSkipped=true` response summary for paused sources;
+- reservation sync regression coverage confirming paused sources do not import reservations.
+
+Validation:
+
+- Ran `mvn -Dtest=IcalSourceControllerTest,ReservationControllerTest test`.
+
+Best next step:
+
+- Expose iCal source editing and pause/reactivation in the apartments management UI.
+
+## e59755b - Add iCal source editing UI
+
+Added:
+
+- edit action for each iCal source in `/apartamentos`;
+- form mode switching between new source and edit source;
+- optional URL field during edit to preserve the existing encrypted URL;
+- sync active/paused checkbox;
+- selected-source retention after create/edit/sync;
+- sync button disabled for paused sources.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm --filter @check-in-board/web build`.
+
+Best next step:
+
+- Keep strengthening the design system so visual direction changes, such as "more premium" or "more colorful", can be handled through shared tokens instead of page-by-page edits.
+
+## ff297d5 - Centralize chart design tokens
+
+Added:
+
+- `apps/web/src/design-system/tokens.ts` for JavaScript consumers of design tokens;
+- Recharts colors now read from CSS design tokens through shared chart tokens;
+- removed hardcoded chart hex values from the dashboard chart component.
+
+Validation:
+
+- Ran `pnpm --filter @check-in-board/web typecheck`;
+- Ran `pnpm --filter @check-in-board/web build`.
+
+Best next step:
+
+- Expand the design-system layer beyond color tokens: component variants, density, shadows, radius, and interaction states should be centralized so broad style changes stay cheap.
