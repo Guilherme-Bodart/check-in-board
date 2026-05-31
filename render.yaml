@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: check-in-board-backend
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: >-
+      npx --yes pnpm@10.28.2 install --frozen-lockfile &&
+      npx --yes pnpm@10.28.2 --filter @check-in-board/backend db:generate &&
+      npx --yes pnpm@10.28.2 --filter @check-in-board/backend build
+    startCommand: npx --yes pnpm@10.28.2 --filter @check-in-board/backend start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: AUTH_JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ICAL_URL_ENCRYPTION_KEY
+        generateValue: true
