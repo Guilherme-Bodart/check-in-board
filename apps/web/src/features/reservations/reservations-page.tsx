@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Building2, CalendarDays, ClipboardList, Search, UsersRound } from "lucide-react";
 
 import type { Apartment, Reservation } from "../../api";
+import { messages } from "../../i18n";
 import { fetchApartments } from "../dashboard/dashboard-api";
 import { formatReservationDateRange } from "../../lib/date-formatters";
 import { readStoredSession } from "../../lib/session-storage";
@@ -51,7 +52,7 @@ export function ReservationsPage() {
         attachApartmentDetails(reservationGroups.flat(), nextApartments),
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao carregar reservas.");
+      setMessage(error instanceof Error ? error.message : messages.reservations.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -99,19 +100,31 @@ export function ReservationsPage() {
   return (
     <div className="grid gap-6">
       <section className="grid gap-4 md:grid-cols-3">
-        <SummaryCard label="Reservas" value={summary.total} icon={ClipboardList} />
-        <SummaryCard label="Confirmadas" value={summary.confirmed} icon={CalendarDays} />
-        <SummaryCard label="Canais" value={summary.providers} icon={UsersRound} />
+        <SummaryCard
+          label={messages.reservations.reservations}
+          value={summary.total}
+          icon={ClipboardList}
+        />
+        <SummaryCard
+          label={messages.reservations.confirmed}
+          value={summary.confirmed}
+          icon={CalendarDays}
+        />
+        <SummaryCard
+          label={messages.reservations.channels}
+          value={summary.providers}
+          icon={UsersRound}
+        />
       </section>
 
       <section className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-              Reservas
+              {messages.reservations.reservations}
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-              Todas as reservas importadas
+              {messages.reservations.importedReservations}
             </h2>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -123,7 +136,7 @@ export function ReservationsPage() {
               <input
                 className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft sm:w-72"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar reserva"
+                placeholder={messages.reservations.searchPlaceholder}
                 value={query}
               />
             </div>
@@ -132,7 +145,7 @@ export function ReservationsPage() {
               onChange={(event) => changeApartment(event.target.value)}
               value={selectedApartmentId}
             >
-              <option value={allApartmentsValue}>Todos os apartamentos</option>
+              <option value={allApartmentsValue}>{messages.reservations.allApartments}</option>
               {apartments.map((apartment) => (
                 <option key={apartment.id} value={apartment.id}>
                   {apartment.name}
@@ -152,24 +165,24 @@ export function ReservationsPage() {
           <table className="w-full border-collapse text-left text-sm">
             <thead className="bg-surface-muted text-xs uppercase tracking-[0.12em] text-text-muted">
               <tr>
-                <th className="px-4 py-3 font-semibold">Reserva</th>
-                <th className="px-4 py-3 font-semibold">Apartamento</th>
-                <th className="px-4 py-3 font-semibold">Periodo</th>
-                <th className="px-4 py-3 font-semibold">Noites</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">{messages.reservations.reservation}</th>
+                <th className="px-4 py-3 font-semibold">{messages.dashboard.apartmentLabel}</th>
+                <th className="px-4 py-3 font-semibold">{messages.reservations.period}</th>
+                <th className="px-4 py-3 font-semibold">{messages.reservations.nights}</th>
+                <th className="px-4 py-3 font-semibold">{messages.reservations.status}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {isLoading ? (
                 <tr>
                   <td className="px-4 py-5 text-text-secondary" colSpan={5}>
-                    Carregando reservas...
+                    {messages.reservations.loading}
                   </td>
                 </tr>
               ) : filteredReservations.length === 0 ? (
                 <tr>
                   <td className="px-4 py-5 text-text-secondary" colSpan={5}>
-                    Nenhuma reserva encontrada.
+                    {messages.reservations.empty}
                   </td>
                 </tr>
               ) : (
@@ -190,7 +203,7 @@ function ReservationRow({ reservation }: { reservation: ReservationListItem }) {
     <tr>
       <td className="px-4 py-4">
         <strong className="block font-semibold text-text-primary">
-          {reservation.rawSummary ?? "Reserva"}
+          {reservation.rawSummary ?? messages.reservations.reservation}
         </strong>
         <span className="text-xs text-text-muted">{reservation.provider}</span>
       </td>

@@ -1,4 +1,5 @@
 import type { Apartment, Reservation } from "../../api";
+import { messages } from "../../i18n";
 
 export type ReservationListItem = Reservation & {
   apartmentName: string;
@@ -19,8 +20,8 @@ export function attachApartmentDetails(
 
       return {
         ...reservation,
-        apartmentName: apartment?.name ?? "Apartamento removido",
-        ownerName: apartment?.owner?.name ?? "Sem proprietário",
+        apartmentName: apartment?.name ?? messages.reservations.apartmentRemoved,
+        ownerName: apartment?.owner?.name ?? messages.reservations.ownerMissing,
       };
     })
     .sort((first, second) => first.startsAt.localeCompare(second.startsAt));

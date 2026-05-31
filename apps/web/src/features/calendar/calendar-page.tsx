@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Home, Search } from "lucide-react";
 
 import type { Apartment } from "../../api";
-import { fetchApartments } from "../dashboard/dashboard-api";
+import { messages } from "../../i18n";
 import { readStoredSession } from "../../lib/session-storage";
+import { fetchApartments } from "../dashboard/dashboard-api";
 import { fetchReservations } from "../reservations/reservations-api";
 import {
   attachApartmentDetails,
@@ -14,7 +15,6 @@ import {
 } from "../reservations/reservation-view-model";
 
 const allApartmentsValue = "all";
-const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 
 export function CalendarPage() {
   const [apartments, setApartments] = useState<Apartment[]>([]);
@@ -52,9 +52,7 @@ export function CalendarPage() {
         attachApartmentDetails(reservationGroups.flat(), nextApartments),
       );
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Falha ao carregar calendário.",
-      );
+      setMessage(error instanceof Error ? error.message : messages.calendar.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -127,10 +125,10 @@ export function CalendarPage() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-              Calendário
+              {messages.calendar.eyebrow}
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-              Ocupacao mensal
+              {messages.calendar.monthlyOccupancy}
             </h2>
           </div>
           <div className="flex flex-col gap-3 lg:flex-row">
@@ -142,7 +140,7 @@ export function CalendarPage() {
               <input
                 className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft lg:w-64"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar reserva"
+                placeholder={messages.calendar.searchPlaceholder}
                 value={query}
               />
             </div>
@@ -151,7 +149,7 @@ export function CalendarPage() {
               onChange={(event) => changeApartment(event.target.value)}
               value={selectedApartmentId}
             >
-              <option value={allApartmentsValue}>Todos os apartamentos</option>
+              <option value={allApartmentsValue}>{messages.calendar.allApartments}</option>
               {apartments.map((apartment) => (
                 <option key={apartment.id} value={apartment.id}>
                   {apartment.name}
@@ -160,7 +158,7 @@ export function CalendarPage() {
             </select>
             <div className="flex items-center gap-2">
               <button
-                aria-label="Mes anterior"
+                aria-label={messages.calendar.previousMonth}
                 className="grid h-11 w-11 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={() => shiftMonth(-1)}
                 type="button"
@@ -168,14 +166,14 @@ export function CalendarPage() {
                 <ChevronLeft aria-hidden className="h-4 w-4" />
               </button>
               <input
-                aria-label="Mes"
+                aria-label={messages.calendar.monthLabel}
                 className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                 onChange={(event) => setMonth(event.target.value)}
                 type="month"
                 value={month}
               />
               <button
-                aria-label="Próximo mês"
+                aria-label={messages.calendar.nextMonth}
                 className="grid h-11 w-11 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={() => shiftMonth(1)}
                 type="button"
@@ -193,7 +191,7 @@ export function CalendarPage() {
         ) : null}
 
         <div className="mt-6 grid grid-cols-7 overflow-hidden rounded-2xl border border-border">
-          {weekDays.map((day) => (
+          {messages.calendar.weekDays.map((day) => (
             <div
               className="border-b border-border bg-surface-muted px-3 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted"
               key={day}
@@ -204,11 +202,11 @@ export function CalendarPage() {
 
           {isLoading ? (
             <div className="col-span-7 px-4 py-10 text-center text-sm text-text-secondary">
-              Carregando calendário...
+              {messages.calendar.loading}
             </div>
           ) : calendarDays.length === 0 ? (
             <div className="col-span-7 px-4 py-10 text-center text-sm text-text-secondary">
-              Selecione um mês para ver o calendário.
+              {messages.calendar.emptyMonth}
             </div>
           ) : (
             calendarDays.map((day) => (
@@ -226,10 +224,10 @@ export function CalendarPage() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-              Resumo
+              {messages.calendar.summary}
             </p>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-text-primary">
-              Reservas no mês
+              {messages.calendar.reservationsInMonth}
             </h2>
           </div>
           <CalendarDays aria-hidden className="h-5 w-5 text-primary" />
@@ -237,7 +235,7 @@ export function CalendarPage() {
         <div className="mt-5 grid gap-3">
           {monthReservations.length === 0 ? (
             <p className="text-sm text-text-secondary">
-              Nenhuma reserva encontrada para esse periodo.
+              {messages.calendar.emptyReservations}
             </p>
           ) : (
             monthReservations.map((reservation) => (
@@ -247,7 +245,7 @@ export function CalendarPage() {
               >
                 <div>
                   <strong className="text-sm font-semibold text-text-primary">
-                    {reservation.rawSummary ?? "Reserva"}
+                    {reservation.rawSummary ?? messages.calendar.reservationFallback}
                   </strong>
                   <p className="mt-1 flex items-center gap-2 text-sm text-text-secondary">
                     <Home aria-hidden className="h-4 w-4 text-primary" />
@@ -298,7 +296,9 @@ function CalendarCell({
           <div
             className="truncate rounded-lg bg-primary-soft px-2 py-1 text-[11px] font-medium text-primary"
             key={`${reservation.id}-${day.date}`}
-            title={`${reservation.apartmentName} - ${reservation.rawSummary ?? "Reserva"}`}
+            title={`${reservation.apartmentName} - ${
+              reservation.rawSummary ?? messages.calendar.reservationFallback
+            }`}
           >
             {reservation.apartmentName}
           </div>
