@@ -15,6 +15,7 @@ import {
 
 import type { Apartment, Owner } from "../../api";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { messages } from "../../i18n";
 import { readStoredSession } from "../../lib/session-storage";
 import {
   createApartment,
@@ -80,9 +81,7 @@ export function ApartmentsPage() {
         ownerId: current.ownerId || ownerResponse[0]?.id || "",
       }));
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Falha ao carregar apartamentos.",
-      );
+      setMessage(error instanceof Error ? error.message : messages.apartments.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +156,7 @@ export function ApartmentsPage() {
       cancelEdit();
       await loadData();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao salvar apartamento.");
+      setMessage(error instanceof Error ? error.message : messages.apartments.saveFailed);
     } finally {
       setIsSaving(false);
     }
@@ -181,9 +180,7 @@ export function ApartmentsPage() {
       }
       await loadData();
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Falha ao remover apartamento.",
-      );
+      setMessage(error instanceof Error ? error.message : messages.apartments.removeFailed);
     } finally {
       setIsDeleting(false);
     }
@@ -211,9 +208,9 @@ export function ApartmentsPage() {
   return (
     <div className="grid gap-6">
       <section className="grid gap-4 md:grid-cols-3">
-        <SummaryCard label="Apartamentos" value={summary.total} />
-        <SummaryCard label="Próprios" value={summary.internal} />
-        <SummaryCard label="De clientes" value={summary.client} />
+        <SummaryCard label={messages.apartments.apartments} value={summary.total} />
+        <SummaryCard label={messages.apartments.owned} value={summary.internal} />
+        <SummaryCard label={messages.apartments.clientsOwned} value={summary.client} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -221,10 +218,10 @@ export function ApartmentsPage() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                Imoveis
+                {messages.apartments.realEstateEyebrow}
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-                Lista de apartamentos
+                {messages.apartments.listTitle}
               </h2>
             </div>
             <div className="relative">
@@ -235,7 +232,7 @@ export function ApartmentsPage() {
               <input
                 className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft md:w-72"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por imóvel ou proprietário"
+                placeholder={messages.apartments.searchPlaceholder}
                 value={query}
               />
             </div>
@@ -251,23 +248,23 @@ export function ApartmentsPage() {
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-surface-muted text-xs uppercase tracking-[0.12em] text-text-muted">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Apartamento</th>
-                  <th className="px-4 py-3 font-semibold">Proprietario</th>
+                  <th className="px-4 py-3 font-semibold">{messages.apartments.apartment}</th>
+                  <th className="px-4 py-3 font-semibold">{messages.apartments.owner}</th>
                   <th className="px-4 py-3 font-semibold">Timezone</th>
-                  <th className="px-4 py-3 font-semibold">Acoes</th>
+                  <th className="px-4 py-3 font-semibold">{messages.apartments.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-surface">
                 {isLoading ? (
                   <tr>
                     <td className="px-4 py-5 text-text-secondary" colSpan={4}>
-                      Carregando apartamentos...
+                      {messages.apartments.loading}
                     </td>
                   </tr>
                 ) : filteredApartments.length === 0 ? (
                   <tr>
                     <td className="px-4 py-5 text-text-secondary" colSpan={4}>
-                      Nenhum apartamento encontrado.
+                      {messages.apartments.empty}
                     </td>
                   </tr>
                 ) : (
@@ -285,9 +282,11 @@ export function ApartmentsPage() {
                       </td>
                       <td className="px-4 py-4 text-text-secondary">
                         <div className="grid gap-1">
-                          <span>{apartment.owner?.name ?? "Sem proprietário"}</span>
+                          <span>{apartment.owner?.name ?? messages.apartments.noOwner}</span>
                           <span className="text-xs text-text-muted">
-                            {apartment.owner?.type === "client" ? "Cliente" : "Próprio"}
+                            {apartment.owner?.type === "client"
+                              ? messages.apartments.client
+                              : messages.apartments.own}
                           </span>
                         </div>
                       </td>
@@ -297,7 +296,7 @@ export function ApartmentsPage() {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            aria-label="Gerenciar iCal"
+                            aria-label={messages.apartments.manageIcal}
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                             onClick={() => setSelectedIcalApartmentId(apartment.id)}
                             type="button"
@@ -305,7 +304,7 @@ export function ApartmentsPage() {
                             <CalendarDays aria-hidden className="h-4 w-4" />
                           </button>
                           <button
-                            aria-label="Editar apartamento"
+                            aria-label={messages.apartments.editApartment}
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                             onClick={() => startEdit(apartment)}
                             type="button"
@@ -313,7 +312,7 @@ export function ApartmentsPage() {
                             <Pencil aria-hidden className="h-4 w-4" />
                           </button>
                           <button
-                            aria-label="Remover apartamento"
+                            aria-label={messages.apartments.deleteConfirm}
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-danger hover:text-danger"
                             onClick={() => setApartmentToDelete(apartment)}
                             type="button"
@@ -341,16 +340,20 @@ export function ApartmentsPage() {
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                  {editingApartmentId ? "Edição" : "Novo imóvel"}
+                  {editingApartmentId
+                    ? messages.apartments.editEyebrow
+                    : messages.apartments.newEyebrow}
                 </p>
                 <h2 className="text-lg font-semibold text-text-primary">
-                  {editingApartmentId ? "Editar apartamento" : "Adicionar apartamento"}
+                  {editingApartmentId
+                    ? messages.apartments.editApartment
+                    : messages.apartments.addApartment}
                 </h2>
               </div>
             </div>
             {editingApartmentId ? (
               <button
-                aria-label="Cancelar edição"
+                aria-label={messages.common.cancel}
                 className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={cancelEdit}
                 type="button"
@@ -361,16 +364,16 @@ export function ApartmentsPage() {
           </div>
 
           <div className="mt-6 grid gap-4">
-            <Field label="Nome do apartamento">
+            <Field label={messages.apartments.nameField}>
               <input
                 className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
-                placeholder="Apto 204"
+                placeholder={messages.dashboard.apartmentPlaceholder}
                 required
                 value={form.name}
               />
             </Field>
-            <Field label="Proprietario">
+            <Field label={messages.apartments.owner}>
               <select
                 className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                 onChange={(event) =>
@@ -380,7 +383,10 @@ export function ApartmentsPage() {
               >
                 {owners.map((owner) => (
                   <option key={owner.id} value={owner.id}>
-                    {owner.name} - {owner.type === "client" ? "cliente" : "proprio"}
+                    {owner.name} -{" "}
+                    {owner.type === "client"
+                      ? messages.apartments.clientOwner
+                      : messages.apartments.ownLower}
                   </option>
                 ))}
               </select>
@@ -405,9 +411,9 @@ export function ApartmentsPage() {
               <div className="grid gap-3 rounded-2xl border border-border bg-surface-muted p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
                   <CalendarCheck aria-hidden className="h-4 w-4 text-primary" />
-                  iCal opcional
+                  {messages.apartments.icalOptional}
                 </div>
-                <Field label="Provider">
+                <Field label={messages.apartments.provider}>
                   <select
                     className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                     onChange={(event) =>
@@ -440,10 +446,10 @@ export function ApartmentsPage() {
             type="submit"
           >
             {isSaving
-              ? "Salvando..."
+              ? messages.apartments.saving
               : editingApartmentId
-                ? "Salvar alterações"
-                : "Salvar apartamento"}
+                ? messages.apartments.saveChanges
+                : messages.apartments.saveApartment}
           </button>
         </form>
       </section>
@@ -454,13 +460,13 @@ export function ApartmentsPage() {
       />
 
       <ConfirmDialog
-        confirmLabel="Remover apartamento"
-        description={`O apartamento ${apartmentToDelete?.name ?? ""} será removido da operação. Use isso apenas quando ele não deve mais aparecer no dashboard.`}
+        confirmLabel={messages.apartments.deleteConfirm}
+        description={messages.apartments.deleteDescription(apartmentToDelete?.name ?? "")}
         isOpen={Boolean(apartmentToDelete)}
         isWorking={isDeleting}
         onCancel={() => setApartmentToDelete(null)}
         onConfirm={() => void removeApartment()}
-        title="Remover apartamento?"
+        title={messages.apartments.deleteTitle}
       />
     </div>
   );
