@@ -31,6 +31,28 @@ export const manualSyncResponseSchema = z.object({
   }),
 });
 
+const operationsBoardSectionSchema = z.object({
+  count: z.number().int().min(0),
+  reservations: z.array(reservationSchema),
+});
+
+export const operationsBoardResponseSchema = z.object({
+  apartmentId: z.string().min(1),
+  checkIns: operationsBoardSectionSchema,
+  checkOuts: operationsBoardSectionSchema,
+  date: z.string().min(1),
+  days: z.number().int().min(1).max(31),
+  inHouse: operationsBoardSectionSchema,
+  timezone: z.string().min(1),
+  totals: z.object({
+    checkIns: z.number().int().min(0),
+    checkOuts: z.number().int().min(0),
+    inHouse: z.number().int().min(0),
+    upcoming: z.number().int().min(0),
+  }),
+  upcoming: operationsBoardSectionSchema,
+});
+
 const operationStatusSchema = z.enum([
   "checkInToday",
   "checkOutToday",

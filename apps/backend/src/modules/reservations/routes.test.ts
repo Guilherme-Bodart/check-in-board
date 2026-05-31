@@ -404,4 +404,67 @@ describe("reservation routes", () => {
 
     await app.close();
   });
+
+  it("builds an operations board for an apartment", async () => {
+    const repository = new InMemoryReservationsRepository();
+    const user: AuthUser = {
+      email: "host@example.com",
+      fullName: "Host Admin",
+      id: "user-host",
+    };
+
+    repository.setApartmentCanView(user.id, "apartment-1", true);
+    await repository.upsertReservation({
+      apartmentId: "apartment-1",
+      endsAt: new Date("2026-05-28T15:00:00.000Z"),
+      externalEventKey: "upcoming@example.com",
+      externalUid: "upcoming@example.com",
+      icalSourceId: "ical-source-1",
+      rawPayload: {},
+      rawSummary: "Upcoming stay",
+      startsAt: new Date("2026-05-27T18:00:00.000Z"),
+    });
+    await repository.upsertReservation({
+      apartmentId: "apartment-1",
+      endsAt: new Date("2026-05-27T15:00:00.000Z"),
+      externalEventKey: "check-in@example.com",
+      externalUid: "check-in@example.com",
+      icalSourceId: "ical-source-1",
+      rawPayload: {},
+      rawSummary: "Check-in stay",
+      startsAt: new Date("2026-05-26T18:00:00.000Z"),
+    });
+
+    const app = buildApp({
+      env: buildTestEnv(),
+      reservationsRepository: repository,
+    });
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${await createAccessToken(user)}`,
+      },
+      method: "GET",
+      url: "/apartments/apartment-1/operations-board?date=2026-05-26&days=7",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      apartmentId: "apartment-1",
+      checkIns: {
+        count: 1,
+      },
+      date: "2026-05-26",
+      days: 7,
+      totals: {
+        checkIns: 1,
+        upcoming: 1,
+      },
+      upcoming: {
+        count: 1,
+      },
+    });
+
+    await app.close();
+  });
 });

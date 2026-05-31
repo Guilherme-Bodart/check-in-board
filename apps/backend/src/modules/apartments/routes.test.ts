@@ -19,6 +19,7 @@ class InMemoryApartmentsRepository implements ApartmentsRepository {
   private apartments: ScopedApartmentRecord[] = [];
   private apartmentSequence = 1;
   private membershipSequence = 1;
+  private ownerOrganizations = new Map<string, string>();
   private primaryOrganizationAccess = new Map<
     string,
     PrimaryOrganizationAccess
@@ -26,6 +27,10 @@ class InMemoryApartmentsRepository implements ApartmentsRepository {
 
   setPrimaryOrganizationAccess(access: PrimaryOrganizationAccess) {
     this.primaryOrganizationAccess.set(access.userId, access);
+  }
+
+  setOwnerOrganization(ownerId: string, organizationId: string) {
+    this.ownerOrganizations.set(ownerId, organizationId);
   }
 
   seedAccessibleApartment(userId: string, apartment: ApartmentSummary) {
@@ -49,6 +54,13 @@ class InMemoryApartmentsRepository implements ApartmentsRepository {
       },
       name: input.name,
       organizationId: input.organizationId,
+      owner: input.ownerId
+        ? {
+            id: input.ownerId,
+            name: "Owner",
+            type: "client",
+          }
+        : null,
       timezone: input.timezone,
     };
 
@@ -58,6 +70,10 @@ class InMemoryApartmentsRepository implements ApartmentsRepository {
     });
 
     return apartment;
+  }
+
+  async getOwnerOrganization(ownerId: string): Promise<string | null> {
+    return this.ownerOrganizations.get(ownerId) ?? null;
   }
 
   async getPrimaryOrganizationAccess(
@@ -155,6 +171,7 @@ describe("apartments routes", () => {
         },
         name: "Ocean View",
         organizationId: "org-1",
+        owner: null,
         timezone: "America/Sao_Paulo",
       },
     });
@@ -191,6 +208,7 @@ describe("apartments routes", () => {
       },
       name: "Beach House",
       organizationId: "org-1",
+      owner: null,
       timezone: "America/Sao_Paulo",
     });
     repository.seedAccessibleApartment(hostUser.id, {
@@ -204,6 +222,7 @@ describe("apartments routes", () => {
       },
       name: "City Loft",
       organizationId: "org-2",
+      owner: null,
       timezone: "America/New_York",
     });
     repository.seedAccessibleApartment(otherUser.id, {
@@ -217,6 +236,7 @@ describe("apartments routes", () => {
       },
       name: "Hidden Scope",
       organizationId: "org-3",
+      owner: null,
       timezone: "Europe/Lisbon",
     });
 
@@ -247,6 +267,7 @@ describe("apartments routes", () => {
           },
           name: "Beach House",
           organizationId: "org-1",
+          owner: null,
           timezone: "America/Sao_Paulo",
         },
         {
@@ -260,6 +281,7 @@ describe("apartments routes", () => {
           },
           name: "City Loft",
           organizationId: "org-2",
+          owner: null,
           timezone: "America/New_York",
         },
       ],

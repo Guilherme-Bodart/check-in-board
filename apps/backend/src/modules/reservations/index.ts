@@ -8,6 +8,7 @@ import {
   listReservationsResponseSchema,
   manualSyncRequestSchema,
   manualSyncResponseSchema,
+  operationsBoardResponseSchema,
   todayBoardResponseSchema,
 } from "./schemas.js";
 import {
@@ -15,6 +16,7 @@ import {
   ReservationsServiceError,
   syncIcalSourceFromText,
 } from "./service.js";
+import { buildOperationsBoardPayload } from "./operations-board.js";
 import { buildTodayBoardPayload } from "./today-board.js";
 
 export type ReservationsModuleOptions = {
@@ -29,6 +31,22 @@ function sendError(code: string, message: string) {
       message,
     },
   };
+}
+
+function parseBoardDate(value: string | undefined): Date | null {
+  const date = value ? new Date(value) : new Date();
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseBoardDays(value: string | undefined): number | null {
+  const days = value ? Number(value) : 7;
+
+  if (!Number.isInteger(days) || days < 1 || days > 31) {
+    return null;
+  }
+
+  return days;
 }
 
 export const reservationsModule: FastifyPluginAsync<ReservationsModuleOptions> =
@@ -92,6 +110,57 @@ export const reservationsModule: FastifyPluginAsync<ReservationsModuleOptions> =
           .send(sendError("UNAUTHORIZED", "Authentication is required."));
       }
     });
+
+    app.get(
+      "/apartments/:apartmentId/operations-board",
+      async (request, reply) => {
+        const params = request.params as { apartmentId?: string };
+        const query = request.query as { date?: string; days?: string };
+        const date = parseBoardDate(query.date);
+        const days = parseBoardDays(query.days);
+
+        if (!date || !days) {
+          return reply
+            .code(400)
+            .send(sendError("BAD_REQUEST", "Invalid operations board query."));
+        }
+
+        try {
+          const auth = await authenticateRequest(request, options.env);
+          const apartmentId = params.apartmentId ?? "";
+          const reservations = await listReservationsForApartment(
+            auth.userId,
+            apartmentId,
+            await getRepository(),
+            options.env,
+          );
+
+          return reply.code(200).send(
+            operationsBoardResponseSchema.parse(
+              buildOperationsBoardPayload({
+                apartmentId,
+                date,
+                days,
+                reservations,
+                timezone: "America/Sao_Paulo",
+              }),
+            ),
+          );
+        } catch (error) {
+          if (error instanceof ReservationsServiceError) {
+            return reply.code(403).send(sendError(error.code, error.message));
+          }
+
+          if (!(error instanceof AuthError)) {
+            throw error;
+          }
+
+          return reply
+            .code(401)
+            .send(sendError("UNAUTHORIZED", "Authentication is required."));
+        }
+      },
+    );
 
     app.get("/apartments/:apartmentId/reservations", async (request, reply) => {
       const params = request.params as { apartmentId?: string };

@@ -40,6 +40,16 @@ enum SyncStatus {
   failed
 }
 
+enum OwnerType {
+  internal
+  client
+}
+
+enum FinancialEntryType {
+  revenue
+  expense
+}
+
 model User {
   id                      String                   @id @default(cuid())
   authProvider            String                   @map("auth_provider")
@@ -77,17 +87,38 @@ model PasswordResetToken {
 }
 
 model Organization {
-  id          String                   @id @default(cuid())
-  name        String
-  deletedAt   DateTime?                @map("deleted_at")
-  createdAt   DateTime                 @default(now()) @map("created_at")
-  updatedAt   DateTime                 @updatedAt @map("updated_at")
-  memberships OrganizationMembership[]
-  apartments  Apartment[]
-  invitations Invitation[]
-  auditLogs   AuditLog[]
+  id               String                   @id @default(cuid())
+  name             String
+  deletedAt        DateTime?                @map("deleted_at")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+  memberships      OrganizationMembership[]
+  apartments       Apartment[]
+  owners           Owner[]
+  financialEntries FinancialEntry[]
+  invitations      Invitation[]
+  auditLogs        AuditLog[]
 
   @@map("organizations")
+}
+
+model Owner {
+  id               String           @id @default(cuid())
+  organizationId   String           @map("organization_id")
+  name             String
+  type             OwnerType
+  contactName      String?          @map("contact_name")
+  email            String?
+  phone            String?
+  notes            String?
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  apartments       Apartment[]
+  financialEntries FinancialEntry[]
+
+  @@index([organizationId, name])
+  @@map("owners")
 }
 
 model OrganizationMembership {
@@ -107,23 +138,50 @@ model OrganizationMembership {
 }
 
 model Apartment {
-  id             String                @id @default(cuid())
-  organizationId String                @map("organization_id")
-  name           String
-  timezone       String
-  deletedAt      DateTime?             @map("deleted_at")
-  createdAt      DateTime              @default(now()) @map("created_at")
-  updatedAt      DateTime              @updatedAt @map("updated_at")
-  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  memberships    ApartmentMembership[]
-  icalSources    IcalSource[]
-  reservations   Reservation[]
-  tasks          Task[]
-  invitations    Invitation[]
-  auditLogs      AuditLog[]
+  id               String                @id @default(cuid())
+  organizationId   String                @map("organization_id")
+  ownerId          String?               @map("owner_id")
+  name             String
+  timezone         String
+  deletedAt        DateTime?             @map("deleted_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner            Owner?                @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  memberships      ApartmentMembership[]
+  icalSources      IcalSource[]
+  reservations     Reservation[]
+  tasks            Task[]
+  financialEntries FinancialEntry[]
+  invitations      Invitation[]
+  auditLogs        AuditLog[]
 
   @@index([organizationId])
+  @@index([ownerId])
   @@map("apartments")
+}
+
+model FinancialEntry {
+  id             String             @id @default(cuid())
+  organizationId String             @map("organization_id")
+  apartmentId    String             @map("apartment_id")
+  ownerId        String?            @map("owner_id")
+  type           FinancialEntryType
+  category       String
+  description    String?
+  amountCents    Int                @map("amount_cents")
+  currency       String
+  occurredOn     DateTime           @map("occurred_on")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  apartment      Apartment          @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  owner          Owner?             @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, occurredOn])
+  @@index([apartmentId, occurredOn])
+  @@index([ownerId, occurredOn])
+  @@map("financial_entries")
 }
 
 model ApartmentMembership {

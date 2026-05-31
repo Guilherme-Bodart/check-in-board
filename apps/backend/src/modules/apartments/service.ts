@@ -31,9 +31,23 @@ export async function createApartmentForAuthenticatedUser(
     );
   }
 
+  if (input.ownerId) {
+    const ownerOrganizationId = await repository.getOwnerOrganization(
+      input.ownerId,
+    );
+
+    if (ownerOrganizationId !== access.organizationId) {
+      throw new ApartmentsServiceError(
+        "FORBIDDEN",
+        "You do not have access to this owner.",
+      );
+    }
+  }
+
   return await repository.createApartmentForUser({
     name: input.name,
     organizationId: access.organizationId,
+    ownerId: input.ownerId,
     timezone: input.timezone,
     userId,
   });

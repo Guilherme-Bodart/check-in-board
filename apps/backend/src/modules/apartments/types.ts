@@ -13,11 +13,17 @@ export type ApartmentSummary = {
   membership: ApartmentMembership;
   name: string;
   organizationId: string;
+  owner: {
+    id: string;
+    name: string;
+    type: "internal" | "client";
+  } | null;
   timezone: string;
 };
 
 export type CreateApartmentInput = {
   name: string;
+  ownerId?: string;
   timezone: string;
 };
 

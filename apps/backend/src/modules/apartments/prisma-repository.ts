@@ -37,6 +37,11 @@ function mapApartment(record: {
   }>;
   name: string;
   organizationId: string;
+  owner: {
+    id: string;
+    name: string;
+    type: "internal" | "client";
+  } | null;
   timezone: string;
 }): ApartmentSummary {
   const membership = record.memberships[0];
@@ -50,6 +55,7 @@ function mapApartment(record: {
     membership: mapApartmentMembership(membership),
     name: record.name,
     organizationId: record.organizationId,
+    owner: record.owner,
     timezone: record.timezone,
   };
 }
@@ -65,6 +71,7 @@ export class PrismaApartmentsRepository implements ApartmentsRepository {
         data: {
           name: input.name,
           organizationId: input.organizationId,
+          ownerId: input.ownerId,
           timezone: input.timezone,
         },
       });
@@ -100,6 +107,7 @@ export class PrismaApartmentsRepository implements ApartmentsRepository {
               userId: input.userId,
             },
           },
+          owner: true,
         },
         where: {
           id: apartment.id,
@@ -112,6 +120,19 @@ export class PrismaApartmentsRepository implements ApartmentsRepository {
 
       return mapApartment(createdApartment);
     });
+  }
+
+  async getOwnerOrganization(ownerId: string): Promise<string | null> {
+    const owner = await this.prisma.owner.findUnique({
+      select: {
+        organizationId: true,
+      },
+      where: {
+        id: ownerId,
+      },
+    });
+
+    return owner?.organizationId ?? null;
   }
 
   async getPrimaryOrganizationAccess(
@@ -146,6 +167,7 @@ export class PrismaApartmentsRepository implements ApartmentsRepository {
             userId,
           },
         },
+        owner: true,
       },
       orderBy: {
         name: "asc",

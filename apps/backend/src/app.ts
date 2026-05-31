@@ -5,6 +5,7 @@ import {
   type ApartmentsModuleOptions,
 } from "./modules/apartments/index.js";
 import { authModule, type AuthModuleOptions } from "./modules/auth/index.js";
+import { financeModule } from "./modules/finance/index.js";
 import {
   icalSourcesModule,
   type IcalSourcesModuleOptions,
@@ -13,9 +14,11 @@ import {
   membersModule,
   type MembersModuleOptions,
 } from "./modules/members/index.js";
+import { ownersModule } from "./modules/owners/index.js";
 import { reservationsModule } from "./modules/reservations/index.js";
 import type { ReservationsModuleOptions } from "./modules/reservations/index.js";
 import { syncModule } from "./modules/sync/index.js";
+import { teamMembersModule } from "./modules/team-members/index.js";
 import { tasksModule, type TasksModuleOptions } from "./modules/tasks/index.js";
 import { getGlobalRateLimitConfig, rateLimit } from "./plugins/rate-limit.js";
 import {
@@ -74,6 +77,17 @@ export function buildApp(options: BuildAppOptions = {}) {
     app.register(membersModule, {
       env: runtimeEnv,
       membersRepository: options.membersRepository,
+    });
+    app.register(ownersModule, {
+      env: runtimeEnv,
+      prefix: "/owners",
+    });
+    app.register(financeModule, {
+      env: runtimeEnv,
+    });
+    app.register(teamMembersModule, {
+      env: runtimeEnv,
+      prefix: "/team-members",
     });
     app.register(reservationsModule, {
       env: runtimeEnv,

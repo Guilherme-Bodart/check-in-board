@@ -53,7 +53,7 @@ export function parseEnv(input: NodeJS.ProcessEnv = process.env): {
       .default(
         nodeEnv === "production"
           ? ""
-          : "http://localhost:8081,http://localhost:19006,http://127.0.0.1:8081,http://127.0.0.1:19006",
+          : "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,http://localhost:8081,http://localhost:19006,http://127.0.0.1:8081,http://127.0.0.1:19006",
       ),
     ICAL_URL_ENCRYPTION_KEY: z.string().min(32).nullable().default(null),
     RATE_LIMIT_AUTH_MAX: z.coerce.number().int().min(1).default(8),

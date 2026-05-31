@@ -17,11 +17,19 @@ export const apartmentSchema = z.object({
   membership: apartmentMembershipSchema,
   name: z.string().min(1),
   organizationId: z.string().min(1),
+  owner: z
+    .object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      type: z.enum(["internal", "client"]),
+    })
+    .nullable(),
   timezone: timezoneSchema,
 });
 
 export const createApartmentRequestSchema = z.object({
   name: z.string().trim().min(1).max(120),
+  ownerId: z.string().trim().min(1).optional(),
   timezone: timezoneSchema,
 });
 

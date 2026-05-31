@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev -H 0.0.0.0",
+    "dev": "node scripts/dev-with-port-fallback.mjs",
     "build": "next build",
     "preview": "next start -H 0.0.0.0",
     "lint": "echo \"No lint configured for web yet\"",
@@ -26,6 +26,7 @@
   "devDependencies": {
     "@check-in-board/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "^24.12.2",
     "@types/react": "~19.1.0",
     "@types/react-dom": "^19.1.0",
     "postcss": "^8.5.15",
