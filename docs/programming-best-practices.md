@@ -30,6 +30,17 @@ Este documento define o padrão de engenharia do projeto. Ele deve orientar nova
 - A interface deve priorizar fluxo operacional: densidade boa, leitura rápida e ações claras.
 - Não adicione textos explicando a própria UI dentro do app quando o controle visual já comunica a ação.
 
+## Tamanho de arquivos e componentes
+
+- Evite arquivos gigantes. Quando um arquivo começa a misturar busca de dados, estado de formulário, tabela, modal e cards, divida por responsabilidade.
+- Componentes React devem ter uma responsabilidade principal e nomes claros.
+- Prefira extrair subcomponentes quando um bloco visual tem estado próprio, muitas props, repetição ou regras condicionais relevantes.
+- Evite extrair componentes pequenos demais quando isso piora a leitura. A divisão deve reduzir carga mental.
+- Hooks devem concentrar lógica de estado, efeitos e chamadas de API quando isso deixar o componente de tela mais declarativo.
+- Páginas devem orquestrar fluxo e composição; detalhes de tabela, formulário e painéis devem viver em componentes próximos ao domínio.
+- Arquivos de i18n também devem ser organizados por domínio quando crescerem demais. Se `pt-br.ts` ficar difícil de navegar, separar em módulos por feature e reexportar um `messages` único.
+- Como referência prática, revise a divisão quando um componente passar de algumas centenas de linhas ou tiver mais de um motivo claro para mudar.
+
 ## Design system
 
 - O pacote `@check-in-board/design-system` é a fonte de tokens globais.
