@@ -5,7 +5,14 @@ export const ptBR = {
   },
   common: {
     appName: "Check-In Board",
+    add: "Adicionar",
+    cancel: "Cancelar",
+    close: "Fechar",
+    confirm: "Confirmar",
+    create: "Criar",
+    done: "Feito",
     loadingEnvironment: "Carregando ambiente...",
+    removing: "Removendo...",
     signOut: "Sair",
   },
   shell: {
@@ -24,8 +31,77 @@ export const ptBR = {
     },
   },
   auth: {
+    apiBaseUrlLabel: "URL da API",
+    email: "Email",
+    fullName: "Nome",
+    organizationName: "Organização",
+    password: "Senha",
+    signInCta: "Entrar",
+    signInTitle: "Entrar no painel",
+    signUpCta: "Criar conta",
+    signUpTitle: "Criar primeira conta",
+    switchToSignIn: "Já tenho conta",
+    switchToSignUp: "Criar conta",
+    supportingText:
+      "Acesse a operação dos seus apartamentos, reservas e tarefas em um só lugar.",
     errors: {
       authFailed: "Falha ao autenticar.",
+    },
+  },
+  dashboard: {
+    allApartments: "Todos os apartamentos",
+    apartmentLabel: "Apartamento",
+    apartmentPlaceholder: "Apto 204",
+    boardDateLabel: "Data do board",
+    boardTitle: "Board de hospedagem",
+    checklistTitle: "Checklist",
+    createFirstApartment: "Crie o primeiro apartamento",
+    emptyTasks: "Nenhuma tarefa criada para este apartamento.",
+    fieldTeamEyebrow: "Equipe em campo",
+    quickTasksTitle: "Tarefas rápidas",
+    taskPlaceholder: "Comprar café",
+    ical: {
+      addButton: "Adicionar iCal",
+      addingButton: "Adicionando...",
+      attention: "Atenção",
+      createLoginRequired: "Faça login novamente para adicionar a fonte iCal.",
+      createSelectApartment:
+        "Crie ou selecione um apartamento antes de adicionar iCal.",
+      createUrlRequired: "Cole a URL iCal do Airbnb antes de adicionar.",
+      created: "Fonte iCal adicionada. Agora você pode sincronizar.",
+      labelPlaceholder: "Airbnb Apto 204",
+      syncButton: "Sync",
+      title: "Fontes iCal",
+    },
+    boardSections: {
+      checkIns: {
+        title: "Check-ins",
+        description: "Reservas que começam na data selecionada.",
+      },
+      checkOuts: {
+        title: "Check-outs",
+        description: "Reservas que terminam na data selecionada.",
+      },
+      inHouse: {
+        title: "Em estadia",
+        description: "Reservas que atravessam ou ocupam a data selecionada.",
+      },
+      upcoming: {
+        title: "Próximas",
+        description: "Reservas futuras dentro da janela do board.",
+      },
+    },
+    errors: {
+      authFailed: "Falha ao autenticar.",
+      createApartmentFailed: "Falha ao criar apartamento.",
+      createIcalFailed: "Falha ao criar fonte iCal.",
+      createTaskFailed: "Falha ao criar tarefa.",
+      loadApartmentsFailed: "Falha ao carregar apartamentos.",
+      loadDashboardFailed: "Falha ao carregar dashboard.",
+      selectApartmentForTask:
+        "Selecione um apartamento específico para criar tarefa.",
+      syncIcalFailed: "Falha ao sincronizar iCal.",
+      updateTaskFailed: "Falha ao atualizar tarefa.",
     },
   },
 } as const;

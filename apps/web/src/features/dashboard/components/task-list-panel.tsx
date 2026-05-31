@@ -1,4 +1,5 @@
 import type { Task } from "../../../api";
+import { messages } from "../../../i18n";
 import { formatDateTime } from "../../../lib/date-formatters";
 
 export function TaskListPanel({
@@ -12,13 +13,13 @@ export function TaskListPanel({
     <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold tracking-tight text-text-primary">
-          Checklist
+          {messages.dashboard.checklistTitle}
         </h2>
       </div>
       <div className="mt-5 grid gap-3">
         {tasks.length === 0 ? (
           <p className="text-sm text-text-secondary">
-            Nenhuma tarefa criada para este apartamento.
+            {messages.dashboard.emptyTasks}
           </p>
         ) : (
           tasks.map((task) => (
@@ -43,7 +44,7 @@ export function TaskListPanel({
                   onClick={() => onMarkDone(task.id)}
                   type="button"
                 >
-                  Feito
+                  {messages.common.done}
                 </button>
               ) : null}
             </article>

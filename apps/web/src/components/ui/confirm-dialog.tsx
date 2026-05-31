@@ -2,8 +2,10 @@
 
 import { AlertTriangle, X } from "lucide-react";
 
+import { messages } from "../../i18n";
+
 export function ConfirmDialog({
-  confirmLabel = "Confirmar",
+  confirmLabel = messages.common.confirm,
   description,
   isOpen,
   isWorking = false,
@@ -31,7 +33,7 @@ export function ConfirmDialog({
             <AlertTriangle aria-hidden className="h-5 w-5" />
           </span>
           <button
-            aria-label="Fechar"
+            aria-label={messages.common.close}
             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
             onClick={onCancel}
             type="button"
@@ -48,7 +50,7 @@ export function ConfirmDialog({
             onClick={onCancel}
             type="button"
           >
-            Cancelar
+            {messages.common.cancel}
           </button>
           <button
             className="h-10 rounded-xl bg-danger px-4 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
@@ -56,7 +58,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             type="button"
           >
-            {isWorking ? "Removendo..." : confirmLabel}
+            {isWorking ? messages.common.removing : confirmLabel}
           </button>
         </div>
       </section>

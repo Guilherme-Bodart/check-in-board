@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 
 import type { IcalSource } from "../../../api";
+import { messages } from "../../../i18n";
 import { formatDateTime } from "../../../lib/date-formatters";
 import type { CreateIcalSourceValues } from "../types";
 
@@ -40,14 +41,14 @@ export function IcalSourcesPanel({
     <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm" id="sync">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold tracking-tight text-text-primary">
-          Fontes iCal
+          {messages.dashboard.ical.title}
         </h2>
       </div>
       <form className="mt-5 grid gap-3" onSubmit={submitSource}>
         <input
           className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
           onChange={(event) => setLabel(event.target.value)}
-          placeholder="Airbnb Apto 204"
+          placeholder={messages.dashboard.ical.labelPlaceholder}
           type="text"
           value={label}
         />
@@ -64,7 +65,7 @@ export function IcalSourcesPanel({
           disabled={isSaving || !selectedApartmentId || !canCreateSource}
           type="submit"
         >
-          {isSaving ? "Adicionando..." : "Adicionar iCal"}
+          {isSaving ? messages.dashboard.ical.addingButton : messages.dashboard.ical.addButton}
         </button>
       </form>
       {message ? (
@@ -80,14 +81,14 @@ export function IcalSourcesPanel({
           >
             <span className="font-medium text-text-primary">{source.label}</span>
             <strong className={source.lastFailureAt ? "text-warning" : "text-success"}>
-              {source.lastFailureAt ? "Atenção" : "OK"}
+              {source.lastFailureAt ? messages.dashboard.ical.attention : "OK"}
             </strong>
             <button
               className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
               onClick={() => onSyncSource(source.id)}
               type="button"
             >
-              Sync
+              {messages.dashboard.ical.syncButton}
             </button>
             <time className="text-text-secondary">
               {formatDateTime(source.lastSuccessAt)}

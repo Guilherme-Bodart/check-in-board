@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 
+import { messages } from "../../../i18n";
 import type { CreateTaskValues } from "../types";
 
 export function TaskCreateBand({
@@ -31,17 +32,17 @@ export function TaskCreateBand({
     >
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-          Equipe em campo
+          {messages.dashboard.fieldTeamEyebrow}
         </p>
         <h2 className="mt-2 text-xl font-semibold tracking-tight text-text-primary">
-          Tarefas rápidas
+          {messages.dashboard.quickTasksTitle}
         </h2>
       </div>
       <form className="flex flex-col gap-3 sm:flex-row" onSubmit={submitTask}>
         <input
           className="h-11 min-w-0 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft sm:w-64"
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="Comprar café"
+          placeholder={messages.dashboard.taskPlaceholder}
           type="text"
           value={title}
         />
@@ -56,7 +57,7 @@ export function TaskCreateBand({
           disabled={disabled}
           type="submit"
         >
-          Adicionar
+          {messages.common.add}
         </button>
       </form>
     </section>

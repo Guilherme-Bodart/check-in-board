@@ -8,6 +8,7 @@ import {
   writeStoredSession,
   type Session,
 } from "../../lib/session-storage";
+import { messages } from "../../i18n";
 import { formatDateInput } from "../../lib/date-formatters";
 import { authenticate } from "../auth/auth-api";
 import {
@@ -97,7 +98,7 @@ export function useDashboard() {
       setLoadState("idle");
     } catch (error) {
       setLoadState("error");
-      setMessage(getErrorMessage(error, "Falha ao carregar apartamentos."));
+      setMessage(getErrorMessage(error, messages.dashboard.errors.loadApartmentsFailed));
     }
   }, []);
 
@@ -128,7 +129,7 @@ export function useDashboard() {
         setLoadState("idle");
       } catch (error) {
         setLoadState("error");
-        setMessage(getErrorMessage(error, "Falha ao carregar dashboard."));
+        setMessage(getErrorMessage(error, messages.dashboard.errors.loadDashboardFailed));
       }
     },
     [apartments],
@@ -160,7 +161,7 @@ export function useDashboard() {
       writeStoredSession(nextSession);
       setSession(nextSession);
     } catch (error) {
-      setMessage(getErrorMessage(error, "Falha ao autenticar."));
+      setMessage(getErrorMessage(error, messages.dashboard.errors.authFailed));
     }
   }
 
@@ -176,7 +177,7 @@ export function useDashboard() {
       setSelectedApartmentId(apartment.id);
       return true;
     } catch (error) {
-      setMessage(getErrorMessage(error, "Falha ao criar apartamento."));
+      setMessage(getErrorMessage(error, messages.dashboard.errors.createApartmentFailed));
       return false;
     }
   }
@@ -187,7 +188,7 @@ export function useDashboard() {
     }
 
     if (selectedApartmentId === allApartmentsValue) {
-      setMessage("Selecione um apartamento específico para criar tarefa.");
+      setMessage(messages.dashboard.errors.selectApartmentForTask);
       return false;
     }
 
@@ -199,7 +200,7 @@ export function useDashboard() {
       await loadWorkspace(session.token, selectedApartmentId, boardDate);
       return true;
     } catch (error) {
-      setMessage(getErrorMessage(error, "Falha ao criar tarefa."));
+      setMessage(getErrorMessage(error, messages.dashboard.errors.createTaskFailed));
       return false;
     }
   }
@@ -208,17 +209,17 @@ export function useDashboard() {
     setIcalMessage("");
 
     if (!session) {
-      setIcalMessage("Faça login novamente para adicionar a fonte iCal.");
+      setIcalMessage(messages.dashboard.ical.createLoginRequired);
       return false;
     }
 
     if (!selectedApartmentId || selectedApartmentId === allApartmentsValue) {
-      setIcalMessage("Crie ou selecione um apartamento antes de adicionar iCal.");
+      setIcalMessage(messages.dashboard.ical.createSelectApartment);
       return false;
     }
 
     if (!values.url.trim()) {
-      setIcalMessage("Cole a URL iCal do Airbnb antes de adicionar.");
+      setIcalMessage(messages.dashboard.ical.createUrlRequired);
       return false;
     }
 
@@ -229,11 +230,11 @@ export function useDashboard() {
         label: values.label.trim(),
         url: values.url.trim(),
       });
-      setIcalMessage("Fonte iCal adicionada. Agora você pode sincronizar.");
+      setIcalMessage(messages.dashboard.ical.created);
       await loadWorkspace(session.token, selectedApartmentId, boardDate);
       return true;
     } catch (error) {
-      setIcalMessage(getErrorMessage(error, "Falha ao criar fonte iCal."));
+      setIcalMessage(getErrorMessage(error, messages.dashboard.errors.createIcalFailed));
       return false;
     } finally {
       setIsIcalSaving(false);
@@ -249,7 +250,7 @@ export function useDashboard() {
       await markTaskDoneRequest(session.token, taskId);
       await loadWorkspace(session.token, selectedApartmentId, boardDate);
     } catch (error) {
-      setMessage(getErrorMessage(error, "Falha ao atualizar tarefa."));
+      setMessage(getErrorMessage(error, messages.dashboard.errors.updateTaskFailed));
     }
   }
 
@@ -262,7 +263,7 @@ export function useDashboard() {
       await syncIcalSourceRequest(session.token, icalSourceId);
       await loadWorkspace(session.token, selectedApartmentId, boardDate);
     } catch (error) {
-      setMessage(getErrorMessage(error, "Falha ao sincronizar iCal."));
+      setMessage(getErrorMessage(error, messages.dashboard.errors.syncIcalFailed));
     }
   }
 

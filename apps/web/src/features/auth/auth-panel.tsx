@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 
 import { apiBaseUrl } from "../../api";
+import { messages } from "../../i18n";
 import type { AuthFormValues, AuthMode } from "../dashboard/types";
 
 type AuthPanelProps = {
@@ -35,19 +36,19 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
       <section className="w-full max-w-md rounded-3xl border border-border bg-surface p-6 shadow-sm md:p-8">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-            Check-In Board
+            {messages.common.appName}
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary">
-            {mode === "sign-in" ? "Entrar no painel" : "Criar primeira conta"}
+            {mode === "sign-in" ? messages.auth.signInTitle : messages.auth.signUpTitle}
           </h1>
           <p className="mt-3 text-sm leading-6 text-text-secondary">
-            Acesse a operação dos seus apartamentos, reservas e tarefas em um só lugar.
+            {messages.auth.supportingText}
           </p>
         </div>
 
         <form className="mt-7 grid gap-4" onSubmit={submitAuth}>
           <label className="grid gap-2 text-sm font-medium text-text-secondary">
-            Email
+            {messages.auth.email}
             <input
               autoComplete="email"
               className="h-11 rounded-xl border border-border bg-surface px-3 text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
@@ -60,7 +61,7 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
           {mode === "sign-up" ? (
             <>
               <label className="grid gap-2 text-sm font-medium text-text-secondary">
-                Nome
+                {messages.auth.fullName}
                 <input
                   className="h-11 rounded-xl border border-border bg-surface px-3 text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                   onChange={(event) => updateField("fullName", event.target.value)}
@@ -70,7 +71,7 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-text-secondary">
-                Organização
+                {messages.auth.organizationName}
                 <input
                   className="h-11 rounded-xl border border-border bg-surface px-3 text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                   onChange={(event) => updateField("organizationName", event.target.value)}
@@ -81,7 +82,7 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
             </>
           ) : null}
           <label className="grid gap-2 text-sm font-medium text-text-secondary">
-            Senha
+            {messages.auth.password}
             <input
               autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
               className="h-11 rounded-xl border border-border bg-surface px-3 text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
@@ -96,7 +97,7 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
             className="mt-2 h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
             type="submit"
           >
-            {mode === "sign-in" ? "Entrar" : "Criar conta"}
+            {mode === "sign-in" ? messages.auth.signInCta : messages.auth.signUpCta}
           </button>
         </form>
 
@@ -105,7 +106,7 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
           onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
           type="button"
         >
-          {mode === "sign-in" ? "Criar conta" : "Já tenho conta"}
+          {mode === "sign-in" ? messages.auth.switchToSignUp : messages.auth.switchToSignIn}
         </button>
 
         {message ? (
@@ -114,7 +115,7 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
           </p>
         ) : null}
         <p className="mt-5 rounded-xl border border-border bg-surface-muted px-3 py-2 text-xs font-medium text-text-muted">
-          {apiBaseUrl}
+          {messages.auth.apiBaseUrlLabel}: {apiBaseUrl}
         </p>
       </section>
     </main>

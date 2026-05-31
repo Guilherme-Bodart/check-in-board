@@ -1,4 +1,5 @@
 import type { Apartment } from "../../../api";
+import { messages } from "../../../i18n";
 
 export function DashboardTopbar({
   apartments,
@@ -25,24 +26,24 @@ export function DashboardTopbar({
           {email}
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-          Board de hospedagem
+          {messages.dashboard.boardTitle}
         </h2>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
-          aria-label="Data do board"
+          aria-label={messages.dashboard.boardDateLabel}
           className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
           onChange={(event) => onBoardDateChange(event.target.value)}
           type="date"
           value={boardDate}
         />
         <select
-          aria-label="Apartamento"
+          aria-label={messages.dashboard.apartmentLabel}
           className="h-11 min-w-56 rounded-xl border border-border bg-surface px-3 text-sm font-medium text-text-primary outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
           onChange={(event) => onSelectedApartmentChange(event.target.value)}
           value={selectedApartmentId}
         >
-          <option value="all">Todos os apartamentos</option>
+          <option value="all">{messages.dashboard.allApartments}</option>
           {apartments.map((apartment) => (
             <option key={apartment.id} value={apartment.id}>
               {apartment.name}
