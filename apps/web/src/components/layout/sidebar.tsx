@@ -10,16 +10,17 @@ import {
   UsersRound,
 } from "lucide-react";
 
+import { messages } from "../../i18n";
 import { cn } from "../../lib/utils";
 
 const navigationItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/apartamentos", icon: Building2, label: "Meus Apartamentos" },
-  { href: "/clientes", icon: UsersRound, label: "Clientes" },
-  { href: "/reservas", icon: ClipboardList, label: "Reservas" },
-  { href: "/calendario", icon: CalendarDays, label: "Calendario" },
-  { href: "/financeiro", icon: CircleDollarSign, label: "Financeiro" },
-  { href: "/configuracoes", icon: Settings, label: "Configuracoes" },
+  { href: "/dashboard", icon: LayoutDashboard, label: messages.shell.routes.dashboard.navLabel },
+  { href: "/apartamentos", icon: Building2, label: messages.shell.routes.apartments.navLabel },
+  { href: "/clientes", icon: UsersRound, label: messages.shell.routes.clients.navLabel },
+  { href: "/reservas", icon: ClipboardList, label: messages.shell.routes.reservations.navLabel },
+  { href: "/calendario", icon: CalendarDays, label: messages.shell.routes.calendar.navLabel },
+  { href: "/financeiro", icon: CircleDollarSign, label: messages.shell.routes.finance.navLabel },
+  { href: "/configuracoes", icon: Settings, label: messages.shell.routes.settings.navLabel },
 ];
 
 export function Sidebar({
@@ -31,15 +32,15 @@ export function Sidebar({
 }) {
   return (
     <aside
-      aria-label="Navegacao principal"
+      aria-label={messages.shell.sidebarLabel}
       className="flex min-h-screen flex-col border-r border-border bg-surface px-5 py-6"
     >
       <div className="mb-8">
         <strong className="block text-lg font-semibold tracking-tight text-text-primary">
-          Check-In Board
+          {messages.common.appName}
         </strong>
         <span className="mt-1 block text-xs font-medium text-text-muted">
-          Gestao operacional
+          {messages.shell.operationalManagement}
         </span>
       </div>
       <nav className="grid gap-1">
@@ -64,7 +65,7 @@ export function Sidebar({
         type="button"
       >
         <LogOut aria-hidden className="h-4 w-4" />
-        Sair
+        {messages.common.signOut}
       </button>
     </aside>
   );

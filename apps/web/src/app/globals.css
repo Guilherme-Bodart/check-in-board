@@ -1,25 +1,26 @@
 @import "tailwindcss";
+@import "@check-in-board/design-system/theme.css";
 
 @theme {
-  --color-background: #f7f5f0;
-  --color-surface: #fffdfa;
-  --color-surface-muted: #f1eee7;
-  --color-border: #ded8cc;
-  --color-primary: #465936;
-  --color-primary-foreground: #ffffff;
-  --color-primary-soft: #e8eddf;
-  --color-text-primary: #171714;
-  --color-text-secondary: #5f6258;
-  --color-text-muted: #818477;
-  --color-info: #2563eb;
-  --color-info-soft: #dbeafe;
-  --color-warning: #b45309;
-  --color-warning-soft: #fef3c7;
-  --color-success: #15803d;
-  --color-success-soft: #dcfce7;
-  --color-danger: #b91c1c;
-  --color-danger-soft: #fee2e2;
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--cib-color-background);
+  --color-surface: var(--cib-color-surface);
+  --color-surface-muted: var(--cib-color-surface-muted);
+  --color-border: var(--cib-color-border);
+  --color-primary: var(--cib-color-primary);
+  --color-primary-foreground: var(--cib-color-primary-foreground);
+  --color-primary-soft: var(--cib-color-primary-soft);
+  --color-text-primary: var(--cib-color-text-primary);
+  --color-text-secondary: var(--cib-color-text-secondary);
+  --color-text-muted: var(--cib-color-text-muted);
+  --color-info: var(--cib-color-info);
+  --color-info-soft: var(--cib-color-info-soft);
+  --color-warning: var(--cib-color-warning);
+  --color-warning-soft: var(--cib-color-warning-soft);
+  --color-success: var(--cib-color-success);
+  --color-success-soft: var(--cib-color-success-soft);
+  --color-danger: var(--cib-color-danger);
+  --color-danger-soft: var(--cib-color-danger-soft);
+  --font-sans: var(--cib-font-sans);
 }
 
 * {

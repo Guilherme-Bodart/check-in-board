@@ -8,16 +8,17 @@ import {
   readStoredSession,
   type Session,
 } from "../../lib/session-storage";
+import { messages } from "../../i18n";
 import { Sidebar } from "./sidebar";
 
 const pageTitles: Record<string, { eyebrow: string; title: string }> = {
-  "/apartamentos": { eyebrow: "Gestao", title: "Meus apartamentos" },
-  "/calendario": { eyebrow: "Operacao", title: "Calendario" },
-  "/clientes": { eyebrow: "Gestao", title: "Clientes e proprietarios" },
-  "/configuracoes": { eyebrow: "Conta", title: "Configuracoes" },
-  "/dashboard": { eyebrow: "Operacao", title: "Dashboard" },
-  "/financeiro": { eyebrow: "Gestao", title: "Financeiro" },
-  "/reservas": { eyebrow: "Operacao", title: "Reservas" },
+  "/apartamentos": messages.shell.routes.apartments,
+  "/calendario": messages.shell.routes.calendar,
+  "/clientes": messages.shell.routes.clients,
+  "/configuracoes": messages.shell.routes.settings,
+  "/dashboard": messages.shell.routes.dashboard,
+  "/financeiro": messages.shell.routes.finance,
+  "/reservas": messages.shell.routes.reservations,
 };
 
 export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
@@ -39,7 +40,11 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
   }, [router]);
 
   const pageTitle = useMemo(
-    () => pageTitles[pathname] ?? { eyebrow: "Check-In Board", title: "Operacao" },
+    () =>
+      pageTitles[pathname] ?? {
+        eyebrow: messages.shell.fallbackEyebrow,
+        title: messages.shell.fallbackTitle,
+      },
     [pathname],
   );
 
@@ -53,7 +58,7 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-6">
         <div className="rounded-2xl border border-border bg-surface px-6 py-5 text-sm font-medium text-text-secondary shadow-sm">
-          Carregando ambiente...
+          {messages.common.loadingEnvironment}
         </div>
       </main>
     );

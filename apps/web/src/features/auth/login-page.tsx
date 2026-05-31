@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { writeStoredSession } from "../../lib/session-storage";
+import { messages } from "../../i18n";
 import { AuthPanel } from "./auth-panel";
 import { authenticate } from "./auth-api";
 import type { AuthFormValues, AuthMode } from "../dashboard/types";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Falha ao autenticar.";
+  return error instanceof Error ? error.message : messages.auth.errors.authFailed;
 }
 
 export function LoginPage() {
