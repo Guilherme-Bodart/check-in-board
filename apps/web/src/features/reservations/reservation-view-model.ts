@@ -20,7 +20,7 @@ export function attachApartmentDetails(
       return {
         ...reservation,
         apartmentName: apartment?.name ?? "Apartamento removido",
-        ownerName: apartment?.owner?.name ?? "Sem proprietario",
+        ownerName: apartment?.owner?.name ?? "Sem proprietário",
       };
     })
     .sort((first, second) => first.startsAt.localeCompare(second.startsAt));

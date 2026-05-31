@@ -6,7 +6,7 @@ Documento central de planejamento antes da implementacao.
 
 Nome do produto: `Check-In Board`
 
-Objetivo: criar um app mobile-first para operacao diaria de reservas, check-ins, check-outs e tarefas em multiplos apartamentos e canais.
+Objetivo: criar um app mobile-first para operação diária de reservas, check-ins, check-outs e tarefas em múltiplos apartamentos e canais.
 
 ## Resumo Do Produto
 
@@ -15,7 +15,7 @@ O Check-In Board ajuda Host Admins e equipes pequenas de aluguel por temporada a
 O MVP vai validar uma rotina simples:
 
 - cadastrar apartamentos;
-- conectar multiplos canais por apartamento via iCal;
+- conectar múltiplos canais por apartamento via iCal;
 - visualizar reservas atuais e proximas;
 - criar e acompanhar tarefas antes e depois da estadia;
 - limitar acesso por papel e por apartamento.
@@ -24,11 +24,11 @@ O MVP vai validar uma rotina simples:
 
 ### Host Admin
 
-Exemplo: sua irma, que gerencia o apartamento dela e apartamentos de outros proprietarios.
+Exemplo: sua irmã, que gerencia o apartamento dela e apartamentos de outros proprietários.
 
 Pode:
 
-- ver todos os apartamentos da operacao;
+- ver todos os apartamentos da operação;
 - cadastrar apartamentos;
 - conectar canais iCal;
 - criar e editar tarefas;
@@ -38,20 +38,20 @@ Pode:
 
 ### Co-host
 
-Exemplo: proprietario ou pessoa que acompanha apenas os proprios apartamentos.
+Exemplo: proprietário ou pessoa que acompanha apenas os próprios apartamentos.
 
 Pode:
 
 - ver apenas apartamentos atribuidos;
 - ver reservas e tarefas desses apartamentos;
-- acompanhar como a operacao esta indo.
+- acompanhar como a operação está indo.
 
 Nao pode:
 
 - convidar equipe;
 - gerenciar canais;
-- editar configuracoes;
-- gerenciar outros usuarios.
+- editar configurações;
+- gerenciar outros usuários.
 
 ### Team
 
@@ -66,7 +66,7 @@ Nao pode:
 
 - gerenciar apartamentos;
 - ver dados alem do necessario;
-- convidar usuarios;
+- convidar usuários;
 - configurar canais.
 
 ## Decisoes Fechadas
@@ -79,23 +79,23 @@ Nao pode:
 - ORM: `Prisma`
 - Auth: `Supabase Auth`
 - Jobs: `BullMQ + Redis`
-- Fonte inicial de reservas: multiplos iCal por apartamento
+- Fonte inicial de reservas: múltiplos iCal por apartamento
 - Design system: tokens centralizados em `apps/mobile/src/theme`
 - Idioma inicial: ingles aceitavel, produto pensado para Brasil
 - Offline: fora do MVP
 - Plano comercial: gratuito no beta inicial
-- Primeiro usuario real: operacao da sua irma
+- Primeiro usuário real: operação da sua irmã
 
 ## Fora Do MVP
 
 - painel web completo;
-- integracoes oficiais com Airbnb, Booking ou PMS;
+- integrações oficiais com Airbnb, Booking ou PMS;
 - precificacao dinamica;
 - financeiro e repasses;
 - chat com hospede;
-- automacoes avancadas;
+- automações avançadas;
 - app offline;
-- permissoes customizadas por acao;
+- permissões customizadas por ação;
 - relatorios avancados.
 
 ## Arquitetura Inicial
@@ -148,7 +148,7 @@ Entidades P0:
 Regra central:
 
 - permissao efetiva sempre passa por `apartment_memberships`;
-- todas as queries de dominio filtram pelo escopo autorizado do usuario;
+- todas as queries de domínio filtram pelo escopo autorizado do usuário;
 - datas ficam em UTC;
 - timezone fica no apartamento.
 
@@ -221,7 +221,7 @@ Primeira rodada apos publicacao:
 
 ## Criterios De Sucesso Do MVP
 
-- Host Admin usa o app diariamente para ver operacao.
+- Host Admin usa o app diariamente para ver operação.
 - Reservas aparecem consolidadas por apartamento.
 - Tarefas substituem parte da coordenacao manual.
 - Co-host ve apenas seus apartamentos.

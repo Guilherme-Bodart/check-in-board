@@ -175,7 +175,7 @@ export function FinancePage() {
       await loadFinance(currentFilters());
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Falha ao salvar lancamento.",
+        error instanceof Error ? error.message : "Falha ao salvar lançamento.",
       );
     } finally {
       setIsSaving(false);
@@ -198,7 +198,7 @@ export function FinancePage() {
       await loadFinance(currentFilters());
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Falha ao remover lancamento.",
+        error instanceof Error ? error.message : "Falha ao remover lançamento.",
       );
     } finally {
       setIsDeleting(false);
@@ -293,7 +293,7 @@ export function FinancePage() {
               <input
                 className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar lancamento"
+                placeholder="Buscar lançamento"
                 value={query}
               />
             </div>
@@ -314,7 +314,7 @@ export function FinancePage() {
               onChange={(event) => setOwnerFilter(event.target.value)}
               value={ownerFilter}
             >
-              <option value={allValue}>Todos os proprietarios</option>
+              <option value={allValue}>Todos os proprietários</option>
               {owners.map((owner) => (
                 <option key={owner.id} value={owner.id}>
                   {owner.name}
@@ -350,7 +350,7 @@ export function FinancePage() {
                 ) : filteredEntries.length === 0 ? (
                   <tr>
                     <td className="px-4 py-5 text-text-secondary" colSpan={5}>
-                      Nenhum lancamento encontrado.
+                      Nenhum lançamento encontrado.
                     </td>
                   </tr>
                 ) : (
@@ -381,7 +381,7 @@ export function FinancePage() {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            aria-label="Editar lancamento"
+                            aria-label="Editar lançamento"
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                             onClick={() => startEdit(entry)}
                             type="button"
@@ -389,7 +389,7 @@ export function FinancePage() {
                             <Pencil aria-hidden className="h-4 w-4" />
                           </button>
                           <button
-                            aria-label="Remover lancamento"
+                            aria-label="Remover lançamento"
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-danger hover:text-danger"
                             onClick={() => setEntryToDelete(entry)}
                             type="button"
@@ -417,16 +417,16 @@ export function FinancePage() {
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                  {editingEntryId ? "Edicao" : "Manual"}
+                  {editingEntryId ? "Edição" : "Manual"}
                 </p>
                 <h3 className="text-lg font-semibold text-text-primary">
-                  {editingEntryId ? "Editar lancamento" : "Novo lancamento"}
+                  {editingEntryId ? "Editar lançamento" : "Novo lançamento"}
                 </h3>
               </div>
             </div>
             {editingEntryId ? (
               <button
-                aria-label="Cancelar edicao"
+                aria-label="Cancelar edição"
                 className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={cancelEdit}
                 type="button"
@@ -519,18 +519,18 @@ export function FinancePage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <SummaryList title="Resultado por proprietario" items={summary?.byOwner ?? []} />
+        <SummaryList title="Resultado por proprietário" items={summary?.byOwner ?? []} />
         <SummaryList title="Resultado por apartamento" items={summary?.byApartment ?? []} />
       </section>
 
       <ConfirmDialog
         confirmLabel="Remover"
-        description={`O lancamento ${entryToDelete?.category ?? ""} sera removido do resultado financeiro.`}
+        description={`O lançamento ${entryToDelete?.category ?? ""} será removido do resultado financeiro.`}
         isOpen={Boolean(entryToDelete)}
         isWorking={isDeleting}
         onCancel={() => setEntryToDelete(null)}
         onConfirm={() => void removeEntry()}
-        title="Remover lancamento?"
+        title="Remover lançamento?"
       />
     </div>
   );

@@ -37,7 +37,7 @@ docs/
 - Criar modulos pequenos e coesos.
 - Evitar estado global no mobile quando `TanStack Query` resolve.
 - Evitar strings magicas para roles, status e providers.
-- Tratar operacoes externas com timeout, retry limitado e logs.
+- Tratar operações externas com timeout, retry limitado e logs.
 
 ## TypeScript
 
@@ -45,7 +45,7 @@ Regras:
 
 - `strict` ligado.
 - Sem `any` salvo justificativa local.
-- Tipos de dominio compartilhados devem vir de `packages/schemas`.
+- Tipos de domínio compartilhados devem vir de `packages/schemas`.
 - DTOs de API devem ter schema Zod.
 - Evitar tipos duplicados entre mobile e backend.
 
@@ -125,10 +125,10 @@ Roles:
 Regras:
 
 - `host_admin`: gerencia organizacao, apartamentos, canais, membros e tarefas.
-- `co_host`: visualiza apartamentos atribuidos e acompanha operacao.
+- `co_host`: visualiza apartamentos atribuídos e acompanha operação.
 - `team`: ve contexto minimo e marca tarefa como feita ou nao feita.
 
-Toda query de dominio deve receber um escopo autorizado:
+Toda query de domínio deve receber um escopo autorizado:
 
 ```ts
 const scope = await authorization.getApartmentScope(userId)
@@ -177,7 +177,7 @@ Regras:
 
 - tarefa pode estar ligada a reserva ou ser manual;
 - `team` so altera status permitido;
-- historico/auditoria deve registrar mudanca de status.
+- histórico/auditoria deve registrar mudança de status.
 
 ## Testes
 

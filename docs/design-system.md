@@ -17,7 +17,7 @@ O design deve parecer operacional, rapido de escanear e confiavel para uso diari
 
 ## Direcao Visual
 
-O Check-In Board deve ter cara de ferramenta de operacao de hospedagem:
+O Check-In Board deve ter cara de ferramenta de operação de hospedagem:
 
 - limpo;
 - confiavel;
@@ -295,7 +295,7 @@ Deve mostrar:
 - filtros rapidos;
 - contadores de check-ins, check-outs e tarefas pendentes;
 - lista operacional agrupada por apartamento ou horario;
-- indicador de ultima sincronizacao.
+- indicador de última sincronização.
 
 ### Apartment Detail
 
@@ -376,12 +376,12 @@ Sugestoes:
 ## Boas Praticas De UI
 
 - evitar telas explicativas longas dentro do app;
-- priorizar a tarefa do usuario, nao texto de marketing;
+- priorizar a tarefa do usuário, não texto de marketing;
 - sempre mostrar estados de carregamento;
 - listas devem ter pull-to-refresh;
 - data e status devem ser vistos sem abrir detalhe;
-- acoes destrutivas precisam de confirmacao;
-- esconder acoes quando o papel nao permite executa-las.
+- ações destrutivas precisam de confirmação;
+- esconder ações quando o papel não permite executá-las.
 
 ## Checklist Antes De Implementar UI
 
@@ -390,6 +390,6 @@ Sugestoes:
 - Existe estado vazio?
 - Existe estado de erro?
 - Existe estado de loading?
-- As permissoes removem acoes proibidas?
+- As permissões removem ações proibidas?
 - A informacao principal aparece sem rolagem excessiva?
 - A cor comunica significado consistente?

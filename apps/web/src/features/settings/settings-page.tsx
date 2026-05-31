@@ -64,7 +64,7 @@ export function SettingsPage() {
     }
 
     if (newPassword !== confirmPassword) {
-      setMessage("A confirmacao de senha nao confere.");
+      setMessage("A confirmação de senha não confere.");
       return;
     }
 

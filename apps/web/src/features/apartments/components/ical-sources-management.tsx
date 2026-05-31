@@ -113,7 +113,7 @@ export function IcalSourcesManagement({
       setSyncRuns(await fetchIcalSyncRuns(session.token, sourceId));
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Falha ao carregar historico.",
+        error instanceof Error ? error.message : "Falha ao carregar histórico.",
       );
     }
   }
@@ -261,7 +261,7 @@ export function IcalSourcesManagement({
           Selecione um apartamento para gerenciar iCal
         </h2>
         <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
-          As fontes de calendario ficam separadas por imovel para manter a operacao
+          As fontes de calendário ficam separadas por imóvel para manter a operação
           diaria limpa no dashboard.
         </p>
       </section>
@@ -276,11 +276,11 @@ export function IcalSourcesManagement({
             iCal
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-            Calendarios de {apartment.name}
+            Calendários de {apartment.name}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
             Adicione fontes do Airbnb ou Booking, sincronize manualmente, pause
-            importacoes e acompanhe o historico sem poluir o dashboard operacional.
+            importações e acompanhe o histórico sem poluir o dashboard operacional.
           </p>
         </div>
         <button
@@ -378,7 +378,7 @@ export function IcalSourcesManagement({
             {isSaving
               ? "Salvando..."
               : isEditing
-                ? "Salvar alteracoes"
+                ? "Salvar alterações"
                 : "Adicionar fonte"}
           </button>
         </form>
@@ -464,7 +464,7 @@ export function IcalSourcesManagement({
                             />
                           </button>
                           <button
-                            aria-label="Ver historico"
+                            aria-label="Ver histórico"
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                             onClick={() => setSelectedSourceId(source.id)}
                             type="button"
@@ -492,12 +492,12 @@ export function IcalSourcesManagement({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-text-primary">
-                  Historico de sincronizacao
+                  Histórico de sincronização
                 </h3>
                 <p className="mt-1 text-xs text-text-muted">
                   {selectedSource
                     ? selectedSource.label
-                    : "Selecione uma fonte para ver o historico."}
+                    : "Selecione uma fonte para ver o histórico."}
                 </p>
               </div>
               <History aria-hidden className="h-4 w-4 text-primary" />
@@ -507,7 +507,7 @@ export function IcalSourcesManagement({
                 <p className="text-sm text-text-secondary">Nenhuma fonte selecionada.</p>
               ) : syncRuns.length === 0 ? (
                 <p className="text-sm text-text-secondary">
-                  Ainda nao ha sincronizacoes registradas.
+                  Ainda não há sincronizações registradas.
                 </p>
               ) : (
                 syncRuns.slice(0, 5).map((run) => (
@@ -542,7 +542,7 @@ export function IcalSourcesManagement({
 
       <ConfirmDialog
         confirmLabel="Remover fonte"
-        description={`A fonte ${sourceToDelete?.label ?? ""} deixara de sincronizar novas reservas. As reservas ja importadas permanecem no sistema.`}
+        description={`A fonte ${sourceToDelete?.label ?? ""} deixará de sincronizar novas reservas. As reservas já importadas permanecem no sistema.`}
         isOpen={Boolean(sourceToDelete)}
         onCancel={() => setSourceToDelete(null)}
         onConfirm={() => void removeSource()}

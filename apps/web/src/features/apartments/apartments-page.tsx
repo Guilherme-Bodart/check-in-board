@@ -212,7 +212,7 @@ export function ApartmentsPage() {
     <div className="grid gap-6">
       <section className="grid gap-4 md:grid-cols-3">
         <SummaryCard label="Apartamentos" value={summary.total} />
-        <SummaryCard label="Proprios" value={summary.internal} />
+        <SummaryCard label="Próprios" value={summary.internal} />
         <SummaryCard label="De clientes" value={summary.client} />
       </section>
 
@@ -235,7 +235,7 @@ export function ApartmentsPage() {
               <input
                 className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft md:w-72"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por imovel ou proprietario"
+                placeholder="Buscar por imóvel ou proprietário"
                 value={query}
               />
             </div>
@@ -285,9 +285,9 @@ export function ApartmentsPage() {
                       </td>
                       <td className="px-4 py-4 text-text-secondary">
                         <div className="grid gap-1">
-                          <span>{apartment.owner?.name ?? "Sem proprietario"}</span>
+                          <span>{apartment.owner?.name ?? "Sem proprietário"}</span>
                           <span className="text-xs text-text-muted">
-                            {apartment.owner?.type === "client" ? "Cliente" : "Proprio"}
+                            {apartment.owner?.type === "client" ? "Cliente" : "Próprio"}
                           </span>
                         </div>
                       </td>
@@ -341,7 +341,7 @@ export function ApartmentsPage() {
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                  {editingApartmentId ? "Edicao" : "Novo imovel"}
+                  {editingApartmentId ? "Edição" : "Novo imóvel"}
                 </p>
                 <h2 className="text-lg font-semibold text-text-primary">
                   {editingApartmentId ? "Editar apartamento" : "Adicionar apartamento"}
@@ -350,7 +350,7 @@ export function ApartmentsPage() {
             </div>
             {editingApartmentId ? (
               <button
-                aria-label="Cancelar edicao"
+                aria-label="Cancelar edição"
                 className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={cancelEdit}
                 type="button"
@@ -442,7 +442,7 @@ export function ApartmentsPage() {
             {isSaving
               ? "Salvando..."
               : editingApartmentId
-                ? "Salvar alteracoes"
+                ? "Salvar alterações"
                 : "Salvar apartamento"}
           </button>
         </form>
@@ -455,7 +455,7 @@ export function ApartmentsPage() {
 
       <ConfirmDialog
         confirmLabel="Remover apartamento"
-        description={`O apartamento ${apartmentToDelete?.name ?? ""} sera removido da operacao. Use isso apenas quando ele nao deve mais aparecer no dashboard.`}
+        description={`O apartamento ${apartmentToDelete?.name ?? ""} será removido da operação. Use isso apenas quando ele não deve mais aparecer no dashboard.`}
         isOpen={Boolean(apartmentToDelete)}
         isWorking={isDeleting}
         onCancel={() => setApartmentToDelete(null)}

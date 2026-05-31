@@ -38,7 +38,7 @@ const emptyOwnerForm: OwnerFormState = {
 };
 
 const ownerTypeLabels: Record<OwnerType, string> = {
-  internal: "Proprio",
+  internal: "Próprio",
   client: "Cliente",
 };
 
@@ -66,7 +66,7 @@ export function OwnersPage() {
       setOwners(await fetchOwners(session.token));
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Falha ao carregar proprietarios.",
+        error instanceof Error ? error.message : "Falha ao carregar proprietários.",
       );
     } finally {
       setIsLoading(false);
@@ -123,7 +123,7 @@ export function OwnersPage() {
       cancelEdit();
       await loadOwners();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao salvar proprietario.");
+      setMessage(error instanceof Error ? error.message : "Falha ao salvar proprietário.");
     } finally {
       setIsSaving(false);
     }
@@ -143,10 +143,10 @@ export function OwnersPage() {
       await loadOwners();
     } catch (error) {
       if (error instanceof ApiClientError && error.code === "OWNER_HAS_APARTMENTS") {
-        setMessage("Esse proprietario ainda tem apartamentos vinculados.");
+        setMessage("Esse proprietário ainda tem apartamentos vinculados.");
       } else {
         setMessage(
-          error instanceof Error ? error.message : "Falha ao remover proprietario.",
+          error instanceof Error ? error.message : "Falha ao remover proprietário.",
         );
       }
     }
@@ -174,7 +174,7 @@ export function OwnersPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Proprietarios" value={summary.total} icon={UsersRound} />
         <SummaryCard label="Clientes" value={summary.clients} icon={BriefcaseBusiness} />
-        <SummaryCard label="Proprios" value={summary.internal} icon={UserRound} />
+        <SummaryCard label="Próprios" value={summary.internal} icon={UserRound} />
         <SummaryCard label="Apartamentos" value={summary.apartments} icon={Building2} />
       </section>
 
@@ -186,7 +186,7 @@ export function OwnersPage() {
                 Clientes
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-                Proprietarios e donos de imoveis
+                Proprietários e donos de imóveis
               </h2>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -198,7 +198,7 @@ export function OwnersPage() {
                 <input
                   className="h-11 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft sm:w-72"
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Buscar proprietario"
+                  placeholder="Buscar proprietário"
                   value={query}
                 />
               </div>
@@ -211,7 +211,7 @@ export function OwnersPage() {
               >
                 <option value="all">Todos</option>
                 <option value="client">Clientes</option>
-                <option value="internal">Proprios</option>
+                <option value="internal">Próprios</option>
               </select>
             </div>
           </div>
@@ -236,13 +236,13 @@ export function OwnersPage() {
                 {isLoading ? (
                   <tr>
                     <td className="px-4 py-5 text-text-secondary" colSpan={4}>
-                      Carregando proprietarios...
+                      Carregando proprietários...
                     </td>
                   </tr>
                 ) : filteredOwners.length === 0 ? (
                   <tr>
                     <td className="px-4 py-5 text-text-secondary" colSpan={4}>
-                      Nenhum proprietario encontrado.
+                      Nenhum proprietário encontrado.
                     </td>
                   </tr>
                 ) : (
@@ -290,7 +290,7 @@ export function OwnersPage() {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            aria-label="Editar proprietario"
+                            aria-label="Editar proprietário"
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                             onClick={() => startEdit(owner)}
                             type="button"
@@ -298,7 +298,7 @@ export function OwnersPage() {
                             <Pencil aria-hidden className="h-4 w-4" />
                           </button>
                           <button
-                            aria-label="Remover proprietario"
+                            aria-label="Remover proprietário"
                             className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-danger hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
                             disabled={owner.apartmentCount > 0}
                             onClick={() => void removeOwner(owner)}
@@ -327,16 +327,16 @@ export function OwnersPage() {
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                  {editingOwnerId ? "Edicao" : "Novo"}
+                  {editingOwnerId ? "Edição" : "Novo"}
                 </p>
                 <h2 className="text-lg font-semibold text-text-primary">
-                  {editingOwnerId ? "Editar proprietario" : "Adicionar proprietario"}
+                  {editingOwnerId ? "Editar proprietário" : "Adicionar proprietário"}
                 </h2>
               </div>
             </div>
             {editingOwnerId ? (
               <button
-                aria-label="Cancelar edicao"
+                aria-label="Cancelar edição"
                 className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={cancelEdit}
                 type="button"
@@ -347,11 +347,11 @@ export function OwnersPage() {
           </div>
 
           <div className="mt-6 grid gap-4">
-            <Field label="Nome do proprietario">
+            <Field label="Nome do proprietário">
               <input
                 className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
-                placeholder="Cliente Joao ou meus imoveis"
+                placeholder="Cliente João ou meus imóveis"
                 required
                 value={form.name}
               />
@@ -365,7 +365,7 @@ export function OwnersPage() {
                 value={form.type}
               >
                 <option value="client">Cliente</option>
-                <option value="internal">Proprio</option>
+                <option value="internal">Próprio</option>
               </select>
             </Field>
             <Field label="Nome do contato">
@@ -374,7 +374,7 @@ export function OwnersPage() {
                 onChange={(event) =>
                   setForm({ ...form, contactName: event.target.value })
                 }
-                placeholder="Joao Silva"
+                placeholder="João Silva"
                 value={form.contactName}
               />
             </Field>
@@ -397,7 +397,7 @@ export function OwnersPage() {
                 />
               </Field>
             </div>
-            <Field label="Observacoes">
+            <Field label="Observações">
               <textarea
                 className="min-h-24 resize-none rounded-xl border border-border bg-surface px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
                 onChange={(event) => setForm({ ...form, notes: event.target.value })}
@@ -412,7 +412,7 @@ export function OwnersPage() {
             disabled={isSaving}
             type="submit"
           >
-            {isSaving ? "Salvando..." : editingOwnerId ? "Salvar alteracoes" : "Criar"}
+            {isSaving ? "Salvando..." : editingOwnerId ? "Salvar alterações" : "Criar"}
           </button>
         </form>
       </section>

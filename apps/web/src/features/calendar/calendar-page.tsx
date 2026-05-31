@@ -53,7 +53,7 @@ export function CalendarPage() {
       );
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Falha ao carregar calendario.",
+        error instanceof Error ? error.message : "Falha ao carregar calendário.",
       );
     } finally {
       setIsLoading(false);
@@ -127,7 +127,7 @@ export function CalendarPage() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-              Calendario
+              Calendário
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
               Ocupacao mensal
@@ -175,7 +175,7 @@ export function CalendarPage() {
                 value={month}
               />
               <button
-                aria-label="Proximo mes"
+                aria-label="Próximo mês"
                 className="grid h-11 w-11 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={() => shiftMonth(1)}
                 type="button"
@@ -204,11 +204,11 @@ export function CalendarPage() {
 
           {isLoading ? (
             <div className="col-span-7 px-4 py-10 text-center text-sm text-text-secondary">
-              Carregando calendario...
+              Carregando calendário...
             </div>
           ) : calendarDays.length === 0 ? (
             <div className="col-span-7 px-4 py-10 text-center text-sm text-text-secondary">
-              Selecione um mes para ver o calendario.
+              Selecione um mês para ver o calendário.
             </div>
           ) : (
             calendarDays.map((day) => (
@@ -229,7 +229,7 @@ export function CalendarPage() {
               Resumo
             </p>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-text-primary">
-              Reservas no mes
+              Reservas no mês
             </h2>
           </div>
           <CalendarDays aria-hidden className="h-5 w-5 text-primary" />

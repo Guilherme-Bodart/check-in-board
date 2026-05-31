@@ -68,7 +68,7 @@ Objetivo: Host Admin cadastra apartamentos e conecta fontes iCal.
 - `MOB-202`: formulario de apartamento.
 - `MOB-203`: tela de detalhe do apartamento.
 - `MOB-204`: formulario de fonte iCal.
-- `MOB-205`: UI de status de sincronizacao.
+- `MOB-205`: UI de status de sincronização.
 
 ### Backend
 
@@ -140,7 +140,7 @@ Objetivo: Host Admin convida e controla acesso.
 
 ## Milestone 6: Beta Interno
 
-Objetivo: testar com operacao real.
+Objetivo: testar com operação real.
 
 - `QA-001`: seed de exemplo com 4 apartamentos.
 - `QA-002`: roteiro de teste do Host Admin.
@@ -179,4 +179,4 @@ Primeira entrega pequena:
 - mobile abre no Expo com tela mockada.
 - backend responde `GET /health`.
 - nenhum componente usa cor hexadecimal fora do tema.
-- nenhum endpoint de dominio existe sem auth planejada.
+- nenhum endpoint de domínio existe sem auth planejada.

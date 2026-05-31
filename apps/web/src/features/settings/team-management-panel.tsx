@@ -205,7 +205,7 @@ export function TeamManagementPanel() {
               Equipe
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-              Membros e permissoes
+              Membros e permissões
             </h2>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -304,16 +304,16 @@ export function TeamManagementPanel() {
             </span>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                {editingMembershipId ? "Edicao" : "Novo membro"}
+                {editingMembershipId ? "Edição" : "Novo membro"}
               </p>
               <h3 className="text-lg font-semibold text-text-primary">
-                {editingMembershipId ? "Editar permissoes" : "Adicionar membro"}
+                {editingMembershipId ? "Editar permissões" : "Adicionar membro"}
               </h3>
             </div>
           </div>
           {editingMembershipId ? (
             <button
-              aria-label="Cancelar edicao"
+              aria-label="Cancelar edição"
               className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
               onClick={cancelEdit}
               type="button"

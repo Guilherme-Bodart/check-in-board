@@ -145,7 +145,7 @@ Authenticated layout:
 - top header;
 - main content region;
 - redirects or login fallback when no local session exists;
-- sidebar links: Dashboard, Meus Apartamentos, Clientes, Reservas, Calendario, Configuracoes.
+- sidebar links: Dashboard, Meus apartamentos, Clientes, Reservas, Calendário, Configurações.
 
 Header rule:
 
@@ -352,4 +352,3 @@ src/
 ## Current Important Constraint
 
 Do not mock data where real endpoints already exist. Mock only isolated future-only sections, and make those placeholders easy to remove.
-

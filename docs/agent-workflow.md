@@ -42,7 +42,7 @@ Dono de:
 - sync iCal;
 - observabilidade backend.
 
-Atua como especialista senior de Backend. Deve tomar decisoes com criterio proprio da area, preservando seguranca, autorizacao, confiabilidade, observabilidade e evolucao do dominio.
+Atua como especialista sênior de Backend. Deve tomar decisões com critério próprio da área, preservando segurança, autorização, confiabilidade, observabilidade e evolução do domínio.
 
 Nao deve editar telas mobile ou componentes de UI sem combinacao previa.
 
@@ -83,7 +83,7 @@ Regra:
 - Backend nao edita `apps/mobile`.
 - Ambos podem propor mudancas em `packages/schemas`, mas o lider deve coordenar.
 - Docs compartilhados ficam sob responsabilidade do lider.
-- Alteracoes em scripts raiz devem ser coordenadas pelo lider.
+- Alterações em scripts raiz devem ser coordenadas pelo líder.
 
 ## Ciclo De Revisao
 
@@ -126,7 +126,7 @@ Escopo:
 Fora do escopo:
 
 - auth real;
-- endpoints de dominio;
+- endpoints de domínio;
 - sync iCal;
 - jobs reais.
 
@@ -135,14 +135,14 @@ Fora do escopo:
 Preferir rodadas curtas:
 
 - Rodada 1: fundacao mobile e backend.
-- Rodada 2: auth e estrutura de usuario.
+- Rodada 2: auth e estrutura de usuário.
 - Rodada 3: apartamentos e fontes iCal.
 - Rodada 4: reservas e sync.
-- Rodada 5: tarefas e permissoes.
+- Rodada 5: tarefas e permissões.
 
 ## Marcos Testaveis
 
-Sempre que uma entrega gerar algo que o usuario consiga abrir, clicar ou validar visualmente, o lider deve avisar explicitamente que existe uma versao testavel.
+Sempre que uma entrega gerar algo que o usuário consiga abrir, clicar ou validar visualmente, o líder deve avisar explicitamente que existe uma versão testável.
 
 Para cada marco testavel, informar:
 
@@ -176,7 +176,7 @@ Prioridades:
 - contratos compartilhados;
 - parser iCal;
 - jobs idempotentes;
-- services de dominio;
+- services de domínio;
 - componentes com comportamento condicional;
 - hooks de API com estados de loading, erro e sucesso.
 
