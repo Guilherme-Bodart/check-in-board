@@ -11,6 +11,7 @@ import {
 } from "recharts";
 
 import { chartTokens } from "../../../design-system/tokens";
+import { messages } from "../../../i18n";
 import type { BoardSectionViewModel } from "../types";
 
 export function ReservationVolumeChart({
@@ -28,14 +29,14 @@ export function ReservationVolumeChart({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-            Visualização
+            {messages.dashboard.visualization}
           </p>
           <h2 className="mt-2 text-xl font-semibold tracking-tight text-text-primary">
-            Volume operacional
+            {messages.dashboard.operationalVolume}
           </h2>
         </div>
-        <p className="text-sm text-text-secondary">
-          Reservas distribuídas por seção do board
+        <p className="max-w-sm text-sm leading-5 text-text-secondary sm:text-right">
+          {messages.dashboard.volumeDescription}
         </p>
       </div>
       <div className="mt-6 h-72">
@@ -62,7 +63,7 @@ export function ReservationVolumeChart({
               contentStyle={{
                 background: chartTokens.surface,
                 border: `1px solid ${chartTokens.border}`,
-                borderRadius: 12,
+                borderRadius: 8,
                 color: chartTokens.textPrimary,
               }}
             />
