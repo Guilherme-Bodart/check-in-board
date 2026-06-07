@@ -270,6 +270,42 @@ a {
   gap: 8px;
 }
 
+.date-range-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0;
+  padding: 10px;
+}
+
+.date-range-field legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.date-range-field label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.date-range-field input {
+  width: 100%;
+}
+
+.date-range-field span {
+  color: var(--muted);
+  line-height: 40px;
+}
+
 @media (max-width: 900px) {
   .topbar,
   .toolbar {
@@ -287,5 +323,13 @@ a {
 
   .quick-grid {
     grid-template-columns: 1fr;
+  }
+
+  .date-range-field {
+    grid-template-columns: 1fr;
+  }
+
+  .date-range-field span {
+    display: none;
   }
 }

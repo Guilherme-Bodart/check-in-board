@@ -174,20 +174,14 @@ export function QuickCreatePanel({
           placeholder="Hóspede"
           value={guestName}
         />
-        <div className="two-col">
-          <input
-            onChange={(event) => setCheckIn(event.target.value)}
-            required
-            type="date"
-            value={checkIn}
-          />
-          <input
-            onChange={(event) => setCheckOut(event.target.value)}
-            required
-            type="date"
-            value={checkOut}
-          />
-        </div>
+        <DateRangeField
+          endLabel="Check-out"
+          endValue={checkOut}
+          onEndChange={setCheckOut}
+          onStartChange={setCheckIn}
+          startLabel="Check-in"
+          startValue={checkIn}
+        />
         <input
           inputMode="decimal"
           onChange={(event) => setRentAmount(event.target.value)}
@@ -260,5 +254,46 @@ export function QuickCreatePanel({
         </button>
       </form>
     </section>
+  );
+}
+
+function DateRangeField({
+  endLabel,
+  endValue,
+  onEndChange,
+  onStartChange,
+  startLabel,
+  startValue,
+}: {
+  endLabel: string;
+  endValue: string;
+  onEndChange: (value: string) => void;
+  onStartChange: (value: string) => void;
+  startLabel: string;
+  startValue: string;
+}) {
+  return (
+    <fieldset className="date-range-field">
+      <legend>Período</legend>
+      <label>
+        {startLabel}
+        <input
+          onChange={(event) => onStartChange(event.target.value)}
+          required
+          type="date"
+          value={startValue}
+        />
+      </label>
+      <span aria-hidden>→</span>
+      <label>
+        {endLabel}
+        <input
+          onChange={(event) => onEndChange(event.target.value)}
+          required
+          type="date"
+          value={endValue}
+        />
+      </label>
+    </fieldset>
   );
 }
