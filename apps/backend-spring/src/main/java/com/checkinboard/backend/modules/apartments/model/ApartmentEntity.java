@@ -34,6 +34,9 @@ public class ApartmentEntity {
     @Column(nullable = false)
     private String timezone;
 
+    @Column(name = "management_commission_bps", nullable = false)
+    private int managementCommissionBps;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     private OwnerEntity owner;
@@ -58,13 +61,15 @@ public class ApartmentEntity {
         OrganizationEntity organization,
         OwnerEntity owner,
         String name,
-        String timezone
+        String timezone,
+        int managementCommissionBps
     ) {
         this.id = id;
         this.organization = organization;
         this.owner = owner;
         this.name = name;
         this.timezone = timezone;
+        this.managementCommissionBps = managementCommissionBps;
     }
 
     @PrePersist
@@ -99,6 +104,10 @@ public class ApartmentEntity {
         return owner;
     }
 
+    public int getManagementCommissionBps() {
+        return managementCommissionBps;
+    }
+
     public Instant getDeletedAt() {
         return deletedAt;
     }
@@ -115,10 +124,16 @@ public class ApartmentEntity {
         return memberships;
     }
 
-    public void updateDetails(String name, String timezone, OwnerEntity owner) {
+    public void updateDetails(
+        String name,
+        String timezone,
+        OwnerEntity owner,
+        int managementCommissionBps
+    ) {
         this.name = name;
         this.timezone = timezone;
         this.owner = owner;
+        this.managementCommissionBps = managementCommissionBps;
     }
 
     public void markDeleted() {

@@ -75,7 +75,8 @@ public class ApartmentService {
                 organizationAccess.getOrganization(),
                 resolveOwner(organizationAccess, request.ownerId()),
                 normalizeName(request.name()),
-                normalizeTimezone(request.timezone())
+                normalizeTimezone(request.timezone()),
+                normalizeCommissionBps(request.managementCommissionBps())
             )
         );
 
@@ -113,7 +114,8 @@ public class ApartmentService {
         apartment.updateDetails(
             normalizeName(request.name()),
             normalizeTimezone(request.timezone()),
-            resolveOwner(apartment.getOrganization().getId(), request.ownerId())
+            resolveOwner(apartment.getOrganization().getId(), request.ownerId()),
+            normalizeCommissionBps(request.managementCommissionBps())
         );
 
         ApartmentEntity savedApartment = apartmentRepository.save(apartment);
@@ -202,7 +204,8 @@ public class ApartmentService {
                 apartment.getOwner().getName(),
                 apartment.getOwner().getType().name()
             ),
-            apartment.getTimezone()
+            apartment.getTimezone(),
+            apartment.getManagementCommissionBps()
         );
     }
 
@@ -267,6 +270,20 @@ public class ApartmentService {
                 "Invalid timezone."
             );
         }
+    }
+
+    private int normalizeCommissionBps(Integer value) {
+        int normalized = value == null ? 0 : value;
+
+        if (normalized < 0 || normalized > 10000) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "BAD_REQUEST",
+                "Commission must be between 0 and 10000 basis points."
+            );
+        }
+
+        return normalized;
     }
 
     private ApiException forbiddenCreate() {
