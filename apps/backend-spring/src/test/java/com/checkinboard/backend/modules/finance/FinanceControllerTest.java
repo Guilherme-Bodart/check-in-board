@@ -40,6 +40,7 @@ class FinanceControllerTest {
         jdbcTemplate.update("delete from password_reset_tokens");
         jdbcTemplate.update("delete from tasks");
         jdbcTemplate.update("delete from financial_entries");
+        jdbcTemplate.update("delete from rental_stays");
         jdbcTemplate.update("delete from sync_runs");
         jdbcTemplate.update("delete from reservations");
         jdbcTemplate.update("delete from ical_sources");
@@ -155,6 +156,48 @@ class FinanceControllerTest {
             .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
 
+    @Test
+    void createsExpenseLinkedToRentalStayWithFixedCategory() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String rentalStayId = createRentalStay(accessToken, apartmentId);
+
+        mockMvc
+            .perform(
+                post("/financial-entries")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        entryPayload(
+                            apartmentId,
+                            rentalStayId,
+                            "expense",
+                            "Manutenção",
+                            30000
+                        )
+                    )
+            )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.financialEntry.rentalStayId").value(rentalStayId))
+            .andExpect(jsonPath("$.financialEntry.category").value("manutencao"));
+    }
+
+    @Test
+    void rejectsUnknownExpenseCategory() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+
+        mockMvc
+            .perform(
+                post("/financial-entries")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(entryPayload(apartmentId, "expense", "Aleatoria", 30000))
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("INVALID_EXPENSE_CATEGORY"));
+    }
+
     private MvcResult createEntry(
         String accessToken,
         String apartmentId,
@@ -181,9 +224,20 @@ class FinanceControllerTest {
         String category,
         long amountCents
     ) {
+        return entryPayload(apartmentId, null, type, category, amountCents);
+    }
+
+    private String entryPayload(
+        String apartmentId,
+        String rentalStayId,
+        String type,
+        String category,
+        long amountCents
+    ) {
         return """
             {
               "apartmentId": "%s",
+              "rentalStayId": %s,
               "type": "%s",
               "category": "%s",
               "description": "Lancamento manual",
@@ -191,7 +245,13 @@ class FinanceControllerTest {
               "currency": "BRL",
               "occurredOn": "2026-05-21"
             }
-            """.formatted(apartmentId, type, category, amountCents);
+            """.formatted(
+            apartmentId,
+            rentalStayId == null ? "null" : "\"%s\"".formatted(rentalStayId),
+            type,
+            category,
+            amountCents
+        );
     }
 
     private String signUpHost(String email, String organizationName) throws Exception {
@@ -255,6 +315,32 @@ class FinanceControllerTest {
             .andReturn();
 
         return readJson(result).get("apartment").get("id").asText();
+    }
+
+    private String createRentalStay(String accessToken, String apartmentId) throws Exception {
+        MvcResult result = mockMvc
+            .perform(
+                post("/rental-stays")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "apartmentId": "%s",
+                          "guestName": "Maria",
+                          "channel": "Manual",
+                          "checkIn": "2026-05-20",
+                          "checkOut": "2026-05-23",
+                          "rentAmountCents": 120000,
+                          "currency": "BRL"
+                        }
+                        """.formatted(apartmentId)
+                    )
+            )
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        return readJson(result).get("rentalStay").get("id").asText();
     }
 
     private String createTeamMember(String accessToken, String apartmentId, String email)

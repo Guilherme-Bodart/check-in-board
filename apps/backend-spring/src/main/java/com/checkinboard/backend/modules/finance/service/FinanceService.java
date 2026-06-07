@@ -13,11 +13,15 @@ import com.checkinboard.backend.modules.finance.dto.FinanceDtos.FinancialSummary
 import com.checkinboard.backend.modules.finance.dto.FinanceDtos.UpsertFinancialEntryRequest;
 import com.checkinboard.backend.modules.finance.model.FinancialEntryEntity;
 import com.checkinboard.backend.modules.finance.model.FinancialEntryType;
+import com.checkinboard.backend.modules.finance.model.RentalStayEntity;
 import com.checkinboard.backend.modules.finance.repository.FinancialEntryRepository;
+import com.checkinboard.backend.modules.finance.repository.RentalStayRepository;
 import com.checkinboard.backend.shared.error.ApiException;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
+import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -31,15 +35,28 @@ import org.springframework.transaction.annotation.Transactional;
 public class FinanceService {
 
     private final FinancialEntryRepository financialEntryRepository;
+    private final RentalStayRepository rentalStayRepository;
     private final ApartmentRepository apartmentRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
+    private static final Set<String> EXPENSE_CATEGORIES = Set.of(
+        "limpeza",
+        "consumo",
+        "enxoval",
+        "manutencao",
+        "condominio",
+        "contas",
+        "taxas",
+        "outros"
+    );
 
     public FinanceService(
         FinancialEntryRepository financialEntryRepository,
+        RentalStayRepository rentalStayRepository,
         ApartmentRepository apartmentRepository,
         OrganizationMembershipRepository organizationMembershipRepository
     ) {
         this.financialEntryRepository = financialEntryRepository;
+        this.rentalStayRepository = rentalStayRepository;
         this.apartmentRepository = apartmentRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
     }
@@ -120,8 +137,13 @@ public class FinanceService {
                 membership.getOrganization(),
                 apartment,
                 apartment.getOwner(),
+                resolveRentalStay(
+                    request.rentalStayId(),
+                    membership.getOrganization().getId(),
+                    apartment.getId()
+                ),
                 request.type(),
-                normalizeRequired(request.category()),
+                normalizeCategory(request.type(), request.category()),
                 normalizeOptional(request.description()),
                 request.amountCents(),
                 normalizeCurrency(request.currency()),
@@ -151,8 +173,13 @@ public class FinanceService {
         entry.updateDetails(
             apartment,
             apartment.getOwner(),
+            resolveRentalStay(
+                request.rentalStayId(),
+                membership.getOrganization().getId(),
+                apartment.getId()
+            ),
             request.type(),
-            normalizeRequired(request.category()),
+            normalizeCategory(request.type(), request.category()),
             normalizeOptional(request.description()),
             request.amountCents(),
             normalizeCurrency(request.currency()),
@@ -264,6 +291,7 @@ public class FinanceService {
             entry.getApartment().getName(),
             entry.getOwner().getId(),
             entry.getOwner().getName(),
+            entry.getRentalStay() == null ? null : entry.getRentalStay().getId(),
             entry.getType(),
             entry.getCategory(),
             entry.getDescription(),
@@ -337,6 +365,65 @@ public class FinanceService {
 
     private String normalizeRequired(String value) {
         return value.trim();
+    }
+
+    private String normalizeCategory(FinancialEntryType type, String value) {
+        String normalized = normalizeRequired(value);
+
+        if (type != FinancialEntryType.expense) {
+            return normalized;
+        }
+
+        String canonical = Normalizer
+            .normalize(normalized, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "")
+            .trim()
+            .toLowerCase(Locale.ROOT);
+
+        if (!EXPENSE_CATEGORIES.contains(canonical)) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "INVALID_EXPENSE_CATEGORY",
+                "Expense category must be one of: limpeza, consumo, enxoval, manutencao, condominio, contas, taxas, outros."
+            );
+        }
+
+        return canonical;
+    }
+
+    private RentalStayEntity resolveRentalStay(
+        String rentalStayId,
+        String organizationId,
+        String apartmentId
+    ) {
+        String normalized = normalizeOptional(rentalStayId);
+
+        if (normalized == null) {
+            return null;
+        }
+
+        RentalStayEntity stay = rentalStayRepository
+            .findByIdAndDeletedAtIsNull(normalized)
+            .orElseThrow(() ->
+                new ApiException(
+                    HttpStatus.NOT_FOUND,
+                    "RENTAL_STAY_NOT_FOUND",
+                    "Rental stay was not found."
+                )
+            );
+
+        if (
+            !stay.getOrganization().getId().equals(organizationId) ||
+            !stay.getApartment().getId().equals(apartmentId)
+        ) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "RENTAL_STAY_APARTMENT_MISMATCH",
+                "Rental stay must belong to the selected apartment."
+            );
+        }
+
+        return stay;
     }
 
     private String normalizeOptional(String value) {

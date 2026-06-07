@@ -14,6 +14,7 @@ public final class FinanceDtos {
 
     public record UpsertFinancialEntryRequest(
         @NotBlank @Size(max = 64) String apartmentId,
+        @Size(max = 64) String rentalStayId,
         @NotNull FinancialEntryType type,
         @NotBlank @Size(max = 80) String category,
         @Size(max = 500) String description,
@@ -28,6 +29,7 @@ public final class FinanceDtos {
         String apartmentName,
         String ownerId,
         String ownerName,
+        String rentalStayId,
         FinancialEntryType type,
         String category,
         String description,

@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface FinancialEntryRepository
     extends JpaRepository<FinancialEntryEntity, String> {
-    @EntityGraph(attributePaths = { "apartment", "owner", "organization" })
+    @EntityGraph(attributePaths = { "apartment", "owner", "organization", "rentalStay" })
     Optional<FinancialEntryEntity> findByIdAndDeletedAtIsNull(String id);
 
     @Query(
@@ -20,6 +20,7 @@ public interface FinancialEntryRepository
         from FinancialEntryEntity entry
         join fetch entry.apartment
         join fetch entry.owner
+        left join fetch entry.rentalStay
         where entry.organization.id = :organizationId
             and entry.deletedAt is null
             and entry.occurredOn >= :dateFrom

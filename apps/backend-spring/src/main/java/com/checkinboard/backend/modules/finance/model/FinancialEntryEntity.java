@@ -36,6 +36,10 @@ public class FinancialEntryEntity {
     @JoinColumn(name = "owner_id", nullable = false)
     private OwnerEntity owner;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rental_stay_id")
+    private RentalStayEntity rentalStay;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FinancialEntryType type;
@@ -70,6 +74,7 @@ public class FinancialEntryEntity {
         OrganizationEntity organization,
         ApartmentEntity apartment,
         OwnerEntity owner,
+        RentalStayEntity rentalStay,
         FinancialEntryType type,
         String category,
         String description,
@@ -81,6 +86,7 @@ public class FinancialEntryEntity {
         this.organization = organization;
         this.apartment = apartment;
         this.owner = owner;
+        this.rentalStay = rentalStay;
         this.type = type;
         this.category = category;
         this.description = description;
@@ -117,6 +123,10 @@ public class FinancialEntryEntity {
         return owner;
     }
 
+    public RentalStayEntity getRentalStay() {
+        return rentalStay;
+    }
+
     public FinancialEntryType getType() {
         return type;
     }
@@ -148,6 +158,7 @@ public class FinancialEntryEntity {
     public void updateDetails(
         ApartmentEntity apartment,
         OwnerEntity owner,
+        RentalStayEntity rentalStay,
         FinancialEntryType type,
         String category,
         String description,
@@ -157,6 +168,7 @@ public class FinancialEntryEntity {
     ) {
         this.apartment = apartment;
         this.owner = owner;
+        this.rentalStay = rentalStay;
         this.type = type;
         this.category = category;
         this.description = description;
