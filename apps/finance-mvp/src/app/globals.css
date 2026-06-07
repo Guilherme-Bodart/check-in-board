@@ -214,6 +214,62 @@ a {
   font-size: 24px;
 }
 
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quick-message {
+  grid-column: 1 / -1;
+}
+
+.quick-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 16px;
+}
+
+.quick-card h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.quick-card input,
+.quick-card select {
+  min-width: 0;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 0 10px;
+}
+
+.quick-card button {
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--primary);
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.quick-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 @media (max-width: 900px) {
   .topbar,
   .toolbar {
@@ -226,6 +282,10 @@ a {
   }
 
   .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-grid {
     grid-template-columns: 1fr;
   }
 }

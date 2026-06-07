@@ -8,11 +8,14 @@ import {
   fetchApartments,
   fetchFinanceSummary,
   fetchOwners,
+  fetchRentalStays,
   type Apartment,
   type FinanceSummary,
   type Owner,
+  type RentalStay,
 } from "../../lib/finance-api";
 import { currentMonth, formatMoney } from "../../lib/format";
+import { QuickCreatePanel } from "./quick-create-panel";
 
 type FinanceDashboardProps = {
   session: AuthResponse;
@@ -27,6 +30,7 @@ export function FinanceDashboard({ onLogout, session }: FinanceDashboardProps) {
   const [apartmentId, setApartmentId] = useState(allValue);
   const [owners, setOwners] = useState<Owner[]>([]);
   const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -42,14 +46,17 @@ export function FinanceDashboard({ onLogout, session }: FinanceDashboardProps) {
     setMessage("");
 
     try {
-      const [nextOwners, nextApartments, nextSummary] = await Promise.all([
+      const [nextOwners, nextApartments, nextRentalStays, nextSummary] =
+        await Promise.all([
         fetchOwners(session.accessToken),
         fetchApartments(session.accessToken),
+          fetchRentalStays(session.accessToken, filters),
         fetchFinanceSummary(session.accessToken, filters),
       ]);
 
       setOwners(nextOwners);
       setApartments(nextApartments);
+      setRentalStays(nextRentalStays);
       setSummary(nextSummary);
     } catch (error) {
       setMessage(
@@ -168,6 +175,14 @@ export function FinanceDashboard({ onLogout, session }: FinanceDashboardProps) {
           value={formatMoney(summary?.payoutCents ?? 0)}
         />
       </section>
+
+      <QuickCreatePanel
+        apartments={apartments}
+        onSaved={reload}
+        owners={owners}
+        rentalStays={rentalStays}
+        token={session.accessToken}
+      />
     </main>
   );
 }
