@@ -1,0 +1,27 @@
+{
+  "name": "@check-in-board/finance-mvp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3010",
+    "build": "next build",
+    "lint": "echo \"No lint configured for finance-mvp yet\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured for finance-mvp yet\"",
+    "format": "prettier --check \"src/**/*.{ts,tsx,css}\""
+  },
+  "dependencies": {
+    "lucide-react": "^1.16.0",
+    "next": "^16.2.6",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@check-in-board/tsconfig": "workspace:*",
+    "@types/node": "^24.12.2",
+    "@types/react": "~19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.9.3"
+  }
+}
