@@ -111,6 +111,7 @@ public class FinanceMvpService {
             total.netCents(),
             total.commissionCents(),
             total.payoutCents(),
+            total.stayCount,
             byOwner
                 .values()
                 .stream()
@@ -233,7 +234,7 @@ public class FinanceMvpService {
             if (entry.getType() == FinancialEntryType.revenue) {
                 bucket.addExtraRevenue(entry.getAmountCents(), entry.getApartment());
             } else {
-                bucket.addExpense(entry.getAmountCents(), entry.getApartment());
+                bucket.addExpense(entry.getAmountCents());
             }
         }
     }
@@ -481,6 +482,7 @@ public class FinanceMvpService {
         private long extraRevenueCents;
         private long expenseCents;
         private long commissionCents;
+        private long stayCount;
 
         static SummaryAccumulator forOwner(String id, String name) {
             SummaryAccumulator bucket = new SummaryAccumulator();
@@ -522,6 +524,7 @@ public class FinanceMvpService {
 
         void addRent(long amountCents, ApartmentEntity apartment) {
             rentCents += amountCents;
+            stayCount += 1;
             commissionCents += commissionFor(amountCents, apartment);
         }
 
@@ -530,9 +533,8 @@ public class FinanceMvpService {
             commissionCents += commissionFor(amountCents, apartment);
         }
 
-        void addExpense(long amountCents, ApartmentEntity apartment) {
+        void addExpense(long amountCents) {
             expenseCents += amountCents;
-            commissionCents -= commissionFor(amountCents, apartment);
         }
 
         long commissionCents() {
@@ -540,7 +542,7 @@ public class FinanceMvpService {
         }
 
         long payoutCents() {
-            return netCents() - commissionCents();
+            return rentCents + extraRevenueCents - commissionCents();
         }
 
         String settlementKey() {
@@ -562,6 +564,7 @@ public class FinanceMvpService {
                 netCents(),
                 commissionCents(),
                 payoutCents(),
+                stayCount,
                 settlement == null ? SettlementStatus.pending : settlement.getStatus(),
                 settlement == null ? null : settlement.getPaidAt()
             );
@@ -579,7 +582,8 @@ public class FinanceMvpService {
                 expenseCents,
                 netCents(),
                 commissionCents(),
-                payoutCents()
+                payoutCents(),
+                stayCount
             );
         }
 

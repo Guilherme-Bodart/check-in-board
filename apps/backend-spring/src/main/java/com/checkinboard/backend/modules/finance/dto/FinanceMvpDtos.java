@@ -18,6 +18,7 @@ public final class FinanceMvpDtos {
         long netCents,
         long commissionCents,
         long payoutCents,
+        long stayCount,
         List<FinanceMvpSummaryItem> byOwner,
         List<FinanceMvpSummaryItem> byApartment,
         List<FinanceMvpStayItem> byStay
@@ -37,6 +38,7 @@ public final class FinanceMvpDtos {
         long netCents,
         long commissionCents,
         long payoutCents,
+        long stayCount,
         SettlementStatus settlementStatus,
         Instant paidAt
     ) {}
@@ -52,7 +54,8 @@ public final class FinanceMvpDtos {
         long expenseCents,
         long netCents,
         long commissionCents,
-        long payoutCents
+        long payoutCents,
+        long stayCount
     ) {}
 
     public record SettlementResponse(
