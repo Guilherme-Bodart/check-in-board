@@ -76,6 +76,7 @@ class ReservationControllerTest {
         reset(icalFeedClient);
         jdbcTemplate.update("delete from password_reset_tokens");
         jdbcTemplate.update("delete from tasks");
+        jdbcTemplate.update("delete from settlement_periods");
         jdbcTemplate.update("delete from financial_entries");
         jdbcTemplate.update("delete from rental_stays");
         jdbcTemplate.update("delete from sync_runs");

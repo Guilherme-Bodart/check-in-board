@@ -1,11 +1,9 @@
 package com.checkinboard.backend.modules.finance;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -24,7 +22,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest(classes = BackendSpringApplication.class)
 @AutoConfigureMockMvc
-class RentalStayControllerTest {
+class FinanceMvpControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -54,113 +52,66 @@ class RentalStayControllerTest {
     }
 
     @Test
-    void createsListsUpdatesAndDeletesRentalStays() throws Exception {
+    void summarizesSettlesAndExportsFinanceMvpData() throws Exception {
         String accessToken = signUpHost("host@example.com", "Host Ops");
-        String apartmentId = createApartment(accessToken, "Apto 204");
-
-        MvcResult createResult = mockMvc
-            .perform(
-                post("/rental-stays")
-                    .header("Authorization", "Bearer " + accessToken)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(rentalStayPayload(apartmentId, "Maria", 120000))
-            )
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.rentalStay.id", notNullValue()))
-            .andExpect(jsonPath("$.rentalStay.apartmentId").value(apartmentId))
-            .andExpect(jsonPath("$.rentalStay.ownerName").value("Host Ops - Imoveis proprios"))
-            .andExpect(jsonPath("$.rentalStay.guestName").value("Maria"))
-            .andExpect(jsonPath("$.rentalStay.rentAmountCents").value(120000))
-            .andReturn();
-
-        String rentalStayId = readJson(createResult)
-            .get("rentalStay")
-            .get("id")
-            .asText();
+        MvcResult apartmentResult = createApartment(accessToken, "Apto 204");
+        JsonNode apartment = readJson(apartmentResult).get("apartment");
+        String apartmentId = apartment.get("id").asText();
+        String ownerId = apartment.get("owner").get("id").asText();
+        createRentalStay(accessToken, apartmentId);
+        createExpense(accessToken, apartmentId);
 
         mockMvc
             .perform(
-                get("/rental-stays")
+                get("/finance-mvp/summary")
                     .header("Authorization", "Bearer " + accessToken)
-                    .param("dateFrom", "2026-06-01")
-                    .param("dateTo", "2026-06-30")
+                    .param("month", "2026-05")
             )
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.rentalStays", hasSize(1)))
-            .andExpect(jsonPath("$.rentalStays[0].id").value(rentalStayId));
+            .andExpect(jsonPath("$.rentCents").value(120000))
+            .andExpect(jsonPath("$.expenseCents").value(20000))
+            .andExpect(jsonPath("$.netCents").value(100000))
+            .andExpect(jsonPath("$.commissionCents").value(20000))
+            .andExpect(jsonPath("$.payoutCents").value(80000))
+            .andExpect(jsonPath("$.byApartment[0].settlementStatus").value("pending"));
 
         mockMvc
             .perform(
-                put("/rental-stays/{rentalStayId}", rentalStayId)
-                    .header("Authorization", "Bearer " + accessToken)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(rentalStayPayload(apartmentId, "Joao", 150000))
-            )
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.rentalStay.guestName").value("Joao"))
-            .andExpect(jsonPath("$.rentalStay.rentAmountCents").value(150000));
-
-        mockMvc
-            .perform(
-                delete("/rental-stays/{rentalStayId}", rentalStayId)
-                    .header("Authorization", "Bearer " + accessToken)
-            )
-            .andExpect(status().isNoContent());
-
-        mockMvc
-            .perform(
-                get("/rental-stays")
-                    .header("Authorization", "Bearer " + accessToken)
-                    .param("dateFrom", "2026-06-01")
-                    .param("dateTo", "2026-06-30")
-            )
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.rentalStays", hasSize(0)));
-    }
-
-    @Test
-    void rejectsInvalidRentalStayDates() throws Exception {
-        String accessToken = signUpHost("host@example.com", "Host Ops");
-        String apartmentId = createApartment(accessToken, "Apto 204");
-
-        mockMvc
-            .perform(
-                post("/rental-stays")
+                post("/settlements/mark-paid")
                     .header("Authorization", "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
                         {
+                          "periodMonth": "2026-05",
                           "apartmentId": "%s",
-                          "checkIn": "2026-06-10",
-                          "checkOut": "2026-06-10",
-                          "rentAmountCents": 120000,
-                          "currency": "BRL"
+                          "ownerId": "%s",
+                          "notes": "Pix enviado"
                         }
-                        """.formatted(apartmentId)
+                        """.formatted(apartmentId, ownerId)
                     )
             )
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error.message").value("checkOut must be after checkIn."));
-    }
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.settlement.status").value("paid"));
 
-    private String rentalStayPayload(
-        String apartmentId,
-        String guestName,
-        long rentAmountCents
-    ) {
-        return """
-            {
-              "apartmentId": "%s",
-              "guestName": "%s",
-              "channel": "Airbnb",
-              "checkIn": "2026-06-10",
-              "checkOut": "2026-06-14",
-              "rentAmountCents": %d,
-              "currency": "BRL",
-              "notes": "Reserva manual"
-            }
-            """.formatted(apartmentId, guestName, rentAmountCents);
+        mockMvc
+            .perform(
+                get("/finance-mvp/summary")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .param("month", "2026-05")
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.byApartment[0].settlementStatus").value("paid"));
+
+        mockMvc
+            .perform(
+                get("/finance-mvp/export.csv")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .param("month", "2026-05")
+            )
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("tipo,nome,cliente")))
+            .andExpect(content().string(containsString("apartamento")));
     }
 
     private String signUpHost(String email, String organizationName) throws Exception {
@@ -185,9 +136,9 @@ class RentalStayControllerTest {
         return readJson(result).get("accessToken").asText();
     }
 
-    private String createApartment(String accessToken, String apartmentName)
+    private MvcResult createApartment(String accessToken, String apartmentName)
         throws Exception {
-        MvcResult result = mockMvc
+        return mockMvc
             .perform(
                 post("/apartments")
                     .header("Authorization", "Bearer " + accessToken)
@@ -204,8 +155,52 @@ class RentalStayControllerTest {
             )
             .andExpect(status().isCreated())
             .andReturn();
+    }
 
-        return readJson(result).get("apartment").get("id").asText();
+    private void createRentalStay(String accessToken, String apartmentId) throws Exception {
+        mockMvc
+            .perform(
+                post("/rental-stays")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "apartmentId": "%s",
+                          "guestName": "Maria",
+                          "channel": "Manual",
+                          "checkIn": "2026-05-20",
+                          "checkOut": "2026-05-23",
+                          "rentAmountCents": 120000,
+                          "currency": "BRL"
+                        }
+                        """.formatted(apartmentId)
+                    )
+            )
+            .andExpect(status().isCreated());
+    }
+
+    private void createExpense(String accessToken, String apartmentId) throws Exception {
+        mockMvc
+            .perform(
+                post("/financial-entries")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "apartmentId": "%s",
+                          "type": "expense",
+                          "category": "consumo",
+                          "description": "Papel higienico",
+                          "amountCents": 20000,
+                          "currency": "BRL",
+                          "occurredOn": "2026-05-21"
+                        }
+                        """.formatted(apartmentId)
+                    )
+            )
+            .andExpect(status().isCreated());
     }
 
     private JsonNode readJson(MvcResult result) throws Exception {
