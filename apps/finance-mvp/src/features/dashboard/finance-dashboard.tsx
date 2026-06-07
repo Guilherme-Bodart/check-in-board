@@ -150,6 +150,11 @@ export function FinanceDashboard({ onLogout, session }: FinanceDashboardProps) {
 
       <section className="metric-grid">
         <MetricCard
+          label="Estadias"
+          loading={isLoading}
+          value={String(summary?.stayCount ?? 0)}
+        />
+        <MetricCard
           label="Aluguéis"
           loading={isLoading}
           value={formatMoney(summary?.rentCents ?? 0)}

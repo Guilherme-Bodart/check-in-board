@@ -95,6 +95,7 @@ export type FinanceSummaryItem = {
   netCents: number;
   commissionCents: number;
   payoutCents: number;
+  stayCount: number;
   settlementStatus: "pending" | "paid";
   paidAt: string | null;
 };
@@ -107,6 +108,7 @@ export type FinanceSummary = {
   netCents: number;
   commissionCents: number;
   payoutCents: number;
+  stayCount: number;
   byOwner: FinanceSummaryItem[];
   byApartment: FinanceSummaryItem[];
   byStay: Array<{
@@ -121,6 +123,7 @@ export type FinanceSummary = {
     netCents: number;
     commissionCents: number;
     payoutCents: number;
+    stayCount: number;
   }>;
 };
 
