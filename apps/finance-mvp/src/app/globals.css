@@ -118,3 +118,114 @@ a {
   background: var(--surface);
   color: var(--text);
 }
+
+.workspace {
+  display: grid;
+  width: min(1180px, 100%);
+  gap: 20px;
+  margin: 0 auto;
+}
+
+.topbar,
+.toolbar,
+.metric-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+}
+
+.topbar h1 {
+  margin: 4px 0;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr)) auto auto;
+  gap: 12px;
+  padding: 16px;
+}
+
+.toolbar label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.toolbar input,
+.toolbar select {
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 0 10px;
+}
+
+.toolbar button,
+.secondary-action {
+  display: grid;
+  min-width: 88px;
+  height: 40px;
+  place-items: center;
+  align-self: end;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.toolbar button {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  display: grid;
+  gap: 10px;
+  min-height: 108px;
+  padding: 18px;
+}
+
+.metric-card span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.metric-card strong {
+  font-size: 24px;
+}
+
+@media (max-width: 900px) {
+  .topbar,
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,7 +6,6 @@ export default function HomePage() {
       style={{
         display: "grid",
         minHeight: "100vh",
-        placeItems: "center",
         padding: 24,
       }}
     >

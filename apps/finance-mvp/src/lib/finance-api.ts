@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiBaseUrl, apiRequest } from "./api";
 
 export type OwnerType = "internal" | "client";
 
@@ -205,6 +205,20 @@ export async function fetchFinanceSummary(token: string, filters: FinanceFilters
 
 export function exportCsvUrl(filters: FinanceFilters) {
   return `/finance-mvp/export.csv?${financeQuery(filters)}`;
+}
+
+export async function downloadFinanceCsv(token: string, filters: FinanceFilters) {
+  const response = await fetch(`${apiBaseUrl}${exportCsvUrl(filters)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao exportar CSV.");
+  }
+
+  return response.blob();
 }
 
 function monthRange(month: string) {

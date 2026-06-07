@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { signIn, type AuthResponse } from "../../lib/api";
 import { clearSession, readStoredSession, storeSession } from "../../lib/session";
+import { FinanceDashboard } from "../dashboard/finance-dashboard";
 
 export function LoginPanel() {
   const [session, setSession] = useState<AuthResponse | null>(null);
@@ -39,19 +40,7 @@ export function LoginPanel() {
   }
 
   if (session) {
-    return (
-      <section className="panel">
-        <p className="eyebrow">Sessão ativa</p>
-        <h1>Financeiro MVP</h1>
-        <p className="muted">
-          Conectado como {session.user.fullName || session.user.email} em{" "}
-          {session.organization.name}.
-        </p>
-        <button className="secondary-button" onClick={logout} type="button">
-          Sair
-        </button>
-      </section>
-    );
+    return <FinanceDashboard onLogout={logout} session={session} />;
   }
 
   return (
