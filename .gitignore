@@ -13,6 +13,7 @@ dist/
 build/
 .next/
 apps/web/next-env.d.ts
+apps/finance-mvp/next-env.d.ts
 *.tsbuildinfo
 .expo/
 .expo-shared/
