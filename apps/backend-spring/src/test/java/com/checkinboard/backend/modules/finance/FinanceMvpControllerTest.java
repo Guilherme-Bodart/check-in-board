@@ -112,7 +112,10 @@ class FinanceMvpControllerTest {
             )
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("tipo,nome,cliente")))
-            .andExpect(content().string(containsString("apartamento")));
+            .andExpect(content().string(containsString("apartamento")))
+            .andExpect(content().string(containsString("tipo,data,categoria,descricao")))
+            .andExpect(content().string(containsString("Papel higienico")))
+            .andExpect(content().string(containsString("20000")));
     }
 
     private String signUpHost(String email, String organizationName) throws Exception {

@@ -175,6 +175,10 @@ public class FinanceMvpService {
         String apartmentId,
         String ownerId
     ) {
+        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        Period period = normalizeMonth(month);
+        String normalizedApartmentId = normalizeOptional(apartmentId);
+        String normalizedOwnerId = normalizeOptional(ownerId);
         FinanceMvpSummaryResponse response = summary(userId, month, apartmentId, ownerId);
         StringBuilder csv = new StringBuilder(
             "tipo,nome,cliente,apartamento,alugueis,receitas_extras,despesas,liquido,comissao,repasse,status\n"
@@ -186,6 +190,21 @@ public class FinanceMvpService {
 
         for (FinanceMvpSummaryItem item : response.byApartment()) {
             appendCsvRow(csv, "apartamento", item);
+        }
+
+        csv.append("\n");
+        csv.append("tipo,data,categoria,descricao,cliente,apartamento,valor\n");
+
+        for (FinancialEntryEntity entry : financialEntryRepository.findByFilters(
+            membership.getOrganization().getId(),
+            period.start(),
+            period.end(),
+            normalizedApartmentId,
+            normalizedOwnerId
+        )) {
+            if (entry.getType() == FinancialEntryType.expense) {
+                appendExpenseCsvRow(csv, entry);
+            }
         }
 
         return csv.toString();
@@ -455,6 +474,24 @@ public class FinanceMvpService {
             .append(item.payoutCents())
             .append(',')
             .append(item.settlementStatus())
+            .append('\n');
+    }
+
+    private void appendExpenseCsvRow(StringBuilder csv, FinancialEntryEntity entry) {
+        csv
+            .append(escapeCsv("despesa"))
+            .append(',')
+            .append(entry.getOccurredOn())
+            .append(',')
+            .append(escapeCsv(entry.getCategory()))
+            .append(',')
+            .append(escapeCsv(entry.getDescription()))
+            .append(',')
+            .append(escapeCsv(entry.getOwner().getName()))
+            .append(',')
+            .append(escapeCsv(entry.getApartment().getName()))
+            .append(',')
+            .append(entry.getAmountCents())
             .append('\n');
     }
 
