@@ -149,11 +149,58 @@ export async function fetchOwners(token: string) {
   return response.owners;
 }
 
+export async function createOwner(
+  token: string,
+  values: {
+    name: string;
+    type: OwnerType;
+    contactName?: string;
+    email?: string;
+    phone?: string;
+    notes?: string;
+  },
+) {
+  const response = await apiRequest<{ owner: Owner }>("/owners", {
+    method: "POST",
+    token,
+    body: {
+      ...values,
+      contactName: values.contactName?.trim() || null,
+      email: values.email?.trim() || null,
+      phone: values.phone?.trim() || null,
+      notes: values.notes?.trim() || null,
+    },
+  });
+  return response.owner;
+}
+
 export async function fetchApartments(token: string) {
   const response = await apiRequest<{ apartments: Apartment[] }>("/apartments", {
     token,
   });
   return response.apartments;
+}
+
+export async function createApartment(
+  token: string,
+  values: {
+    name: string;
+    ownerId: string;
+    managementCommissionBps: number;
+    timezone?: string;
+  },
+) {
+  const response = await apiRequest<{ apartment: Apartment }>("/apartments", {
+    method: "POST",
+    token,
+    body: {
+      name: values.name.trim(),
+      ownerId: values.ownerId,
+      timezone: values.timezone ?? "America/Sao_Paulo",
+      managementCommissionBps: values.managementCommissionBps,
+    },
+  });
+  return response.apartment;
 }
 
 export async function fetchRentalStays(token: string, filters: FinanceFilters) {
@@ -173,6 +220,32 @@ export async function fetchRentalStays(token: string, filters: FinanceFilters) {
     { token },
   );
   return response.rentalStays;
+}
+
+export async function createRentalStay(
+  token: string,
+  values: {
+    apartmentId: string;
+    guestName?: string;
+    channel?: string;
+    checkIn: string;
+    checkOut: string;
+    rentAmountCents: number;
+    notes?: string;
+  },
+) {
+  const response = await apiRequest<{ rentalStay: RentalStay }>("/rental-stays", {
+    method: "POST",
+    token,
+    body: {
+      ...values,
+      guestName: values.guestName?.trim() || null,
+      channel: values.channel?.trim() || null,
+      currency: "BRL",
+      notes: values.notes?.trim() || null,
+    },
+  });
+  return response.rentalStay;
 }
 
 export async function fetchFinancialEntries(
@@ -195,6 +268,34 @@ export async function fetchFinancialEntries(
     { token },
   );
   return response.financialEntries;
+}
+
+export async function createFinancialEntry(
+  token: string,
+  values: {
+    apartmentId: string;
+    rentalStayId?: string;
+    type: FinancialEntryType;
+    category: string;
+    description?: string;
+    amountCents: number;
+    occurredOn: string;
+  },
+) {
+  const response = await apiRequest<{ financialEntry: FinancialEntry }>(
+    "/financial-entries",
+    {
+      method: "POST",
+      token,
+      body: {
+        ...values,
+        rentalStayId: values.rentalStayId || null,
+        currency: "BRL",
+        description: values.description?.trim() || null,
+      },
+    },
+  );
+  return response.financialEntry;
 }
 
 export async function fetchFinanceSummary(token: string, filters: FinanceFilters) {
