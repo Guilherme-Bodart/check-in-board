@@ -5,6 +5,7 @@ import { useAuthSession } from "@/features/auth";
 import { TodayBoardScreen } from "@/features/today-board";
 
 const apartmentsRoute = "/apartments" as Href;
+const financeRoute = "/finance" as Href;
 const acceptInviteRoute = "/accept-invite" as Href;
 const securityRoute = "/security" as Href;
 
@@ -21,6 +22,13 @@ export default function TodayRoute() {
             fullWidth={false}
             label="Apartments"
             onPress={() => router.push(apartmentsRoute)}
+            variant="secondary"
+          />
+          <Button
+            accessibilityHint="Opens quick finance entry."
+            fullWidth={false}
+            label="Finance"
+            onPress={() => router.push(financeRoute)}
             variant="secondary"
           />
           <Button
