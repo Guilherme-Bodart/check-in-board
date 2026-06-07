@@ -77,3 +77,20 @@ export async function signIn(email: string, password: string) {
     body: { email, password },
   });
 }
+
+export async function signUp(values: {
+  email: string;
+  fullName: string;
+  organizationName: string;
+  password: string;
+}) {
+  return apiRequest<AuthResponse>("/auth/sign-up", {
+    method: "POST",
+    body: {
+      email: values.email,
+      fullName: values.fullName,
+      organizationName: values.organizationName,
+      password: values.password,
+    },
+  });
+}
