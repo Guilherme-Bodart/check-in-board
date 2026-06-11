@@ -26,6 +26,14 @@ export async function fetchOwners(token: string) {
   return response.owners;
 }
 
+export async function fetchOwner(token: string, ownerId: string) {
+  const response = await apiRequest<{ owner: Owner }>(`/owners/${ownerId}`, {
+    token,
+  });
+
+  return response.owner;
+}
+
 export async function createOwner(token: string, values: OwnerFormValues) {
   const response = await apiRequest<{ owner: Owner }>("/owners", {
     method: "POST",
