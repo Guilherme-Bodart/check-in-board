@@ -38,7 +38,6 @@ export type CreateTaskValues = {
 export type WorkspaceData = {
   board: OperationsBoard;
   tasks: Task[];
-  icalSources: IcalSource[];
 };
 
 export type SessionPayload = {
@@ -65,6 +64,5 @@ export type DashboardSnapshot = {
   boardDate: string;
   boardSections: BoardSectionViewModel[];
   tasks: Task[];
-  icalSources: IcalSource[];
   totals: OperationsBoard["totals"];
 };

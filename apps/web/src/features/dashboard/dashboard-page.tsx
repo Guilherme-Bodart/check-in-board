@@ -6,8 +6,6 @@ import { useDashboard } from "./use-dashboard";
 export function DashboardPage() {
   const {
     actions,
-    icalMessage,
-    isIcalSaving,
     loadState,
     message,
     session,
@@ -21,8 +19,6 @@ export function DashboardPage() {
   return (
     <DashboardContent
       actions={actions}
-      icalMessage={icalMessage}
-      isIcalSaving={isIcalSaving}
       loadState={loadState}
       message={message}
       session={session}

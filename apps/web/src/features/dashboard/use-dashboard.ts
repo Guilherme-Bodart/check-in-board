@@ -12,23 +12,17 @@ import { messages } from "../../i18n";
 import { formatDateInput } from "../../lib/date-formatters";
 import { authenticate } from "../auth/auth-api";
 import {
-  createApartment as createApartmentRequest,
-  createIcalSource as createIcalSourceRequest,
-  createTask as createTaskRequest,
   fetchApartments,
   fetchWorkspace,
   markTaskDone as markTaskDoneRequest,
-  syncIcalSource as syncIcalSourceRequest,
 } from "./dashboard-api";
 import type {
   AuthFormValues,
   AuthMode,
-  CreateIcalSourceValues,
-  CreateTaskValues,
   DashboardSnapshot,
   LoadState,
 } from "./types";
-import type { Apartment, IcalSource, OperationsBoard, Task } from "../../api";
+import type { Apartment, OperationsBoard, Task } from "../../api";
 import {
   createBoardSections,
   emptyBoardTotals,
@@ -46,12 +40,9 @@ export function useDashboard() {
   const [selectedApartmentId, setSelectedApartmentId] = useState(allApartmentsValue);
   const [board, setBoard] = useState<OperationsBoard | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [icalSources, setIcalSources] = useState<IcalSource[]>([]);
   const [boardDate, setBoardDate] = useState("");
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [message, setMessage] = useState("");
-  const [icalMessage, setIcalMessage] = useState("");
-  const [isIcalSaving, setIsIcalSaving] = useState(false);
 
   useEffect(() => {
     setSession(readStoredSession());
@@ -72,14 +63,12 @@ export function useDashboard() {
       boardDate,
       boardSections: createBoardSections(board),
       tasks,
-      icalSources,
       totals: board?.totals ?? emptyBoardTotals,
     }),
     [
       apartments,
       board,
       boardDate,
-      icalSources,
       selectedApartment,
       selectedApartmentId,
       tasks,
@@ -116,7 +105,6 @@ export function useDashboard() {
 
           setBoard(aggregateBoard);
           setTasks(workspaces.flatMap((item) => item.tasks));
-          setIcalSources(workspaces.flatMap((item) => item.icalSources));
           setLoadState("idle");
           return;
         }
@@ -125,7 +113,6 @@ export function useDashboard() {
 
         setBoard(workspace.board);
         setTasks(workspace.tasks);
-        setIcalSources(workspace.icalSources);
         setLoadState("idle");
       } catch (error) {
         setLoadState("error");
@@ -165,82 +152,6 @@ export function useDashboard() {
     }
   }
 
-  async function createApartment(name: string) {
-    if (!session || !name.trim()) {
-      return false;
-    }
-
-    try {
-      const apartment = await createApartmentRequest(session.token, name.trim());
-
-      setApartments((current) => [apartment, ...current]);
-      setSelectedApartmentId(apartment.id);
-      return true;
-    } catch (error) {
-      setMessage(getErrorMessage(error, messages.dashboard.errors.createApartmentFailed));
-      return false;
-    }
-  }
-
-  async function createTask(values: CreateTaskValues) {
-    if (!session || !selectedApartmentId || !values.title.trim() || !values.dueAt) {
-      return false;
-    }
-
-    if (selectedApartmentId === allApartmentsValue) {
-      setMessage(messages.dashboard.errors.selectApartmentForTask);
-      return false;
-    }
-
-    try {
-      await createTaskRequest(session.token, selectedApartmentId, {
-        title: values.title.trim(),
-        dueAt: values.dueAt,
-      });
-      await loadWorkspace(session.token, selectedApartmentId, boardDate);
-      return true;
-    } catch (error) {
-      setMessage(getErrorMessage(error, messages.dashboard.errors.createTaskFailed));
-      return false;
-    }
-  }
-
-  async function createIcalSource(values: CreateIcalSourceValues) {
-    setIcalMessage("");
-
-    if (!session) {
-      setIcalMessage(messages.dashboard.ical.createLoginRequired);
-      return false;
-    }
-
-    if (!selectedApartmentId || selectedApartmentId === allApartmentsValue) {
-      setIcalMessage(messages.dashboard.ical.createSelectApartment);
-      return false;
-    }
-
-    if (!values.url.trim()) {
-      setIcalMessage(messages.dashboard.ical.createUrlRequired);
-      return false;
-    }
-
-    setIsIcalSaving(true);
-
-    try {
-      await createIcalSourceRequest(session.token, selectedApartmentId, {
-        label: values.label.trim(),
-        url: values.url.trim(),
-      });
-      setIcalMessage(messages.dashboard.ical.created);
-      await loadWorkspace(session.token, selectedApartmentId, boardDate);
-      return true;
-    } catch (error) {
-      setIcalMessage(getErrorMessage(error, messages.dashboard.errors.createIcalFailed));
-      return false;
-    } finally {
-      setIsIcalSaving(false);
-    }
-  }
-
   async function markTaskDone(taskId: string) {
     if (!session || !selectedApartmentId || selectedApartmentId === allApartmentsValue) {
       return;
@@ -251,19 +162,6 @@ export function useDashboard() {
       await loadWorkspace(session.token, selectedApartmentId, boardDate);
     } catch (error) {
       setMessage(getErrorMessage(error, messages.dashboard.errors.updateTaskFailed));
-    }
-  }
-
-  async function syncIcalSource(icalSourceId: string) {
-    if (!session || !selectedApartmentId) {
-      return;
-    }
-
-    try {
-      await syncIcalSourceRequest(session.token, icalSourceId);
-      await loadWorkspace(session.token, selectedApartmentId, boardDate);
-    } catch (error) {
-      setMessage(getErrorMessage(error, messages.dashboard.errors.syncIcalFailed));
     }
   }
 
@@ -282,7 +180,6 @@ export function useDashboard() {
     setSelectedApartmentId(allApartmentsValue);
     setBoard(null);
     setTasks([]);
-    setIcalSources([]);
   }
 
   return {
@@ -290,19 +187,13 @@ export function useDashboard() {
     snapshot,
     loadState,
     message,
-    icalMessage,
-    isIcalSaving,
     actions: {
-      createApartment,
-      createIcalSource,
-      createTask,
       markTaskDone,
       refreshWorkspace,
       setBoardDate,
       setSelectedApartmentId,
       signOut,
       submitAuth,
-      syncIcalSource,
     },
   };
 }

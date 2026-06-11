@@ -26,22 +26,17 @@ export async function fetchWorkspace(
   apartmentId: string,
   date: string,
 ): Promise<WorkspaceData> {
-  const [board, taskResponse, icalResponse] = await Promise.all([
+  const [board, taskResponse] = await Promise.all([
     apiRequest<OperationsBoard>(
       `/apartments/${apartmentId}/operations-board?date=${date}&days=7`,
       { token },
     ),
     apiRequest<{ tasks: Task[] }>(`/apartments/${apartmentId}/tasks`, { token }),
-    apiRequest<{ icalSources: IcalSource[] }>(
-      `/apartments/${apartmentId}/ical-sources`,
-      { token },
-    ),
   ]);
 
   return {
     board,
     tasks: taskResponse.tasks,
-    icalSources: icalResponse.icalSources,
   };
 }
 
