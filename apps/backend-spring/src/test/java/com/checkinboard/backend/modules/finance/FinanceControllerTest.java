@@ -80,6 +80,15 @@ class FinanceControllerTest {
 
         mockMvc
             .perform(
+                get("/financial-entries/{entryId}", entryId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.financialEntry.id").value(entryId))
+            .andExpect(jsonPath("$.financialEntry.amountCents").value(120000));
+
+        mockMvc
+            .perform(
                 get("/financial-summary")
                     .header("Authorization", "Bearer " + accessToken)
                     .param("dateFrom", "2026-05-01")

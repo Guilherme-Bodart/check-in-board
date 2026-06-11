@@ -64,6 +64,14 @@ public class FinanceController {
         );
     }
 
+    @GetMapping("/financial-entries/{entryId}")
+    FinancialEntryEnvelope get(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable String entryId
+    ) {
+        return financeService.get(principal.userId(), entryId);
+    }
+
     @PostMapping("/financial-entries")
     ResponseEntity<FinancialEntryEnvelope> create(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,

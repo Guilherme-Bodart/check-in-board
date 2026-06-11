@@ -121,6 +121,17 @@ public class FinanceService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public FinancialEntryEnvelope get(String userId, String entryId) {
+        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        FinancialEntryEntity entry = findEntryInOrganization(
+            entryId,
+            membership.getOrganization().getId()
+        );
+
+        return new FinancialEntryEnvelope(toResponse(entry));
+    }
+
     @Transactional
     public FinancialEntryEnvelope create(
         String userId,
