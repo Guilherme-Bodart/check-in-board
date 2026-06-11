@@ -37,6 +37,15 @@ export async function fetchFinancialSummary(token: string, filters: FinanceFilte
   });
 }
 
+export async function fetchFinancialEntry(token: string, entryId: string) {
+  const response = await apiRequest<{ financialEntry: FinancialEntry }>(
+    `/financial-entries/${entryId}`,
+    { token },
+  );
+
+  return response.financialEntry;
+}
+
 export async function createFinancialEntry(
   token: string,
   values: FinancialEntryValues,

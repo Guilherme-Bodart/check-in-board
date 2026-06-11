@@ -68,6 +68,7 @@ export type FinancialEntry = {
   apartmentName: string;
   ownerId: string;
   ownerName: string;
+  rentalStayId: string | null;
   type: FinancialEntryType;
   category: string;
   description: string | null;
