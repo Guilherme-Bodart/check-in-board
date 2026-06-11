@@ -29,6 +29,17 @@ export async function fetchTeamMembers(token: string) {
   return response.teamMembers;
 }
 
+export async function fetchTeamMember(token: string, membershipId: string) {
+  const members = await fetchTeamMembers(token);
+  const member = members.find((item) => item.membershipId === membershipId);
+
+  if (!member) {
+    throw new Error("Membro não encontrado.");
+  }
+
+  return member;
+}
+
 export async function createTeamMember(
   token: string,
   values: CreateTeamMemberValues,

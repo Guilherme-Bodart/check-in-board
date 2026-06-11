@@ -44,20 +44,25 @@ export function Sidebar({
         </span>
       </div>
       <nav className="grid gap-1">
-        {navigationItems.map((item) => (
-          <Link
-            aria-current={currentPath === item.href ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary transition hover:bg-primary-soft hover:text-primary",
-              currentPath === item.href && "bg-primary-soft text-primary",
-            )}
-            href={item.href}
-            key={item.href}
-          >
-            <item.icon aria-hidden className="h-4 w-4" />
-            {item.label}
-          </Link>
-        ))}
+        {navigationItems.map((item) => {
+          const isActive =
+            currentPath === item.href || currentPath.startsWith(`${item.href}/`);
+
+          return (
+            <Link
+              aria-current={isActive ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary transition hover:bg-primary-soft hover:text-primary",
+                isActive && "bg-primary-soft text-primary",
+              )}
+              href={item.href}
+              key={item.href}
+            >
+              <item.icon aria-hidden className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
       <button
         className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"

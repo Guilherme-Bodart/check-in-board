@@ -40,11 +40,18 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
   }, [router]);
 
   const pageTitle = useMemo(
-    () =>
-      pageTitles[pathname] ?? {
+    () => {
+      const matchingPath = Object.keys(pageTitles)
+        .sort((left, right) => right.length - left.length)
+        .find((item) => pathname === item || pathname.startsWith(`${item}/`));
+
+      return matchingPath
+        ? pageTitles[matchingPath]
+        : {
         eyebrow: messages.shell.fallbackEyebrow,
         title: messages.shell.fallbackTitle,
-      },
+      };
+    },
     [pathname],
   );
 
