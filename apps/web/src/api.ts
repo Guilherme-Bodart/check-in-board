@@ -118,6 +118,7 @@ export type Apartment = {
     type: OwnerType;
   };
   timezone: string;
+  managementCommissionBps: number;
   membership: {
     id: string;
     role: "host_admin" | "co_host" | "team";

@@ -21,6 +21,15 @@ export async function fetchApartments(token: string) {
   return response.apartments;
 }
 
+export async function fetchApartment(token: string, apartmentId: string) {
+  const response = await apiRequest<{ apartment: Apartment }>(
+    `/apartments/${apartmentId}`,
+    { token },
+  );
+
+  return response.apartment;
+}
+
 export async function fetchWorkspace(
   token: string,
   apartmentId: string,
@@ -48,6 +57,7 @@ export async function createApartment(
         name: string;
         timezone?: string;
         ownerId?: string;
+        managementCommissionBps?: number;
       },
 ) {
   const payload =
@@ -57,6 +67,7 @@ export async function createApartment(
           name: values.name,
           timezone: values.timezone ?? "America/Sao_Paulo",
           ownerId: values.ownerId,
+          managementCommissionBps: values.managementCommissionBps,
         };
 
   const response = await apiRequest<{ apartment: Apartment }>("/apartments", {
@@ -75,6 +86,7 @@ export async function updateApartment(
     name: string;
     timezone: string;
     ownerId?: string;
+    managementCommissionBps?: number;
   },
 ) {
   const response = await apiRequest<{ apartment: Apartment }>(
