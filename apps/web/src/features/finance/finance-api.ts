@@ -17,6 +17,7 @@ export type FinancialEntryValues = {
   type: FinancialEntryType;
   category: string;
   description?: string;
+  rentalStayId?: string;
   amountCents: number;
   currency: string;
   occurredOn: string;

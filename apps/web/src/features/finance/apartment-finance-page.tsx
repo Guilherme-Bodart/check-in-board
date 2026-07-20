@@ -105,6 +105,10 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
     return start < nextMonthStart && end > monthStart;
   });
 
+  const pendingReservations = currentMonthReservations.filter(
+    (res) => !rentalStays.some((s) => s.id === res.id)
+  );
+
   // Statement calculation
   const staysThisMonth = rentalStays.filter(s => {
     return s.checkOut.startsWith(month);

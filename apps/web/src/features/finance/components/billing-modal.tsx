@@ -43,7 +43,7 @@ export function BillingModal({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const session = readStoredSession();
-    if (!session) return;
+    if (!session || !data) return;
 
     const rentAmountCents = parseMoneyToCents(rentAmount);
     if (rentAmountCents <= 0) {

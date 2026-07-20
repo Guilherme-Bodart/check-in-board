@@ -66,7 +66,7 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
     
     // Fetch rental stays whenever apartmentId changes
     async function loadStays() {
-      if (!form.apartmentId) {
+      if (!form.apartmentId || !session) {
         setRentalStays([]);
         return;
       }
