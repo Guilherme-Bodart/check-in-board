@@ -31,12 +31,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
         ConstraintViolationException.class,
         HttpMessageNotReadableException.class,
-        MethodArgumentNotValidException.class,
     })
     ResponseEntity<ApiErrorResponse> handleBadRequest(Exception exception) {
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
             .body(ApiErrorResponse.of("BAD_REQUEST", "Invalid request."));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ResponseEntity<ApiErrorResponse> handleValidationException(MethodArgumentNotValidException exception) {
+        String errorMessage = exception.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .findFirst()
+                .orElse("Validation failed.");
+
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiErrorResponse.of("VALIDATION_ERROR", errorMessage));
     }
 
     @ExceptionHandler(Exception.class)

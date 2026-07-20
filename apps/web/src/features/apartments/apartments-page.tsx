@@ -152,73 +152,25 @@ export function ApartmentsPage() {
           </p>
         ) : null}
 
-        <div className="mt-5">
+        <div className="mt-8">
           {isLoading || filteredApartments.length > 0 ? (
-            <DataTable>
-              <thead className="bg-surface-muted text-xs uppercase tracking-[0.12em] text-text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">{messages.apartments.apartment}</th>
-                  <th className="px-4 py-3 font-semibold">{messages.apartments.owner}</th>
-                  <th className="px-4 py-3 font-semibold">Comissão</th>
-                  <th className="px-4 py-3 font-semibold">Timezone</th>
-                  <th className="px-4 py-3 font-semibold">{messages.apartments.actions}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-surface">
-                {isLoading ? (
-                  <TableStateRow colSpan={5}>{messages.apartments.loading}</TableStateRow>
-                ) : (
-                  filteredApartments.map((apartment) => (
-                    <tr key={apartment.id}>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-                            <Building2 aria-hidden className="h-4 w-4" />
-                          </span>
-                          <Link
-                            className="font-semibold text-text-primary transition hover:text-primary"
-                            href={`/apartamentos/${apartment.id}`}
-                          >
-                            {apartment.name}
-                          </Link>
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-48 animate-pulse rounded-2xl bg-surface-muted" />
+                ))
+              ) : (
+                filteredApartments.map((apartment) => (
+                  <article
+                    key={apartment.id}
+                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-surface transition-all hover:-translate-y-1 hover:shadow-lg"
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary transition-transform group-hover:scale-105">
+                          <Building2 aria-hidden className="h-6 w-6" />
                         </div>
-                      </td>
-                      <td className="px-4 py-4 text-text-secondary">
-                        <div className="grid gap-1">
-                          <span>{apartment.owner?.name ?? messages.apartments.noOwner}</span>
-                          <span className="text-xs text-text-muted">
-                            {apartment.owner?.type === "client"
-                              ? messages.apartments.client
-                              : messages.apartments.own}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-text-secondary">
-                        {((apartment.managementCommissionBps ?? 0) / 100).toLocaleString(
-                          "pt-BR",
-                        )}
-                        %
-                      </td>
-                      <td className="px-4 py-4 text-text-secondary">
-                        {apartment.timezone}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <IconLink
-                            href={`/apartamentos/${apartment.id}`}
-                            icon={Eye}
-                            label="Ver apartamento"
-                          />
-                          <IconLink
-                            href={`/apartamentos/${apartment.id}/ical`}
-                            icon={CalendarDays}
-                            label={messages.apartments.manageIcal}
-                          />
-                          <IconLink
-                            href={`/apartamentos/${apartment.id}/editar`}
-                            icon={Pencil}
-                            label={messages.apartments.editApartment}
-                          />
+                        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                           <IconButton
                             aria-label={messages.apartments.deleteConfirm}
                             icon={Trash2}
@@ -226,12 +178,59 @@ export function ApartmentsPage() {
                             variant="danger"
                           />
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </DataTable>
+                      </div>
+                      
+                      <div className="mt-4">
+                        <Link
+                          className="text-xl font-bold tracking-tight text-text-primary outline-none transition hover:text-primary focus:text-primary focus:underline"
+                          href={`/apartamentos/${apartment.id}`}
+                        >
+                          {apartment.name}
+                        </Link>
+                        <p className="mt-1 text-sm font-medium text-text-secondary">
+                          {apartment.owner?.name ?? messages.apartments.noOwner} •{" "}
+                          {apartment.owner?.type === "client"
+                            ? messages.apartments.client
+                            : messages.apartments.own}
+                        </p>
+                      </div>
+
+                      <div className="mt-6 flex flex-wrap gap-2">
+                        <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-text-secondary">
+                          {apartment.timezone}
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-text-secondary">
+                          {((apartment.managementCommissionBps ?? 0) / 100).toLocaleString(
+                            "pt-BR",
+                          )}
+                          %
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-border bg-surface-muted/30 px-6 py-4">
+                      <IconLink
+                        href={`/apartamentos/${apartment.id}/ical`}
+                        icon={CalendarDays}
+                        label={messages.apartments.manageIcal}
+                      />
+                      <div className="flex items-center gap-2">
+                        <IconLink
+                          href={`/apartamentos/${apartment.id}`}
+                          icon={Eye}
+                          label="Ver detalhes"
+                        />
+                        <IconLink
+                          href={`/apartamentos/${apartment.id}/editar`}
+                          icon={Pencil}
+                          label={messages.apartments.editApartment}
+                        />
+                      </div>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
           ) : (
             <EmptyState
               actionHref="/apartamentos/novo"

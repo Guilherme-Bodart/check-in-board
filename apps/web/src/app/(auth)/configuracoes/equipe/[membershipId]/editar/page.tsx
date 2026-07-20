@@ -6,6 +6,9 @@ import { TeamMemberFormPage } from "../../../../../../features/settings/team-mem
 
 export default function EditTeamMemberRoute() {
   const params = useParams<{ membershipId: string }>();
+  const membershipId = params?.membershipId;
 
-  return <TeamMemberFormPage membershipId={params.membershipId} />;
+  if (!membershipId) return null;
+
+  return <TeamMemberFormPage membershipId={membershipId} />;
 }

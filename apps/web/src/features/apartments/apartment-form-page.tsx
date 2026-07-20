@@ -13,6 +13,7 @@ import {
   createApartment,
   createIcalSource,
   fetchApartment,
+  syncIcalSource,
   updateApartment,
 } from "../dashboard/dashboard-api";
 import { fetchOwners } from "../owners/owners-api";
@@ -126,11 +127,17 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
         });
 
         if (form.icalUrl.trim()) {
-          await createIcalSource(session.token, apartment.id, {
+          const response = await createIcalSource(session.token, apartment.id, {
             provider: form.icalProvider,
             label: `${form.icalProvider.toUpperCase()} - ${form.name.trim()}`,
             url: form.icalUrl.trim(),
           });
+          
+          try {
+            await syncIcalSource(session.token, response.icalSource.id);
+          } catch (error) {
+            console.error("Failed to sync initial iCal:", error);
+          }
         }
       }
 

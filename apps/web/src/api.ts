@@ -68,13 +68,28 @@ export type FinancialEntry = {
   apartmentName: string;
   ownerId: string;
   ownerName: string;
-  rentalStayId: string | null;
+  rentalStayId?: string;
   type: FinancialEntryType;
   category: string;
-  description: string | null;
+  description?: string;
   amountCents: number;
   currency: string;
   occurredOn: string;
+};
+
+export type RentalStay = {
+  id: string;
+  apartmentId: string;
+  apartmentName: string;
+  ownerId: string;
+  ownerName: string;
+  guestName?: string;
+  channel?: string;
+  checkIn: string;
+  checkOut: string;
+  rentAmountCents: number;
+  currency: string;
+  notes?: string;
 };
 
 export type FinancialSummaryItem = {
@@ -138,6 +153,8 @@ export type ReservationCard = {
   startsAt: string;
   endsAt: string;
   rawSummary: string | null;
+  guestName: string | null;
+  guestCount: number | null;
 };
 
 export type Reservation = ReservationCard & {

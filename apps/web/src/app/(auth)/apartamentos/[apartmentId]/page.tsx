@@ -6,6 +6,9 @@ import { ApartmentDetailPage } from "../../../../features/apartments/apartment-d
 
 export default function ApartmentDetailRoute() {
   const params = useParams<{ apartmentId: string }>();
+  const apartmentId = params?.apartmentId;
 
-  return <ApartmentDetailPage apartmentId={params.apartmentId} />;
+  if (!apartmentId) return null;
+
+  return <ApartmentDetailPage apartmentId={apartmentId} />;
 }

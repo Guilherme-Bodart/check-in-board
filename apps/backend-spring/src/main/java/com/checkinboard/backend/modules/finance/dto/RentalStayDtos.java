@@ -12,6 +12,7 @@ public final class RentalStayDtos {
     private RentalStayDtos() {}
 
     public record UpsertRentalStayRequest(
+        @Size(max = 64) String id,
         @NotBlank @Size(max = 64) String apartmentId,
         @Size(max = 160) String guestName,
         @Size(max = 80) String channel,

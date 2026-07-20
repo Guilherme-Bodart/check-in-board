@@ -19,6 +19,7 @@ import { parseMoneyToCents } from "./money";
 
 type FinanceFormState = {
   apartmentId: string;
+  rentalStayId: string;
   type: FinancialEntryType;
   category: string;
   description: string;
@@ -40,6 +41,7 @@ const expenseCategories = [
 
 const emptyForm: FinanceFormState = {
   apartmentId: "",
+  rentalStayId: "",
   type: "revenue",
   category: "",
   description: "",
@@ -51,11 +53,42 @@ const emptyForm: FinanceFormState = {
 export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
   const router = useRouter();
   const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [rentalStays, setRentalStays] = useState<any[]>([]); // We will refine this later
   const [form, setForm] = useState<FinanceFormState>(emptyForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const isEditing = Boolean(entryId);
+
+  useEffect(() => {
+    const session = readStoredSession();
+    if (!session) return;
+    
+    // Fetch rental stays whenever apartmentId changes
+    async function loadStays() {
+      if (!form.apartmentId) {
+        setRentalStays([]);
+        return;
+      }
+      try {
+        const { fetchRentalStays } = await import("./rental-stay-api");
+        const dateFrom = new Date();
+        dateFrom.setMonth(dateFrom.getMonth() - 2);
+        const dateTo = new Date();
+        dateTo.setMonth(dateTo.getMonth() + 2);
+        
+        const stays = await fetchRentalStays(session.token, {
+          dateFrom: dateFrom.toISOString().slice(0, 10),
+          dateTo: dateTo.toISOString().slice(0, 10),
+          apartmentId: form.apartmentId,
+        });
+        setRentalStays(stays);
+      } catch (err) {
+        console.error("Failed to fetch rental stays", err);
+      }
+    }
+    loadStays();
+  }, [form.apartmentId]);
 
   useEffect(() => {
     const session = readStoredSession();
@@ -80,6 +113,7 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
           setForm({
             amount: String((entry.amountCents / 100).toFixed(2)).replace(".", ","),
             apartmentId: entry.apartmentId,
+            rentalStayId: entry.rentalStayId ?? "",
             category: entry.category,
             currency: entry.currency,
             description: entry.description ?? "",
@@ -120,6 +154,7 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
       const payload = {
         amountCents,
         apartmentId: form.apartmentId,
+        rentalStayId: form.rentalStayId || undefined,
         category: form.category,
         currency: form.currency,
         description: form.description,
@@ -168,6 +203,22 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
               ))}
             </Select>
           </Field>
+
+          {rentalStays.length > 0 && (
+            <Field label="Vincular a uma hospedagem (opcional)">
+              <Select
+                onChange={(event) => setForm({ ...form, rentalStayId: event.target.value })}
+                value={form.rentalStayId}
+              >
+                <option value="">Não vincular</option>
+                {rentalStays.map((stay) => (
+                  <option key={stay.id} value={stay.id}>
+                    {stay.guestName || "Hóspede"} ({new Date(stay.checkIn).toLocaleDateString()} a {new Date(stay.checkOut).toLocaleDateString()})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Tipo">

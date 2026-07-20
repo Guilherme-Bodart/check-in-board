@@ -26,11 +26,11 @@ public class ReservationEntity {
     @JoinColumn(name = "apartment_id", nullable = false)
     private ApartmentEntity apartment;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "ical_source_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ical_source_id")
     private IcalSourceEntity icalSource;
 
-    @Column(name = "external_event_key", nullable = false)
+    @Column(name = "external_event_key")
     private String externalEventKey;
 
     @Column(name = "external_uid")
@@ -42,6 +42,9 @@ public class ReservationEntity {
 
     @Column(name = "guest_name")
     private String guestName;
+
+    @Column(name = "guest_count")
+    private Integer guestCount;
 
     @Column(name = "starts_at", nullable = false)
     private Instant startsAt;
@@ -81,6 +84,25 @@ public class ReservationEntity {
         this.externalEventKey = externalEventKey;
     }
 
+    public ReservationEntity(
+        String id,
+        ApartmentEntity apartment,
+        Instant startsAt,
+        Instant endsAt,
+        String guestName,
+        Integer guestCount
+    ) {
+        this.id = id;
+        this.apartment = apartment;
+        this.startsAt = startsAt;
+        this.endsAt = endsAt;
+        this.guestName = guestName;
+        this.guestCount = guestCount;
+        this.status = ReservationStatus.confirmed;
+        this.lastSeenInFeedAt = Instant.now();
+        this.missingInFeedCount = 0;
+    }
+
     @PrePersist
     void prePersist() {
         Instant now = Instant.now();
@@ -110,6 +132,11 @@ public class ReservationEntity {
         missingInFeedCount = 0;
     }
 
+    public void updateManualFields(String guestName, Integer guestCount) {
+        this.guestName = guestName;
+        this.guestCount = guestCount;
+    }
+
     public String getId() {
         return id;
     }
@@ -136,6 +163,10 @@ public class ReservationEntity {
 
     public String getGuestName() {
         return guestName;
+    }
+
+    public Integer getGuestCount() {
+        return guestCount;
     }
 
     public Instant getStartsAt() {

@@ -21,10 +21,24 @@ public final class ReservationDtos {
         Instant startsAt,
         Instant endsAt,
         String rawSummary,
-        String provider
+        String provider,
+        String guestName,
+        Integer guestCount
     ) {}
 
     public record ReservationsResponse(List<ReservationResponse> reservations) {}
+
+    public record CreateManualReservationRequest(
+        String guestName,
+        Integer guestCount,
+        Instant startsAt,
+        Instant endsAt
+    ) {}
+
+    public record UpdateReservationRequest(
+        String guestName,
+        Integer guestCount
+    ) {}
 
     public record ManualSyncRequest(@Size(min = 1, max = 2_000_000) String icsText) {}
 
@@ -61,7 +75,9 @@ public final class ReservationDtos {
         ReservationStatus status,
         Instant startsAt,
         Instant endsAt,
-        String rawSummary
+        String rawSummary,
+        String guestName,
+        Integer guestCount
     ) {}
 
     public record OperationsBoardSection(

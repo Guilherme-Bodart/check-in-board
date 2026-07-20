@@ -8,22 +8,26 @@ import { messages } from "../../i18n";
 import { readStoredSession } from "../../lib/session-storage";
 import { fetchApartments } from "../dashboard/dashboard-api";
 import { fetchReservations } from "../reservations/reservations-api";
-import {
-  attachApartmentDetails,
-  reservationLocalDate,
-  type ReservationListItem,
-} from "../reservations/reservation-view-model";
+import { attachApartmentDetails, reservationLocalDate, type ReservationListItem } from "../reservations/reservation-view-model";
+import { fetchRentalStays } from "../finance/rental-stay-api";
+import { BillingModal, type BillingData } from "../finance/components/billing-modal";
+import { ReservationFormModal } from "../reservations/reservation-form-modal";
+import type { RentalStay } from "../../api";
 
 const allApartmentsValue = "all";
 
 export function CalendarPage() {
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [reservations, setReservations] = useState<ReservationListItem[]>([]);
+  const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
+  const [billingData, setBillingData] = useState<BillingData | null>(null);
   const [selectedApartmentId, setSelectedApartmentId] = useState(allApartmentsValue);
   const [month, setMonth] = useState("");
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [editingReservation, setEditingReservation] = useState<ReservationListItem | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   async function loadCalendar(nextApartmentId = selectedApartmentId) {
     const session = readStoredSession();
@@ -47,7 +51,20 @@ export function CalendarPage() {
         ),
       );
 
+      // Fetch rental stays to know which ones are billed
+      const dateFrom = new Date();
+      dateFrom.setMonth(dateFrom.getMonth() - 6); // Fetch last 6 months just in case
+      const dateTo = new Date();
+      dateTo.setMonth(dateTo.getMonth() + 6);
+      
+      const stays = await fetchRentalStays(session.token, {
+        dateFrom: dateFrom.toISOString().slice(0, 10),
+        dateTo: dateTo.toISOString().slice(0, 10),
+        apartmentId: nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
+      });
+
       setApartments(nextApartments);
+      setRentalStays(stays);
       setReservations(
         attachApartmentDetails(reservationGroups.flat(), nextApartments),
       );
@@ -131,7 +148,17 @@ export function CalendarPage() {
               {messages.calendar.monthlyOccupancy}
             </h2>
           </div>
-          <div className="flex flex-col gap-3 lg:flex-row">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <button
+              className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:brightness-110"
+              onClick={() => {
+                setEditingReservation(null);
+                setIsFormOpen(true);
+              }}
+              type="button"
+            >
+              + Nova Reserva
+            </button>
             <div className="relative">
               <Search
                 aria-hidden
@@ -213,6 +240,10 @@ export function CalendarPage() {
               <CalendarCell
                 day={day}
                 key={day.date}
+                onReservationClick={(reservation) => {
+                  setEditingReservation(reservation);
+                  setIsFormOpen(true);
+                }}
                 reservations={reservationsByDay.get(day.date) ?? []}
               />
             ))
@@ -238,28 +269,89 @@ export function CalendarPage() {
               {messages.calendar.emptyReservations}
             </p>
           ) : (
-            monthReservations.map((reservation) => (
-              <article
-                className="grid gap-3 rounded-2xl border border-border bg-surface-muted p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
-                key={reservation.id}
-              >
-                <div>
-                  <strong className="text-sm font-semibold text-text-primary">
-                    {reservation.rawSummary ?? messages.calendar.reservationFallback}
-                  </strong>
-                  <p className="mt-1 flex items-center gap-2 text-sm text-text-secondary">
-                    <Home aria-hidden className="h-4 w-4 text-primary" />
-                    {reservation.apartmentName} | {reservation.ownerName}
-                  </p>
-                </div>
-                <span className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-secondary">
-                  {reservation.provider}
-                </span>
-              </article>
-            ))
+            monthReservations.map((reservation) => {
+              const stay = rentalStays.find((s) => s.id === reservation.id);
+              
+              return (
+                <article
+                  className="grid gap-3 rounded-2xl border border-border bg-surface-muted p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                  key={reservation.id}
+                >
+                  <div>
+                    <strong className="text-sm font-semibold text-text-primary">
+                      {reservation.guestName || reservation.rawSummary || messages.calendar.reservationFallback}
+                      {reservation.guestCount ? ` (${reservation.guestCount} hóspedes)` : ""}
+                    </strong>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-text-secondary">
+                      <Home aria-hidden className="h-4 w-4 text-primary" />
+                      {reservation.apartmentName} | {reservation.ownerName}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary"
+                      onClick={() => {
+                        setEditingReservation(reservation);
+                        setIsFormOpen(true);
+                      }}
+                      type="button"
+                    >
+                      Editar Dados
+                    </button>
+                    <span className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-secondary">
+                      {reservation.provider}
+                    </span>
+                    {stay ? (
+                      <span className="rounded-full bg-success-soft px-3 py-1 text-xs font-semibold text-success">
+                        Faturado ({new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(stay.rentAmountCents / 100)})
+                      </span>
+                    ) : (
+                      <button
+                        className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white transition hover:brightness-110"
+                        onClick={() =>
+                          setBillingData({
+                            id: reservation.id,
+                            apartmentId: reservation.apartmentId,
+                            guestName: reservation.rawSummary || "Hóspede (Automático)",
+                            channel: reservation.provider,
+                            checkIn: reservation.startsAt,
+                            checkOut: reservation.endsAt,
+                          })
+                        }
+                        type="button"
+                      >
+                        Faturar Reserva
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })
           )}
         </div>
       </section>
+
+      <BillingModal
+        data={billingData}
+        isOpen={billingData !== null}
+        onClose={() => setBillingData(null)}
+        onSuccess={() => {
+          setBillingData(null);
+          void loadCalendar(); // Reload to show updated status
+        }}
+      />
+
+      <ReservationFormModal
+        apartments={apartments}
+        apartmentId={selectedApartmentId}
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSaved={() => {
+          setIsFormOpen(false);
+          void loadCalendar();
+        }}
+        reservation={editingReservation as any}
+      />
     </div>
   );
 }
@@ -267,9 +359,11 @@ export function CalendarPage() {
 function CalendarCell({
   day,
   reservations,
+  onReservationClick,
 }: {
   day: CalendarDay;
   reservations: ReservationListItem[];
+  onReservationClick: (r: ReservationListItem) => void;
 }) {
   return (
     <div
@@ -294,13 +388,14 @@ function CalendarCell({
       <div className="mt-2 grid gap-1">
         {reservations.slice(0, 3).map((reservation) => (
           <div
-            className="truncate rounded-lg bg-primary-soft px-2 py-1 text-[11px] font-medium text-primary"
+            className="truncate rounded-lg bg-primary-soft px-2 py-1 text-[11px] font-medium text-primary cursor-pointer hover:bg-primary-soft/80"
             key={`${reservation.id}-${day.date}`}
+            onClick={() => onReservationClick(reservation)}
             title={`${reservation.apartmentName} - ${
-              reservation.rawSummary ?? messages.calendar.reservationFallback
+              reservation.guestName || reservation.rawSummary || messages.calendar.reservationFallback
             }`}
           >
-            {reservation.apartmentName}
+            {reservation.guestName || reservation.apartmentName}
           </div>
         ))}
         {reservations.length > 3 ? (

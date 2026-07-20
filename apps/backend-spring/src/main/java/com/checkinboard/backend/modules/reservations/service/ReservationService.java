@@ -12,6 +12,8 @@ import com.checkinboard.backend.modules.icalsources.model.IcalSourceEntity;
 import com.checkinboard.backend.modules.icalsources.repository.IcalSourceRepository;
 import com.checkinboard.backend.modules.icalsources.service.IcalUrlPolicy;
 import com.checkinboard.backend.modules.icalsources.service.IcalUrlPolicyException;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.CreateManualReservationRequest;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.UpdateReservationRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncSummary;
@@ -258,6 +260,54 @@ public class ReservationService {
         }
     }
 
+    @Transactional
+    public ReservationResponse createManualReservation(
+        String userId,
+        String apartmentId,
+        CreateManualReservationRequest request
+    ) {
+        ApartmentMembershipEntity membership = getMembership(userId, apartmentId);
+        if (!membership.canView()) {
+            throw forbiddenApartmentAccess();
+        }
+
+        if (request.startsAt().isAfter(request.endsAt()) || request.startsAt().equals(request.endsAt())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid date range.");
+        }
+
+        ReservationEntity reservation = new ReservationEntity(
+            newId(),
+            membership.getApartment(),
+            request.startsAt(),
+            request.endsAt(),
+            request.guestName(),
+            request.guestCount()
+        );
+
+        reservationRepository.save(reservation);
+        return toResponse(reservation);
+    }
+
+    @Transactional
+    public ReservationResponse updateReservation(
+        String userId,
+        String apartmentId,
+        String reservationId,
+        UpdateReservationRequest request
+    ) {
+        assertCanView(userId, apartmentId);
+
+        ReservationEntity reservation = reservationRepository
+            .findById(reservationId)
+            .filter(r -> r.getApartment().getId().equals(apartmentId))
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Reservation not found."));
+
+        reservation.updateManualFields(request.guestName(), request.guestCount());
+        reservationRepository.save(reservation);
+        
+        return toResponse(reservation);
+    }
+
     @Transactional(readOnly = true)
     public SyncRunsResponse syncRuns(String userId, String icalSourceId) {
         IcalSourceEntity icalSource = findIcalSource(icalSourceId);
@@ -357,14 +407,16 @@ public class ReservationService {
         return new ReservationResponse(
             reservation.getId(),
             reservation.getApartment().getId(),
-            reservation.getIcalSource().getId(),
+            reservation.getIcalSource() != null ? reservation.getIcalSource().getId() : null,
             reservation.getExternalEventKey(),
             reservation.getExternalUid(),
             reservation.getStatus(),
             reservation.getStartsAt(),
             reservation.getEndsAt(),
             reservation.getRawSummary(),
-            reservation.getIcalSource().getProvider()
+            reservation.getIcalSource() != null ? reservation.getIcalSource().getProvider() : "manual",
+            reservation.getGuestName(),
+            reservation.getGuestCount()
         );
     }
 
@@ -380,12 +432,14 @@ public class ReservationService {
         return new OperationsBoardReservationResponse(
             reservation.getId(),
             reservation.getApartment().getId(),
-            reservation.getIcalSource().getId(),
-            reservation.getIcalSource().getProvider(),
+            reservation.getIcalSource() != null ? reservation.getIcalSource().getId() : null,
+            reservation.getIcalSource() != null ? reservation.getIcalSource().getProvider() : "manual",
             reservation.getStatus(),
             reservation.getStartsAt(),
             reservation.getEndsAt(),
-            reservation.getRawSummary()
+            reservation.getRawSummary(),
+            reservation.getGuestName(),
+            reservation.getGuestCount()
         );
     }
 

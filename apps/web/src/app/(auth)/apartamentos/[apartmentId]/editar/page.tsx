@@ -6,6 +6,9 @@ import { ApartmentFormPage } from "../../../../../features/apartments/apartment-
 
 export default function EditApartmentRoute() {
   const params = useParams<{ apartmentId: string }>();
+  const apartmentId = params?.apartmentId;
 
-  return <ApartmentFormPage apartmentId={params.apartmentId} />;
+  if (!apartmentId) return null;
+
+  return <ApartmentFormPage apartmentId={apartmentId} />;
 }

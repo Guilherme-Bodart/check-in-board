@@ -72,7 +72,7 @@ public class RentalStayService {
         );
         RentalStayEntity stay = rentalStayRepository.save(
             new RentalStayEntity(
-                newId(),
+                normalizeOptional(request.id()) != null ? request.id().trim() : newId(),
                 membership.getOrganization(),
                 apartment,
                 apartment.getOwner(),

@@ -187,6 +187,12 @@ export function IcalSourcesManagement({
           url: form.url.trim(),
         });
         savedSourceId = response.icalSource.id;
+        
+        try {
+          await syncIcalSource(session.token, savedSourceId);
+        } catch (error) {
+          console.error("Failed to sync initial iCal:", error);
+        }
       }
 
       setForm(emptyIcalForm);

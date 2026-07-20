@@ -6,6 +6,9 @@ import { FinanceEntryFormPage } from "../../../../../../features/finance/finance
 
 export default function EditFinancialEntryRoute() {
   const params = useParams<{ entryId: string }>();
+  const entryId = params?.entryId;
 
-  return <FinanceEntryFormPage entryId={params.entryId} />;
+  if (!entryId) return null;
+
+  return <FinanceEntryFormPage entryId={entryId} />;
 }

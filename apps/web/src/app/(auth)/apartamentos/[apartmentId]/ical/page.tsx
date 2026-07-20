@@ -6,6 +6,9 @@ import { ApartmentIcalPage } from "../../../../../features/apartments/apartment-
 
 export default function ApartmentIcalRoute() {
   const params = useParams<{ apartmentId: string }>();
+  const apartmentId = params?.apartmentId;
 
-  return <ApartmentIcalPage apartmentId={params.apartmentId} />;
+  if (!apartmentId) return null;
+
+  return <ApartmentIcalPage apartmentId={apartmentId} />;
 }

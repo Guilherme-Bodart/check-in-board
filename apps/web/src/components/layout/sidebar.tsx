@@ -33,7 +33,7 @@ export function Sidebar({
   return (
     <aside
       aria-label={messages.shell.sidebarLabel}
-      className="flex min-h-screen flex-col border-r border-border bg-surface px-5 py-6"
+      className="sticky top-0 flex h-screen flex-col overflow-y-auto border-r border-border bg-surface px-5 py-6"
     >
       <div className="mb-8">
         <strong className="block text-lg font-semibold tracking-tight text-text-primary">

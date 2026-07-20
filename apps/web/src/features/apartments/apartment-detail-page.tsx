@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarDays, Pencil } from "lucide-react";
+import { CalendarDays, DollarSign, Pencil } from "lucide-react";
 
 import type { Apartment } from "../../api";
 import { PageHeader } from "../../components/ui/page-header";
@@ -85,6 +85,13 @@ export function ApartmentDetailPage({ apartmentId }: { apartmentId: string }) {
               >
                 <CalendarDays aria-hidden className="h-4 w-4" />
                 Gerenciar iCal
+              </Link>
+              <Link
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-text-primary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
+                href={`/apartamentos/${apartment.id}/financeiro`}
+              >
+                <DollarSign aria-hidden className="h-4 w-4" />
+                Financeiro
               </Link>
             </div>
           </div>
