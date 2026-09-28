@@ -2,22 +2,21 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  Calendar as CalendarIcon,
-  CheckCircle2,
-  Copy,
-  DollarSign,
-  Sparkles,
-  User,
-  Users,
-  X,
   AlertCircle,
   AlertTriangle,
-  Clock,
   Building2,
+  CheckCircle2,
+  Clock,
+  Copy,
+  DollarSign,
+  Plus,
   ShieldCheck,
-  Tag,
-  CheckSquare,
-  Sparkle,
+  Sparkles,
+  Trash2,
+  User,
+  Users,
+  Wrench,
+  X,
 } from "lucide-react";
 
 import type { Apartment, RentalStay } from "../../../api";
@@ -26,9 +25,9 @@ import { Field, Input, Select } from "../../../components/ui/form-controls";
 import { MessageBanner } from "../../../components/ui/message-banner";
 import { readStoredSession } from "../../../lib/session-storage";
 import { createTask } from "../../dashboard/dashboard-api";
-import { createRentalStay, updateRentalStay } from "../../finance/rental-stay-api";
 import { createFinancialEntry } from "../../finance/finance-api";
 import { formatMoney, parseMoneyToCents } from "../../finance/money";
+import { createRentalStay, updateRentalStay } from "../../finance/rental-stay-api";
 import { createManualReservation, updateReservation } from "../../reservations/reservations-api";
 import { formatDateBR, nightsBetween, type ReservationListItem } from "../../reservations/reservation-view-model";
 
@@ -41,6 +40,24 @@ export type ReservationUnifiedModalProps = {
   defaultApartmentId?: string;
   onClose: () => void;
   onSaved: () => void;
+};
+
+export type OperationalCategory = "limpeza" | "manutencao" | "inspecao" | "cortesia" | "outros";
+
+export type OperationalItem = {
+  id: string;
+  category: OperationalCategory;
+  title: string;
+  amount: string;
+  scheduleOn: "checkout" | "checkin" | "now";
+};
+
+const categoryLabels: Record<OperationalCategory, string> = {
+  limpeza: "🧹 Limpeza & Lavanderia",
+  manutencao: "🔧 Manutenção & Reparos",
+  inspecao: "📋 Inspeção / Vistoria",
+  cortesia: "🎁 Cortesia Boas-vindas",
+  outros: "📌 Outra Tarefa / Despesa",
 };
 
 export function ReservationUnifiedModal({
@@ -64,11 +81,21 @@ export function ReservationUnifiedModal({
   const [guestCount, setGuestCount] = useState("");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
+  const [checkInTime, setCheckInTime] = useState("14:00");
+  const [checkOutTime, setCheckOutTime] = useState("10:00");
   const [rentAmount, setRentAmount] = useState("");
-  const [cleaningFee, setCleaningFee] = useState("190,00");
-  const [scheduleCleaningTask, setScheduleCleaningTask] = useState(true);
-  const [cleaningNotes, setCleaningNotes] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Operational items (Limpeza, Manutenção, etc.)
+  const [operationalItems, setOperationalItems] = useState<OperationalItem[]>([
+    {
+      id: "1",
+      category: "limpeza",
+      title: "Limpeza e lavanderia pós check-out",
+      amount: "190,00",
+      scheduleOn: "checkout",
+    },
+  ]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -93,23 +120,24 @@ export function ReservationUnifiedModal({
     return cents / totalNights;
   }, [rentAmount, totalNights]);
 
+  // Total operational expenses
+  const totalOperationalExpensesCents = useMemo(() => {
+    return operationalItems.reduce((sum, item) => sum + parseMoneyToCents(item.amount), 0);
+  }, [operationalItems]);
+
   // Overbooking / Date Conflict Detection
   const conflictingReservation = useMemo(() => {
     if (!formApartmentId || !startsAt || !endsAt) return null;
 
     return allReservations.find((res) => {
-      // Don't conflict with itself
       if (reservation && res.id === reservation.id) return false;
-      // Must be same apartment
       if (res.apartmentId !== formApartmentId) return false;
 
       const resStart = res.startsAt.slice(0, 10);
       const resEnd = res.endsAt.slice(0, 10);
 
       // Overlap: A starts before B ends AND A ends after B starts
-      // Note: Same-day turnover (resEnd === startsAt or resStart === endsAt) is allowed!
-      const hasConflict = startsAt < resEnd && endsAt > resStart;
-      return hasConflict;
+      return startsAt < resEnd && endsAt > resStart;
     });
   }, [allReservations, formApartmentId, startsAt, endsAt, reservation]);
 
@@ -125,6 +153,8 @@ export function ReservationUnifiedModal({
         setGuestCount(reservation.guestCount ? String(reservation.guestCount) : "1");
         setStartsAt(reservation.startsAt.substring(0, 10));
         setEndsAt(reservation.endsAt.substring(0, 10));
+        setCheckInTime("14:00");
+        setCheckOutTime("10:00");
 
         if (existingStay) {
           setRentAmount(
@@ -137,9 +167,16 @@ export function ReservationUnifiedModal({
           setRentAmount("");
           setNotes("");
         }
-        setCleaningFee("190,00");
-        setScheduleCleaningTask(true);
-        setCleaningNotes("Limpeza e lavanderia pós check-out");
+
+        setOperationalItems([
+          {
+            id: "1",
+            category: "limpeza",
+            title: "Limpeza e lavanderia pós check-out",
+            amount: "190,00",
+            scheduleOn: "checkout",
+          },
+        ]);
       } else {
         const initialAptId =
           defaultApartmentId && defaultApartmentId !== "all"
@@ -149,9 +186,8 @@ export function ReservationUnifiedModal({
         setGuestName("");
         setGuestCount("1");
         setRentAmount("");
-        setCleaningFee("190,00");
-        setScheduleCleaningTask(true);
-        setCleaningNotes("Limpeza e lavanderia pós check-out");
+        setCheckInTime("14:00");
+        setCheckOutTime("10:00");
         setNotes("");
 
         const today = new Date().toISOString().substring(0, 10);
@@ -159,6 +195,16 @@ export function ReservationUnifiedModal({
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 2);
         setEndsAt(tomorrow.toISOString().substring(0, 10));
+
+        setOperationalItems([
+          {
+            id: "1",
+            category: "limpeza",
+            title: "Limpeza e lavanderia pós check-out",
+            amount: "190,00",
+            scheduleOn: "checkout",
+          },
+        ]);
       }
     }
   }, [isOpen, reservation, existingStay, apartments, defaultApartmentId]);
@@ -172,6 +218,29 @@ export function ReservationUnifiedModal({
       reservation?.rawSummary?.toLowerCase().includes("reserved") ||
         reservation?.rawSummary?.toLowerCase().includes("airbnb"),
     );
+
+  function addOperationalItem() {
+    setOperationalItems((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        category: "manutencao",
+        title: "Manutenção / Reparo rápido",
+        amount: "50,00",
+        scheduleOn: "checkout",
+      },
+    ]);
+  }
+
+  function removeOperationalItem(id: string) {
+    setOperationalItems((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function updateOperationalItem(id: string, updates: Partial<OperationalItem>) {
+    setOperationalItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+    );
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -188,7 +257,11 @@ export function ReservationUnifiedModal({
 
       if (conflictingReservation && !isIcal) {
         const confirmOverbook = window.confirm(
-          `Atenção: Já existe uma reserva no período selecionado (${conflictingReservation.startsAt.slice(0, 10)} a ${conflictingReservation.endsAt.slice(0, 10)}) para "${conflictingReservation.guestName || conflictingReservation.rawSummary}". Deseja continuar mesmo com o risco de overbooking?`,
+          `Atenção: Já existe uma reserva no período selecionado (${formatDateBR(
+            conflictingReservation.startsAt,
+          )} a ${formatDateBR(conflictingReservation.endsAt)}) para "${
+            conflictingReservation.guestName || conflictingReservation.rawSummary
+          }". Deseja continuar com a reserva?`,
         );
         if (!confirmOverbook) {
           setIsSaving(false);
@@ -200,16 +273,19 @@ export function ReservationUnifiedModal({
       const parsedGuestCount = guestCount ? parseInt(guestCount, 10) : 1;
       const effectiveGuestName = guestName.trim() || reservation?.rawSummary || "Hóspede";
 
+      const startDateTimeStr = `${startsAt}T${checkInTime || "14:00"}:00`;
+      const endDateTimeStr = `${endsAt}T${checkOutTime || "10:00"}:00`;
+
       let reservationId = reservation?.id;
 
       if (isEditing && reservationId) {
-        // 1. Update guest name and guest count on reservation
+        // 1. Update guest details
         await updateReservation(session.token, formApartmentId, reservationId, {
           guestName: guestName.trim(),
           guestCount: parsedGuestCount,
         });
 
-        // 2. If rent amount is filled, create or update RentalStay
+        // 2. Financial stay
         if (rentAmountCents > 0) {
           const stayData = {
             id: reservationId,
@@ -237,13 +313,12 @@ export function ReservationUnifiedModal({
           {
             guestName: effectiveGuestName,
             guestCount: parsedGuestCount,
-            startsAt: new Date(startsAt + "T14:00:00").toISOString(),
-            endsAt: new Date(endsAt + "T11:00:00").toISOString(),
+            startsAt: new Date(startDateTimeStr).toISOString(),
+            endsAt: new Date(endDateTimeStr).toISOString(),
           },
         );
         reservationId = newReservation.id;
 
-        // If rent amount filled, create RentalStay
         if (rentAmountCents > 0 && reservationId) {
           await createRentalStay(session.token, {
             id: reservationId,
@@ -259,38 +334,58 @@ export function ReservationUnifiedModal({
         }
       }
 
-      // 3. Limpeza & Lavanderia: Lançamento de despesa e Tarefa Operacional no Check-out
-      const cleaningFeeCents = parseMoneyToCents(cleaningFee);
-      if (reservationId && scheduleCleaningTask && cleaningFeeCents > 0) {
-        // Create financial expense entry (for the owner statement deduction)
-        await createFinancialEntry(session.token, {
-          apartmentId: formApartmentId,
-          rentalStayId: reservationId,
-          type: "expense",
-          category: "limpeza",
-          description: `Limpeza e lavanderia - ${effectiveGuestName}`,
-          amountCents: cleaningFeeCents,
-          currency: "BRL",
-          occurredOn: endsAt,
-        });
+      // 3. Process Operational Items (Limpeza, Manutenção, Cortesia, etc.)
+      if (reservationId) {
+        for (const item of operationalItems) {
+          const cents = parseMoneyToCents(item.amount);
+          if (cents <= 0 && !item.title.trim()) continue;
 
-        // Create operational task for team on checkout date
-        try {
-          await createTask(session.token, formApartmentId, {
-            reservationId,
-            title: `Limpeza Check-out - ${effectiveGuestName}`,
-            description: `${cleaningNotes || "Limpeza e lavanderia pós check-out"}. Valor da faxina: ${formatMoney(cleaningFeeCents)}`,
-            dueAt: new Date(endsAt + "T11:00:00").toISOString(),
-          });
-        } catch {
-          // Task created if supported
+          const occurredOnDate =
+            item.scheduleOn === "checkin"
+              ? startsAt
+              : item.scheduleOn === "checkout"
+              ? endsAt
+              : new Date().toISOString().slice(0, 10);
+
+          const scheduledDateTime =
+            item.scheduleOn === "checkin"
+              ? startDateTimeStr
+              : item.scheduleOn === "checkout"
+              ? endDateTimeStr
+              : new Date().toISOString();
+
+          // Financial expense entry
+          if (cents > 0) {
+            await createFinancialEntry(session.token, {
+              apartmentId: formApartmentId,
+              rentalStayId: reservationId,
+              type: "expense",
+              category: item.category,
+              description: `${item.title} - ${effectiveGuestName}`,
+              amountCents: cents,
+              currency: "BRL",
+              occurredOn: occurredOnDate,
+            });
+          }
+
+          // Operational task
+          try {
+            await createTask(session.token, formApartmentId, {
+              reservationId,
+              title: `${categoryLabels[item.category].split(" ")[1] ?? "Tarefa"} - ${effectiveGuestName}`,
+              description: `${item.title}. ${cents > 0 ? `Valor: ${formatMoney(cents)}` : ""}`,
+              dueAt: new Date(scheduledDateTime).toISOString(),
+            });
+          } catch {
+            // Task fallback
+          }
         }
       }
 
       setIsSuccess(true);
       setTimeout(() => {
         onSaved();
-      }, 350);
+      }, 300);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao salvar dados da reserva.");
     } finally {
@@ -308,60 +403,55 @@ export function ReservationUnifiedModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <section className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3 backdrop-blur-sm animate-in fade-in duration-200">
+      <section className="relative flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-surface-muted/50 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-border bg-surface-muted/50 px-5 py-3 shrink-0">
           <div className="flex items-center gap-3">
             <span
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-bold ${
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
                 isAirbnb
                   ? "bg-[#FFF1F2] text-[#E11D48] ring-1 ring-[#FECDD3]"
                   : provider === "manual"
-                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                    : "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                  : "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
               }`}
             >
               {isAirbnb ? "Ab" : provider === "manual" ? "Mn" : "Bk"}
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold tracking-tight text-text-primary">
+                <h2 className="text-base font-bold tracking-tight text-text-primary">
                   {isEditing ? "Gestão da Reserva" : "Nova Reserva Manual"}
                 </h2>
                 <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                     isAirbnb
                       ? "bg-[#FFE4E6] text-[#BE123C]"
                       : provider === "manual"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-blue-100 text-blue-800"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-blue-100 text-blue-800"
                   }`}
                 >
                   {isAirbnb ? "Airbnb iCal" : provider === "manual" ? "Manual" : provider}
                 </span>
                 {existingStay ? (
-                  <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                     <CheckCircle2 className="h-3 w-3" /> Faturado
                   </span>
                 ) : (
-                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                    Pendente de Preço
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                    Pendente
                   </span>
                 )}
               </div>
-              <p className="text-xs text-text-muted">
-                {isEditing
-                  ? `ID: ${reservation?.id?.slice(0, 8)}... • Sincronização oficial Airbnb`
-                  : "Cadastre uma reserva direta fora de plataformas"}
-              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {reservation?.externalEventKey && (
               <button
-                className="flex items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-secondary transition hover:border-primary hover:text-primary"
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={copyReservationCode}
                 title="Copiar código externo da reserva"
                 type="button"
@@ -372,7 +462,7 @@ export function ReservationUnifiedModal({
             )}
             <button
               aria-label="Fechar"
-              className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-border text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
               onClick={onClose}
               type="button"
             >
@@ -381,306 +471,328 @@ export function ReservationUnifiedModal({
           </div>
         </div>
 
-        {/* Content Body */}
+        {/* Form Body - Compact 2-Column Grid */}
         <form className="flex flex-1 flex-col overflow-y-auto" onSubmit={handleSubmit}>
-          <div className="space-y-6 p-6">
+          <div className="p-4 space-y-3">
             {message && <MessageBanner isError message={message} />}
 
-            {/* Overbooking / Date Conflict Alert */}
+            {/* Overbooking Alert */}
             {conflictingReservation && (
-              <div className="flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 p-4 text-red-900 shadow-sm animate-pulse">
-                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <div className="flex items-center gap-2.5 rounded-xl border border-red-300 bg-red-50 p-2.5 text-xs text-red-900 shadow-sm animate-pulse">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
                 <div>
-                  <strong className="block text-sm font-bold">
-                    Alerta de Conflito de Datas (Overbooking)!
-                  </strong>
-                  <p className="mt-0.5 text-xs leading-relaxed text-red-800">
-                    Este apartamento já possui uma reserva confirmada para{" "}
-                    <strong>{conflictingReservation.guestName || conflictingReservation.rawSummary}</strong>{" "}
-                    no período de{" "}
-                    <strong>{formatDateBR(conflictingReservation.startsAt)} a {formatDateBR(conflictingReservation.endsAt)}</strong>.
-                    Verifique as datas para não sobrepor hóspedes no mesmo imóvel.
-                  </p>
+                  <strong>Alerta de Conflito!</strong> Conflita com a reserva de{" "}
+                  <strong>{conflictingReservation.guestName || conflictingReservation.rawSummary}</strong> (
+                  {formatDateBR(conflictingReservation.startsAt)} a {formatDateBR(conflictingReservation.endsAt)}).
                 </div>
               </div>
             )}
 
-            {/* Imóvel & Locador Principal Card */}
-            <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-surface to-surface-muted/40 p-4.5 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                {/* Apartamento */}
-                <div className="flex items-start gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-                      Imóvel & Apartamento
-                    </span>
-                    {!isEditing ? (
-                      <div className="mt-1">
+            {/* Main Grid: Left Column (Reserva & Financeiro), Right Column (Tarefas Operacionais) */}
+            <div className="grid gap-4 lg:grid-cols-12">
+              {/* LEFT COLUMN: Estadia, Hóspede & Preço (Span 7) */}
+              <div className="lg:col-span-7 space-y-3">
+                {/* Imóvel, Proprietário & Datas */}
+                <div className="rounded-xl border border-border bg-gradient-to-br from-surface to-surface-muted/30 p-3 shadow-xs space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      {!isEditing ? (
                         <Select
-                          className="h-9 font-medium"
+                          className="h-8 text-xs font-semibold"
                           onChange={(e) => setFormApartmentId(e.target.value)}
                           required
                           value={formApartmentId}
                         >
                           {apartments.map((apt) => (
                             <option key={apt.id} value={apt.id}>
-                              {apt.name}
+                              {apt.name} ({apt.owner?.name ?? "Proprietário"})
                             </option>
                           ))}
                         </Select>
+                      ) : (
+                        <span className="text-xs font-bold text-text-primary">
+                          {reservation?.apartmentName}
+                        </span>
+                      )}
+                    </div>
+
+                    <span className="text-[11px] text-text-muted">
+                      Proprietário: <strong>{selectedApartment?.owner?.name ?? "Não informado"}</strong>
+                    </span>
+                  </div>
+
+                  {/* Datas & Horários (Check-in & Check-out Editáveis) */}
+                  <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2 text-xs">
+                    {/* Check-in */}
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-semibold text-text-muted">Check-in (Entrada)</span>
+                      <div className="flex items-center gap-1">
+                        {!isIcal ? (
+                          <Input
+                            className="h-8 text-xs font-medium"
+                            onChange={(e) => setStartsAt(e.target.value)}
+                            required
+                            type="date"
+                            value={startsAt}
+                          />
+                        ) : (
+                          <span className="h-8 flex items-center font-bold text-text-primary px-2 border rounded-md bg-surface-muted/30">
+                            {formatDateBR(startsAt)}
+                          </span>
+                        )}
+                        <Input
+                          className="h-8 w-20 text-xs font-semibold text-center"
+                          onChange={(e) => setCheckInTime(e.target.value)}
+                          title="Horário de Check-in"
+                          type="time"
+                          value={checkInTime}
+                        />
                       </div>
+                    </div>
+
+                    {/* Check-out */}
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-semibold text-text-muted">Check-out (Saída)</span>
+                      <div className="flex items-center gap-1">
+                        {!isIcal ? (
+                          <Input
+                            className="h-8 text-xs font-medium"
+                            onChange={(e) => setEndsAt(e.target.value)}
+                            required
+                            type="date"
+                            value={endsAt}
+                          />
+                        ) : (
+                          <span className="h-8 flex items-center font-bold text-text-primary px-2 border rounded-md bg-surface-muted/30">
+                            {formatDateBR(endsAt)}
+                          </span>
+                        )}
+                        <Input
+                          className="h-8 w-20 text-xs font-semibold text-center"
+                          onChange={(e) => setCheckOutTime(e.target.value)}
+                          title="Horário de Check-out"
+                          type="time"
+                          value={checkOutTime}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary Indicators */}
+                  <div className="flex items-center justify-between border-t border-border/40 pt-1.5 text-[11px] text-text-muted">
+                    <span className="flex items-center gap-1 font-bold text-primary">
+                      <Clock className="h-3.5 w-3.5" />
+                      {totalNights} {totalNights === 1 ? "diária" : "diárias"}
+                    </span>
+                    <span>
+                      Diária Média: <strong className="text-text-primary">{averageDailyRate > 0 ? formatMoney(averageDailyRate) : "—"}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Hóspede Principal */}
+                <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
+                      <User className="h-3.5 w-3.5 text-primary" />
+                      Hóspede Titular
+                    </span>
+                    {isGenericAirbnbSummary && (
+                      <span className="text-[10px] text-amber-700 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        ⚠ Airbnb importou como "{reservation?.rawSummary}"
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <Input
+                        className="h-8.5 text-xs"
+                        onChange={(e) => setGuestName(e.target.value)}
+                        placeholder="Nome do Hóspede Titular"
+                        required={!isIcal}
+                        value={guestName}
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        className="h-8.5 text-xs text-center"
+                        min={1}
+                        onChange={(e) => setGuestCount(e.target.value)}
+                        placeholder="Pessoas"
+                        type="number"
+                        value={guestCount}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financeiro / Preço da Reserva */}
+                <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
+                      <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                      Preço & Faturamento
+                    </span>
+                    {existingStay ? (
+                      <span className="text-[11px] font-bold text-emerald-700">
+                        Faturado: {formatMoney(existingStay.rentAmountCents)}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-text-muted">
+                          R$
+                        </span>
+                        <Input
+                          className="h-8.5 pl-8 text-xs font-bold text-emerald-700"
+                          inputMode="decimal"
+                          onChange={(e) => setRentAmount(e.target.value)}
+                          placeholder="1500,00"
+                          value={rentAmount}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Input
+                        className="h-8.5 text-xs"
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Notas/Cofre/Pagamento"
+                        value={notes}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: Tarefas & Despesas Operacionais (Span 5) */}
+              <div className="lg:col-span-5 rounded-xl border border-border bg-surface-muted/30 p-3 flex flex-col justify-between space-y-2.5">
+                <div>
+                  <div className="flex items-center justify-between pb-1 border-b border-border">
+                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
+                      <Wrench className="h-3.5 w-3.5 text-primary" />
+                      Tarefas & Despesas Operacionais
+                    </span>
+                    <button
+                      className="flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                      onClick={addOperationalItem}
+                      type="button"
+                    >
+                      <Plus className="h-3 w-3" /> Adicionar
+                    </button>
+                  </div>
+
+                  {/* List of Operational Items */}
+                  <div className="mt-2 space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                    {operationalItems.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-text-muted">
+                        Nenhuma tarefa operacional ou despesa agendada.
+                      </p>
                     ) : (
-                      <strong className="block text-base font-bold text-text-primary">
-                        {reservation?.apartmentName}
-                      </strong>
+                      operationalItems.map((item) => (
+                        <div
+                          className="rounded-lg border border-border bg-surface p-2 text-xs space-y-1.5 shadow-2xs"
+                          key={item.id}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            {/* Categoria */}
+                            <select
+                              className="h-6 rounded border border-border bg-surface-muted px-1.5 text-[10px] font-bold text-text-primary outline-none"
+                              onChange={(e) =>
+                                updateOperationalItem(item.id, {
+                                  category: e.target.value as OperationalCategory,
+                                })
+                              }
+                              value={item.category}
+                            >
+                              {Object.entries(categoryLabels).map(([key, label]) => (
+                                <option key={key} value={key}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+
+                            {/* Execução */}
+                            <select
+                              className="h-6 rounded border border-border bg-surface-muted px-1 text-[10px] font-semibold text-text-secondary outline-none"
+                              onChange={(e) =>
+                                updateOperationalItem(item.id, {
+                                  scheduleOn: e.target.value as "checkout" | "checkin" | "now",
+                                })
+                              }
+                              value={item.scheduleOn}
+                            >
+                              <option value="checkout">Na Saída ({checkOutTime})</option>
+                              <option value="checkin">Na Entrada ({checkInTime})</option>
+                              <option value="now">Imediata</option>
+                            </select>
+
+                            {/* Remover */}
+                            <button
+                              aria-label="Remover item"
+                              className="text-text-muted hover:text-red-600 transition"
+                              onClick={() => removeOperationalItem(item.id)}
+                              type="button"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Título & Valor */}
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <div className="col-span-2">
+                              <Input
+                                className="h-7 text-[11px]"
+                                onChange={(e) => updateOperationalItem(item.id, { title: e.target.value })}
+                                placeholder="Descrição da tarefa"
+                                value={item.title}
+                              />
+                            </div>
+                            <div>
+                              <div className="relative">
+                                <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-text-muted">
+                                  R$
+                                </span>
+                                <Input
+                                  className="h-7 pl-6 text-[11px] font-semibold text-emerald-700"
+                                  inputMode="decimal"
+                                  onChange={(e) => updateOperationalItem(item.id, { amount: e.target.value })}
+                                  placeholder="0,00"
+                                  value={item.amount}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
 
-                {/* Locador Principal / Proprietário */}
-                <div className="flex items-start gap-3 rounded-xl bg-surface px-3.5 py-2.5 ring-1 ring-border sm:min-w-56">
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-info-soft text-info">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="block text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-                      Locador Principal (Proprietário)
-                    </span>
-                    <strong className="text-xs font-bold text-text-primary">
-                      {selectedApartment?.owner?.name ??
-                        reservation?.ownerName ??
-                        "Não informado"}
-                    </strong>
-                    <span className="block text-[10px] text-text-secondary">
-                      {selectedApartment?.owner?.type === "internal"
-                        ? "Imóvel Próprio"
-                        : "Cliente / Terceiro"}
-                      {selectedApartment?.managementCommissionBps
-                        ? ` • Taxa de Gestão: ${selectedApartment.managementCommissionBps / 100}%`
-                        : ""}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Datas da Estadia */}
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-3 sm:grid-cols-4">
-                <div>
-                  <span className="block text-[11px] font-medium text-text-muted">Check-in</span>
-                  {!isIcal ? (
-                    <Input
-                      className="h-8 text-xs"
-                      onChange={(e) => setStartsAt(e.target.value)}
-                      required
-                      type="date"
-                      value={startsAt}
-                    />
-                  ) : (
-                    <strong className="text-sm font-semibold text-text-primary">
-                      {formatDateBR(startsAt)} (a partir 14h)
-                    </strong>
-                  )}
-                </div>
-
-                <div>
-                  <span className="block text-[11px] font-medium text-text-muted">Check-out</span>
-                  {!isIcal ? (
-                    <Input
-                      className="h-8 text-xs"
-                      onChange={(e) => setEndsAt(e.target.value)}
-                      required
-                      type="date"
-                      value={endsAt}
-                    />
-                  ) : (
-                    <strong className="text-sm font-semibold text-text-primary">
-                      {formatDateBR(endsAt)} (até 11h)
-                    </strong>
-                  )}
-                </div>
-
-                <div>
-                  <span className="block text-[11px] font-medium text-text-muted">Duração</span>
-                  <span className="inline-flex items-center gap-1 text-sm font-bold text-primary">
-                    <Clock className="h-3.5 w-3.5" />
-                    {totalNights} {totalNights === 1 ? "diária" : "diárias"}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="block text-[11px] font-medium text-text-muted">Diária Média</span>
-                  <span className="text-sm font-bold text-text-primary">
-                    {averageDailyRate > 0 ? formatMoney(averageDailyRate) : "—"}
+                {/* Total Despesas Operacionais */}
+                <div className="border-t border-border pt-2 flex items-center justify-between text-xs font-semibold text-text-primary">
+                  <span>Total Despesas Lançadas:</span>
+                  <span className="font-bold text-emerald-700">
+                    {formatMoney(totalOperationalExpensesCents)}
                   </span>
                 </div>
               </div>
-
-              {isIcal && (
-                <p className="mt-3 text-[11px] text-text-muted">
-                  🔒 As datas desta estadia são sincronizadas automaticamente pelo iCal do{" "}
-                  <strong className="text-text-secondary">{reservation?.provider}</strong>.
-                </p>
-              )}
-            </div>
-
-            {/* SEÇÃO 1: Dados do Hóspede Principal (Locatário) */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-text-primary">
-                  <User className="h-4 w-4 text-primary" />
-                  Hóspede Principal (Locatário Titular)
-                </h3>
-                {isGenericAirbnbSummary && (
-                  <span className="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
-                    <AlertCircle className="h-3 w-3" /> Requer identificação
-                  </span>
-                )}
-              </div>
-
-              {isGenericAirbnbSummary && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900">
-                  O Airbnb sincronizou esta reserva como{" "}
-                  <span className="font-semibold underline">
-                    "{reservation?.rawSummary || "Reserved"}"
-                  </span>
-                  . Digite o nome real do hóspede abaixo para atualizar no calendário e relatórios:
-                </div>
-              )}
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Nome Completo do Hóspede Titular">
-                  <Input
-                    autoFocus={isGenericAirbnbSummary}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    placeholder="Ex: João Carlos da Silva"
-                    required={!isIcal}
-                    value={guestName}
-                  />
-                </Field>
-
-                <Field label="Quantidade Total de Hóspedes">
-                  <div className="relative">
-                    <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                    <Input
-                      className="pl-9"
-                      min={1}
-                      onChange={(e) => setGuestCount(e.target.value)}
-                      placeholder="Ex: 2"
-                      type="number"
-                      value={guestCount}
-                    />
-                  </div>
-                </Field>
-              </div>
-            </div>
-
-            {/* SEÇÃO 2: Financeiro & Preço */}
-            <div className="space-y-4 border-t border-border pt-5">
-              <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-text-primary">
-                  <DollarSign className="h-4 w-4 text-emerald-600" />
-                  Preço da Reserva
-                </h3>
-                {existingStay ? (
-                  <span className="text-xs font-semibold text-emerald-600">
-                    Valor faturado: {formatMoney(existingStay.rentAmountCents)}
-                  </span>
-                ) : (
-                  <span className="text-xs text-text-muted">
-                    Preencha o valor para faturar no financeiro
-                  </span>
-                )}
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Valor Total da Reserva (R$)">
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-text-muted">
-                      R$
-                    </span>
-                    <Input
-                      className="pl-9 font-semibold text-emerald-700"
-                      inputMode="decimal"
-                      onChange={(e) => setRentAmount(e.target.value)}
-                      placeholder="1850,00"
-                      value={rentAmount}
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Observações & Notas Internas">
-                  <Input
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Ex: Pago via Airbnb; código do cofre 4455"
-                    value={notes}
-                  />
-                </Field>
-              </div>
-            </div>
-
-            {/* SEÇÃO 3: Tarefa de Limpeza Automática & Valor */}
-            <div className="rounded-2xl border border-border bg-surface-muted/40 p-4.5 space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    checked={scheduleCleaningTask}
-                    className="h-4 w-4 rounded text-primary focus:ring-primary"
-                    onChange={(e) => setScheduleCleaningTask(e.target.checked)}
-                    type="checkbox"
-                  />
-                  <span className="text-sm font-bold text-text-primary">
-                    Agendar Tarefa de Limpeza no Check-out
-                  </span>
-                </label>
-                <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-[10px] font-bold uppercase text-primary">
-                  Governança
-                </span>
-              </div>
-
-              {scheduleCleaningTask && (
-                <div className="grid gap-4 pt-1 sm:grid-cols-2">
-                  <Field label="Valor da Limpeza e Lavanderia (R$)">
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-text-muted">
-                        R$
-                      </span>
-                      <Input
-                        className="pl-9 font-medium"
-                        inputMode="decimal"
-                        onChange={(e) => setCleaningFee(e.target.value)}
-                        placeholder="190,00"
-                        value={cleaningFee}
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Instruções para a Equipe de Limpeza">
-                    <Input
-                      onChange={(e) => setCleaningNotes(e.target.value)}
-                      placeholder="Ex: Troca de roupa de cama e toalhas"
-                      value={cleaningNotes}
-                    />
-                  </Field>
-                </div>
-              )}
-              <p className="text-[11px] text-text-muted">
-                A tarefa será agendada automaticamente para a data de saída ({endsAt || "check-out"}) às 11h e o valor será deduzido como despesa de limpeza no Demonstrativo do Proprietário.
-              </p>
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="mt-auto flex flex-col-reverse justify-between gap-3 border-t border-border bg-surface-muted/40 p-4 sm:flex-row sm:items-center">
+          <div className="mt-auto flex items-center justify-between border-t border-border bg-surface-muted/40 px-5 py-3 shrink-0">
             <Button onClick={onClose} type="button" variant="secondary">
               Cancelar
             </Button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button disabled={isSaving || isSuccess} type="submit">
-                {isSaving ? "Salvando..." : isSuccess ? "Salvo com sucesso!" : "Salvar Alterações"}
+                {isSaving ? "Salvando..." : isSuccess ? "Salvo com sucesso!" : "Salvar Reserva"}
               </Button>
             </div>
           </div>
