@@ -7,8 +7,6 @@ import {
   CheckCircle2,
   Clock,
   DollarSign,
-  Download,
-  FileSpreadsheet,
   FileText,
   Printer,
   ShieldCheck,
@@ -19,6 +17,9 @@ import {
 
 import type { Apartment, RentalStay } from "../../../api";
 import { Button } from "../../../components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { formatMoney } from "../../finance/money";
 import {
   formatDateBR,
@@ -37,11 +38,7 @@ export type CalendarReportsModalProps = {
   rentalStaysMap: Map<string, RentalStay>;
 };
 
-type ReportType =
-  | "owner-statement"
-  | "cleaning-schedule"
-  | "building-reception"
-  | "management-dre";
+type ReportType = "owner-statement" | "cleaning-schedule" | "building-reception";
 
 export function CalendarReportsModal({
   isOpen,
@@ -61,7 +58,6 @@ export function CalendarReportsModal({
     return apartments.find((a) => a.id === chosenApartmentId) || apartments[0];
   }, [apartments, chosenApartmentId]);
 
-  // Commission % (e.g. 15% or 20%)
   const commissionPercent = useMemo(() => {
     if (!selectedApt) return 15;
     return selectedApt.managementCommissionBps
@@ -69,7 +65,6 @@ export function CalendarReportsModal({
       : 15;
   }, [selectedApt]);
 
-  // Date range formatted
   const periodLabel = useMemo(() => {
     if (!month || !/^\d{4}-\d{2}$/.test(month)) return "Mês atual";
     const [year, m] = month.split("-").map(Number);
@@ -77,21 +72,19 @@ export function CalendarReportsModal({
     return `01/${String(m).padStart(2, "0")}/${year} à ${lastDay}/${String(m).padStart(2, "0")}/${year}`;
   }, [month]);
 
-  // Filter reservations for chosen apartment in this month
   const aptReservations = useMemo(() => {
     return reservations
       .filter((r) => r.apartmentId === selectedApt?.id)
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   }, [reservations, selectedApt]);
 
-  // Calculate Owner Statement values
   const statementData = useMemo(() => {
     const list = aptReservations.map((res, index) => {
       const stay = rentalStaysMap.get(res.id);
       const rentAmountCents = stay?.rentAmountCents || 0;
       const commissionCents = Math.round((rentAmountCents * commissionPercent) / 100);
-      const cleaningCents = 19000; // R$ 190,00
-      const welcomeGiftCents = 1000; // R$ 10,00
+      const cleaningCents = 19000;
+      const welcomeGiftCents = 1000;
       const totalExpensesCents = commissionCents + cleaningCents + welcomeGiftCents;
 
       return {
@@ -108,7 +101,7 @@ export function CalendarReportsModal({
 
     const totalGrossCents = list.reduce((acc, curr) => acc + curr.rentAmountCents, 0);
     const totalExpensesCents = list.reduce((acc, curr) => acc + curr.totalExpensesCents, 0);
-    const replacementFundCents = list.length > 0 ? 1500 : 0; // R$ 15,00
+    const replacementFundCents = list.length > 0 ? 1500 : 0;
     const totalDueCents = totalExpensesCents + replacementFundCents;
     const netPayoutCents = totalGrossCents - totalDueCents;
 
@@ -122,7 +115,6 @@ export function CalendarReportsModal({
     };
   }, [aptReservations, rentalStaysMap, commissionPercent]);
 
-  // Cleaning schedule data
   const cleaningSchedule = useMemo(() => {
     return reservations
       .map((res) => {
@@ -131,7 +123,7 @@ export function CalendarReportsModal({
           id: res.id,
           apartmentName: res.apartmentName,
           checkoutDate: formatDateBR(res.endsAt),
-          checkoutTime: "11:00",
+          checkoutTime: "10:00",
           guestName: res.guestName || res.rawSummary || "Hóspede",
           cleaningFeeCents: 19000,
           provider: res.provider,
@@ -140,111 +132,70 @@ export function CalendarReportsModal({
       .sort((a, b) => a.checkoutDate.localeCompare(b.checkoutDate));
   }, [reservations, rentalStaysMap]);
 
-  if (!isOpen) return null;
-
   function handlePrint() {
     window.print();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <section className="relative flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-2xl">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-2xl border-border bg-surface shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-surface-muted/50 px-6 py-4.5 print:hidden">
+        <div className="flex items-center justify-between border-b border-border bg-surface-muted/40 px-6 py-4 print:hidden">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary font-bold">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary font-bold">
               <FileText className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-lg font-bold tracking-tight text-text-primary">
+              <DialogTitle className="text-base font-bold tracking-tight text-text-primary">
                 Central de Relatórios & Demonstrativos
-              </h2>
+              </DialogTitle>
               <p className="text-xs text-text-muted">
                 Gere prestação de contas aos proprietários, escala de governança ou lista para portaria
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button className="h-9 gap-1.5 text-xs font-semibold" onClick={handlePrint} variant="secondary">
+          <div className="flex items-center gap-2 pr-6">
+            <Button className="h-8.5 gap-1.5 text-xs font-semibold" onClick={handlePrint} variant="secondary">
               <Printer className="h-3.5 w-3.5" />
-              Imprimir / Salvar PDF
+              Imprimir / PDF
             </Button>
-            <button
-              aria-label="Fechar"
-              className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
-              onClick={onClose}
-              type="button"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
         </div>
 
-        {/* Tab Selector & Filter Toolbar */}
+        {/* Toolbar & Selector */}
         <div className="flex flex-col gap-3 border-b border-border bg-surface px-6 py-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
-          {/* Report Type Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                activeReport === "owner-statement"
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-surface-muted text-text-secondary hover:text-text-primary"
-              }`}
-              onClick={() => setActiveReport("owner-statement")}
-              type="button"
-            >
-              📄 Prestação de Contas (Proprietário)
-            </button>
-            <button
-              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                activeReport === "cleaning-schedule"
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-surface-muted text-text-secondary hover:text-text-primary"
-              }`}
-              onClick={() => setActiveReport("cleaning-schedule")}
-              type="button"
-            >
-              🧹 Escala de Limpeza (Governança)
-            </button>
-            <button
-              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                activeReport === "building-reception"
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-surface-muted text-text-secondary hover:text-text-primary"
-              }`}
-              onClick={() => setActiveReport("building-reception")}
-              type="button"
-            >
-              🏢 Lista de Portaria (Condomínio)
-            </button>
-          </div>
+          <Tabs value={activeReport} onValueChange={(val) => setActiveReport(val as ReportType)}>
+            <TabsList>
+              <TabsTrigger value="owner-statement">📄 Proprietário</TabsTrigger>
+              <TabsTrigger value="cleaning-schedule">🧹 Limpeza</TabsTrigger>
+              <TabsTrigger value="building-reception">🏢 Portaria</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-          {/* Apartment Selector for Owner Statement */}
           {activeReport === "owner-statement" && (
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-text-muted">Imóvel:</span>
-              <select
-                className="h-8 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-primary outline-none focus:border-primary"
-                onChange={(e) => setChosenApartmentId(e.target.value)}
-                value={chosenApartmentId}
-              >
-                {apartments.map((apt) => (
-                  <option key={apt.id} value={apt.id}>
-                    {apt.name} ({apt.owner?.name ?? "Proprietário"})
-                  </option>
-                ))}
-              </select>
+              <Select value={chosenApartmentId} onValueChange={(val) => setChosenApartmentId(val)}>
+                <SelectTrigger className="h-8 w-56 text-xs font-semibold">
+                  <SelectValue placeholder="Selecione o imóvel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {apartments.map((apt) => (
+                    <SelectItem key={apt.id} value={apt.id}>
+                      {apt.name} ({apt.owner?.name ?? "Proprietário"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>
 
-        {/* Report Content Preview (A4 Paper Aesthetic) */}
-        <div className="flex-1 overflow-y-auto bg-neutral-100 p-6 print:bg-white print:p-0">
-          {/* REPORT 1: DEMONSTRATIVO DO PROPRIETÁRIO (EXATAMENTE COMO O ENVIADO PELO USUÁRIO) */}
+        {/* Content Body (A4 Paper Preview) */}
+        <div className="max-h-[72vh] overflow-y-auto bg-neutral-100 p-6 print:bg-white print:p-0">
           {activeReport === "owner-statement" && (
             <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-md print:max-w-none print:border-none print:p-0 print:shadow-none">
-              {/* Document Header */}
               <div className="border-b border-neutral-200 pb-4">
                 <h1 className="text-xl font-bold tracking-tight text-neutral-900 underline decoration-neutral-300">
                   Demonstrativo de Reservas Concluídas
@@ -257,7 +208,6 @@ export function CalendarReportsModal({
                 </p>
               </div>
 
-              {/* Reservations Grid */}
               <div className="mt-6 space-y-6">
                 {statementData.items.length === 0 ? (
                   <p className="py-8 text-center text-sm text-neutral-500">
@@ -298,7 +248,6 @@ export function CalendarReportsModal({
                 )}
               </div>
 
-              {/* Demonstrativo de Repasses Section */}
               <div className="mt-8 border-t border-neutral-300 pt-5 text-sm text-neutral-900">
                 <h3 className="font-bold underline decoration-neutral-300">
                   Demonstrativo de Repasses
@@ -321,7 +270,6 @@ export function CalendarReportsModal({
                 </p>
               </div>
 
-              {/* Resumo do Período */}
               <div className="mt-6 rounded-xl border border-neutral-300 bg-neutral-50 p-4 text-sm">
                 <h3 className="font-bold underline decoration-neutral-300 text-neutral-900">
                   Resumo do período
@@ -344,7 +292,6 @@ export function CalendarReportsModal({
             </div>
           )}
 
-          {/* REPORT 2: ESCALA DE LIMPEZA E GOVERNANÇA */}
           {activeReport === "cleaning-schedule" && (
             <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-md print:max-w-none print:border-none print:p-0 print:shadow-none">
               <div className="border-b border-neutral-200 pb-4">
@@ -385,7 +332,6 @@ export function CalendarReportsModal({
             </div>
           )}
 
-          {/* REPORT 3: LISTA DE PORTARIA E CONDOMÍNIO (SEM DADOS FINANCEIROS) */}
           {activeReport === "building-reception" && (
             <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-md print:max-w-none print:border-none print:p-0 print:shadow-none">
               <div className="border-b border-neutral-200 pb-4">
@@ -422,7 +368,7 @@ export function CalendarReportsModal({
                           {formatDateBR(res.startsAt)} (a partir das 14h)
                         </td>
                         <td className="p-3 text-neutral-700 font-medium">
-                          {formatDateBR(res.endsAt)} (até 11h)
+                          {formatDateBR(res.endsAt)} (até 10h)
                         </td>
                       </tr>
                     ))}
@@ -432,7 +378,7 @@ export function CalendarReportsModal({
             </div>
           )}
         </div>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

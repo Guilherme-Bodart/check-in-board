@@ -5,6 +5,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Building2,
+  Calendar as CalendarIcon,
   CheckCircle2,
   Clock,
   Copy,
@@ -21,8 +22,11 @@ import {
 
 import type { Apartment, RentalStay } from "../../../api";
 import { Button } from "../../../components/ui/button";
-import { Field, Input, Select } from "../../../components/ui/form-controls";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../components/ui/dialog";
+import { Field, Input } from "../../../components/ui/form-controls";
 import { MessageBanner } from "../../../components/ui/message-banner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { readStoredSession } from "../../../lib/session-storage";
 import { createTask } from "../../dashboard/dashboard-api";
 import { createFinancialEntry } from "../../finance/finance-api";
@@ -86,7 +90,7 @@ export function ReservationUnifiedModal({
   const [rentAmount, setRentAmount] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Operational items (Limpeza, Manutenção, etc.)
+  // Operational items
   const [operationalItems, setOperationalItems] = useState<OperationalItem[]>([
     {
       id: "1",
@@ -102,30 +106,25 @@ export function ReservationUnifiedModal({
   const [isSuccess, setIsSuccess] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Selected apartment info
   const selectedApartment = useMemo(() => {
     return apartments.find((apt) => apt.id === formApartmentId);
   }, [apartments, formApartmentId]);
 
-  // Calculated nights
   const totalNights = useMemo(() => {
     if (!startsAt || !endsAt) return 0;
     return nightsBetween(startsAt, endsAt);
   }, [startsAt, endsAt]);
 
-  // Calculated daily rate
   const averageDailyRate = useMemo(() => {
     const cents = parseMoneyToCents(rentAmount);
     if (cents <= 0 || totalNights <= 0) return 0;
     return cents / totalNights;
   }, [rentAmount, totalNights]);
 
-  // Total operational expenses
   const totalOperationalExpensesCents = useMemo(() => {
     return operationalItems.reduce((sum, item) => sum + parseMoneyToCents(item.amount), 0);
   }, [operationalItems]);
 
-  // Overbooking / Date Conflict Detection
   const conflictingReservation = useMemo(() => {
     if (!formApartmentId || !startsAt || !endsAt) return null;
 
@@ -136,7 +135,6 @@ export function ReservationUnifiedModal({
       const resStart = res.startsAt.slice(0, 10);
       const resEnd = res.endsAt.slice(0, 10);
 
-      // Overlap: A starts before B ends AND A ends after B starts
       return startsAt < resEnd && endsAt > resStart;
     });
   }, [allReservations, formApartmentId, startsAt, endsAt, reservation]);
@@ -209,8 +207,6 @@ export function ReservationUnifiedModal({
     }
   }, [isOpen, reservation, existingStay, apartments, defaultApartmentId]);
 
-  if (!isOpen) return null;
-
   const isGenericAirbnbSummary =
     isAirbnb &&
     (!reservation?.guestName || reservation.guestName.trim() === "") &&
@@ -279,13 +275,11 @@ export function ReservationUnifiedModal({
       let reservationId = reservation?.id;
 
       if (isEditing && reservationId) {
-        // 1. Update guest details
         await updateReservation(session.token, formApartmentId, reservationId, {
           guestName: guestName.trim(),
           guestCount: parsedGuestCount,
         });
 
-        // 2. Financial stay
         if (rentAmountCents > 0) {
           const stayData = {
             id: reservationId,
@@ -306,7 +300,6 @@ export function ReservationUnifiedModal({
           }
         }
       } else {
-        // Create manual reservation
         const newReservation = await createManualReservation(
           session.token,
           formApartmentId,
@@ -334,7 +327,6 @@ export function ReservationUnifiedModal({
         }
       }
 
-      // 3. Process Operational Items (Limpeza, Manutenção, Cortesia, etc.)
       if (reservationId) {
         for (const item of operationalItems) {
           const cents = parseMoneyToCents(item.amount);
@@ -354,7 +346,6 @@ export function ReservationUnifiedModal({
               ? endDateTimeStr
               : new Date().toISOString();
 
-          // Financial expense entry
           if (cents > 0) {
             await createFinancialEntry(session.token, {
               apartmentId: formApartmentId,
@@ -368,7 +359,6 @@ export function ReservationUnifiedModal({
             });
           }
 
-          // Operational task
           try {
             await createTask(session.token, formApartmentId, {
               reservationId,
@@ -403,13 +393,13 @@ export function ReservationUnifiedModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3 backdrop-blur-sm animate-in fade-in duration-200">
-      <section className="relative flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-2xl border-border bg-surface shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-surface-muted/50 px-5 py-3 shrink-0">
+        <div className="flex items-center justify-between border-b border-border bg-surface-muted/40 px-6 py-3.5">
           <div className="flex items-center gap-3">
             <span
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-extrabold ${
                 isAirbnb
                   ? "bg-[#FFF1F2] text-[#E11D48] ring-1 ring-[#FECDD3]"
                   : provider === "manual"
@@ -421,9 +411,9 @@ export function ReservationUnifiedModal({
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold tracking-tight text-text-primary">
+                <DialogTitle className="text-base font-bold tracking-tight text-text-primary">
                   {isEditing ? "Gestão da Reserva" : "Nova Reserva Manual"}
-                </h2>
+                </DialogTitle>
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                     isAirbnb
@@ -448,7 +438,7 @@ export function ReservationUnifiedModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2 pr-6">
             {reservation?.externalEventKey && (
               <button
                 className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:border-primary hover:text-primary"
@@ -460,25 +450,17 @@ export function ReservationUnifiedModal({
                 {copiedCode ? "Copiado!" : "Cód. Airbnb"}
               </button>
             )}
-            <button
-              aria-label="Fechar"
-              className="grid h-8 w-8 place-items-center rounded-lg border border-border text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
-              onClick={onClose}
-              type="button"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
         </div>
 
-        {/* Form Body - Compact 2-Column Grid */}
-        <form className="flex flex-1 flex-col overflow-y-auto" onSubmit={handleSubmit}>
-          <div className="p-4 space-y-3">
+        {/* Body */}
+        <form className="flex flex-1 flex-col" onSubmit={handleSubmit}>
+          <div className="p-5 space-y-3.5">
             {message && <MessageBanner isError message={message} />}
 
             {/* Overbooking Alert */}
             {conflictingReservation && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-red-300 bg-red-50 p-2.5 text-xs text-red-900 shadow-sm animate-pulse">
+              <div className="flex items-center gap-2.5 rounded-xl border border-red-300 bg-red-50 p-2.5 text-xs text-red-900 shadow-xs animate-pulse">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
                 <div>
                   <strong>Alerta de Conflito!</strong> Conflita com a reserva de{" "}
@@ -488,27 +470,27 @@ export function ReservationUnifiedModal({
               </div>
             )}
 
-            {/* Main Grid: Left Column (Reserva & Financeiro), Right Column (Tarefas Operacionais) */}
+            {/* Main 2-Column Grid */}
             <div className="grid gap-4 lg:grid-cols-12">
-              {/* LEFT COLUMN: Estadia, Hóspede & Preço (Span 7) */}
+              {/* LEFT COLUMN: Imóvel, Datas, Hóspede & Preço (Span 7) */}
               <div className="lg:col-span-7 space-y-3">
-                {/* Imóvel, Proprietário & Datas */}
-                <div className="rounded-xl border border-border bg-gradient-to-br from-surface to-surface-muted/30 p-3 shadow-xs space-y-2.5">
+                {/* Imóvel & Datas */}
+                <div className="rounded-xl border border-border bg-surface p-3.5 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-primary" />
                       {!isEditing ? (
-                        <Select
-                          className="h-8 text-xs font-semibold"
-                          onChange={(e) => setFormApartmentId(e.target.value)}
-                          required
-                          value={formApartmentId}
-                        >
-                          {apartments.map((apt) => (
-                            <option key={apt.id} value={apt.id}>
-                              {apt.name} ({apt.owner?.name ?? "Proprietário"})
-                            </option>
-                          ))}
+                        <Select onValueChange={(val) => setFormApartmentId(val)} value={formApartmentId}>
+                          <SelectTrigger className="h-8 w-60 text-xs font-semibold">
+                            <SelectValue placeholder="Selecione o imóvel" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {apartments.map((apt) => (
+                              <SelectItem key={apt.id} value={apt.id}>
+                                {apt.name} ({apt.owner?.name ?? "Proprietário"})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
                         </Select>
                       ) : (
                         <span className="text-xs font-bold text-text-primary">
@@ -522,8 +504,8 @@ export function ReservationUnifiedModal({
                     </span>
                   </div>
 
-                  {/* Datas & Horários (Check-in & Check-out Editáveis) */}
-                  <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2 text-xs">
+                  {/* Check-in e Check-out Editáveis */}
+                  <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2.5 text-xs">
                     {/* Check-in */}
                     <div className="space-y-1">
                       <span className="text-[11px] font-semibold text-text-muted">Check-in (Entrada)</span>
@@ -579,8 +561,7 @@ export function ReservationUnifiedModal({
                     </div>
                   </div>
 
-                  {/* Summary Indicators */}
-                  <div className="flex items-center justify-between border-t border-border/40 pt-1.5 text-[11px] text-text-muted">
+                  <div className="flex items-center justify-between border-t border-border/40 pt-2 text-[11px] text-text-muted">
                     <span className="flex items-center gap-1 font-bold text-primary">
                       <Clock className="h-3.5 w-3.5" />
                       {totalNights} {totalNights === 1 ? "diária" : "diárias"}
@@ -591,8 +572,8 @@ export function ReservationUnifiedModal({
                   </div>
                 </div>
 
-                {/* Hóspede Principal */}
-                <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+                {/* Hóspede Titular */}
+                <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
                       <User className="h-3.5 w-3.5 text-primary" />
@@ -610,7 +591,7 @@ export function ReservationUnifiedModal({
                       <Input
                         className="h-8.5 text-xs"
                         onChange={(e) => setGuestName(e.target.value)}
-                        placeholder="Nome do Hóspede Titular"
+                        placeholder="Nome Completo do Hóspede"
                         required={!isIcal}
                         value={guestName}
                       />
@@ -628,8 +609,8 @@ export function ReservationUnifiedModal({
                   </div>
                 </div>
 
-                {/* Financeiro / Preço da Reserva */}
-                <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+                {/* Preço & Faturamento */}
+                <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
                       <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
@@ -670,9 +651,9 @@ export function ReservationUnifiedModal({
               </div>
 
               {/* RIGHT COLUMN: Tarefas & Despesas Operacionais (Span 5) */}
-              <div className="lg:col-span-5 rounded-xl border border-border bg-surface-muted/30 p-3 flex flex-col justify-between space-y-2.5">
+              <div className="lg:col-span-5 rounded-xl border border-border bg-surface-muted/30 p-3.5 flex flex-col justify-between space-y-3">
                 <div>
-                  <div className="flex items-center justify-between pb-1 border-b border-border">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
                     <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
                       <Wrench className="h-3.5 w-3.5 text-primary" />
                       Tarefas & Despesas Operacionais
@@ -687,10 +668,10 @@ export function ReservationUnifiedModal({
                   </div>
 
                   {/* List of Operational Items */}
-                  <div className="mt-2 space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                  <div className="mt-2.5 space-y-2 max-h-[260px] overflow-y-auto pr-1">
                     {operationalItems.length === 0 ? (
                       <p className="py-6 text-center text-xs text-text-muted">
-                        Nenhuma tarefa operacional ou despesa agendada.
+                        Nenhuma tarefa ou despesa lançada.
                       </p>
                     ) : (
                       operationalItems.map((item) => (
@@ -701,7 +682,7 @@ export function ReservationUnifiedModal({
                           <div className="flex items-center justify-between gap-1">
                             {/* Categoria */}
                             <select
-                              className="h-6 rounded border border-border bg-surface-muted px-1.5 text-[10px] font-bold text-text-primary outline-none"
+                              className="h-6 rounded border border-border bg-surface-muted px-1 text-[10px] font-bold text-text-primary outline-none"
                               onChange={(e) =>
                                 updateOperationalItem(item.id, {
                                   category: e.target.value as OperationalCategory,
@@ -785,7 +766,7 @@ export function ReservationUnifiedModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="mt-auto flex items-center justify-between border-t border-border bg-surface-muted/40 px-5 py-3 shrink-0">
+          <div className="flex items-center justify-between border-t border-border bg-surface-muted/40 px-6 py-3 shrink-0">
             <Button onClick={onClose} type="button" variant="secondary">
               Cancelar
             </Button>
@@ -797,7 +778,7 @@ export function ReservationUnifiedModal({
             </div>
           </div>
         </form>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
