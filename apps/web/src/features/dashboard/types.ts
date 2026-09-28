@@ -33,6 +33,8 @@ export type UpdateIcalSourceValues = {
 export type CreateTaskValues = {
   title: string;
   dueAt: string;
+  description?: string;
+  reservationId?: string;
 };
 
 export type WorkspaceData = {

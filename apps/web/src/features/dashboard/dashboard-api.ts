@@ -3,6 +3,7 @@ import {
   type Apartment,
   type IcalSource,
   type OperationsBoard,
+  type SyncResponse,
   type SyncRun,
   type Task,
 } from "../../api";
@@ -117,7 +118,9 @@ export async function createTask(
     method: "POST",
     token,
     body: {
+      reservationId: values.reservationId,
       title: values.title,
+      description: values.description,
       dueAt: new Date(values.dueAt).toISOString(),
     },
   });
@@ -197,7 +200,7 @@ export async function markTaskDone(token: string, taskId: string) {
 }
 
 export async function syncIcalSource(token: string, icalSourceId: string) {
-  return apiRequest(`/ical-sources/${icalSourceId}/sync`, {
+  return apiRequest<SyncResponse>(`/ical-sources/${icalSourceId}/sync`, {
     method: "POST",
     token,
   });
