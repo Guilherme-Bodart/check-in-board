@@ -21,6 +21,7 @@ export type CalendarGridViewProps = {
   rentalStaysMap: Map<string, RentalStay>;
   selectedApartmentId: string;
   onReservationClick: (reservation: ReservationListItem) => void;
+  onDayClick?: (date: string) => void;
   isLoading: boolean;
 };
 
@@ -32,51 +33,57 @@ export function CalendarGridView({
   rentalStaysMap,
   selectedApartmentId,
   onReservationClick,
+  onDayClick,
   isLoading,
 }: CalendarGridViewProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
-      {/* Week day headers */}
-      <div className="grid grid-cols-7 border-b border-border bg-surface-muted/60 text-center">
-        {weekDays.map((day, idx) => (
-          <div
-            className={`py-3 text-xs font-bold uppercase tracking-wider ${
-              idx === 0 || idx === 6 ? "text-text-muted/80" : "text-text-secondary"
-            }`}
-            key={day}
-          >
-            {day}
+      <div className="overflow-x-auto">
+        <div className="min-w-[680px] lg:min-w-0">
+          {/* Week day headers */}
+          <div className="grid grid-cols-7 border-b border-border bg-surface-muted/60 text-center">
+            {weekDays.map((day, idx) => (
+              <div
+                className={`py-3 text-xs font-bold uppercase tracking-wider ${
+                  idx === 0 || idx === 6 ? "text-text-muted/80" : "text-text-secondary"
+                }`}
+                key={day}
+              >
+                {day}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Grid of days */}
-      <div className="grid grid-cols-7 divide-x divide-y divide-border bg-surface">
-        {isLoading ? (
-          <div className="col-span-7 flex flex-col items-center justify-center py-20 text-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="mt-3 text-sm text-text-muted">Carregando calendário de reservas...</p>
-          </div>
-        ) : calendarDays.length === 0 ? (
-          <div className="col-span-7 py-16 text-center text-sm text-text-secondary">
-            Nenhum dia para exibir no mês selecionado.
-          </div>
-        ) : (
-          calendarDays.map((day) => {
-            const dayReservations = reservationsByDay.get(day.date) ?? [];
+          {/* Grid of days */}
+          <div className="grid grid-cols-7 divide-x divide-y divide-border bg-surface">
+            {isLoading ? (
+              <div className="col-span-7 flex flex-col items-center justify-center py-20 text-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="mt-3 text-sm text-text-muted">Carregando calendário de reservas...</p>
+              </div>
+            ) : calendarDays.length === 0 ? (
+              <div className="col-span-7 py-16 text-center text-sm text-text-secondary">
+                Nenhum dia para exibir no mês selecionado.
+              </div>
+            ) : (
+              calendarDays.map((day) => {
+                const dayReservations = reservationsByDay.get(day.date) ?? [];
 
-            return (
-              <CalendarCell
-                day={day}
-                key={day.date}
-                onReservationClick={onReservationClick}
-                rentalStaysMap={rentalStaysMap}
-                reservations={dayReservations}
-                showApartmentName={selectedApartmentId === "all"}
-              />
-            );
-          })
-        )}
+                return (
+                  <CalendarCell
+                    day={day}
+                    key={day.date}
+                    onDayClick={onDayClick}
+                    onReservationClick={onReservationClick}
+                    rentalStaysMap={rentalStaysMap}
+                    reservations={dayReservations}
+                    showApartmentName={selectedApartmentId === "all"}
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -87,12 +94,14 @@ function CalendarCell({
   reservations,
   rentalStaysMap,
   onReservationClick,
+  onDayClick,
   showApartmentName,
 }: {
   day: CalendarDay;
   reservations: ReservationListItem[];
   rentalStaysMap: Map<string, RentalStay>;
   onReservationClick: (r: ReservationListItem) => void;
+  onDayClick?: (date: string) => void;
   showApartmentName: boolean;
 }) {
   const hasConflict = useMemo(() => {
@@ -118,7 +127,7 @@ function CalendarCell({
 
   return (
     <div
-      className={`group relative flex min-h-[135px] flex-col p-2 transition-colors ${
+      className={`group relative flex min-h-[135px] cursor-pointer flex-col p-2 transition-all hover:bg-primary-soft/10 ${
         hasConflict
           ? "border-red-400 bg-red-50/50 ring-2 ring-red-400/60"
           : day.isCurrentMonth
@@ -127,6 +136,8 @@ function CalendarCell({
               : "bg-surface"
             : "bg-surface-muted/70 opacity-60"
       } ${day.isToday ? "ring-2 ring-inset ring-primary/40" : ""}`}
+      onClick={() => onDayClick?.(day.date)}
+      title={`Clique para criar nova reserva em ${day.date}`}
     >
       {/* Cell Header */}
       <div className="flex items-center justify-between gap-1">
@@ -176,7 +187,10 @@ function CalendarCell({
                   : "border-emerald-200 bg-emerald-50/90 text-emerald-900 hover:bg-emerald-100"
               }`}
               key={`${reservation.id}-${day.date}`}
-              onClick={() => onReservationClick(reservation)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReservationClick(reservation);
+              }}
               title={`${reservation.apartmentName} - ${
                 reservation.guestName || reservation.rawSummary || "Reserva"
               } (${stay ? formatMoney(stay.rentAmountCents) : "Sem preço"})`}

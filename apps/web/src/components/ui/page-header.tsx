@@ -36,7 +36,7 @@ export function PageHeader({
       </div>
       {actionHref && actionLabel ? (
         <Link
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95 focus:outline-none focus:ring-4 focus:ring-primary-soft"
+          className="inline-flex min-h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95 active:scale-95 focus:outline-none focus:ring-4 focus:ring-primary-soft"
           href={actionHref}
         >
           {ActionIcon ? <ActionIcon aria-hidden className="h-4 w-4" /> : null}

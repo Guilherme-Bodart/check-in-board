@@ -66,6 +66,8 @@ export function CalendarPage() {
 
   // Modals state
   const [selectedReservation, setSelectedReservation] = useState<ReservationListItem | null>(null);
+  const [createInitialStartDate, setCreateInitialStartDate] = useState<string | undefined>(undefined);
+  const [createInitialApartmentId, setCreateInitialApartmentId] = useState<string | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
 
@@ -203,13 +205,17 @@ export function CalendarPage() {
     setMonth(currentMonthInput());
   }
 
-  function handleOpenCreateModal() {
+  function handleOpenCreateModal(startDate?: string, aptId?: string) {
     setSelectedReservation(null);
+    setCreateInitialStartDate(startDate);
+    setCreateInitialApartmentId(aptId);
     setIsModalOpen(true);
   }
 
   function handleOpenEditModal(reservation: ReservationListItem) {
     setSelectedReservation(reservation);
+    setCreateInitialStartDate(undefined);
+    setCreateInitialApartmentId(undefined);
     setIsModalOpen(true);
   }
 
@@ -256,7 +262,7 @@ export function CalendarPage() {
   return (
     <div className="grid gap-6">
       {/* Top Header & Global Controls */}
-      <section className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+      <section className="rounded-3xl border border-border bg-surface p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col gap-6">
           {/* Top Row: Title, Eyebrow & Main Actions */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -328,8 +334,8 @@ export function CalendarPage() {
 
               {/* + Nova Reserva Manual */}
               <button
-                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-95"
-                onClick={handleOpenCreateModal}
+                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-95"
+                onClick={() => handleOpenCreateModal()}
                 type="button"
               >
                 <Plus className="h-4 w-4" />
@@ -450,6 +456,7 @@ export function CalendarPage() {
             <CalendarGridView
               calendarDays={calendarDays}
               isLoading={isLoading}
+              onDayClick={(date) => handleOpenCreateModal(date)}
               onReservationClick={handleOpenEditModal}
               rentalStaysMap={rentalStaysMap}
               reservationsByDay={reservationsByDay}
@@ -460,6 +467,7 @@ export function CalendarPage() {
               apartments={apartments}
               isLoading={isLoading}
               month={month}
+              onCellClick={(date, aptId) => handleOpenCreateModal(date, aptId)}
               onReservationClick={handleOpenEditModal}
               rentalStaysMap={rentalStaysMap}
               reservations={monthReservations}
@@ -588,8 +596,12 @@ export function CalendarPage() {
       <ReservationUnifiedModal
         allReservations={reservations}
         apartments={apartments}
-        defaultApartmentId={selectedApartmentId}
+        defaultApartmentId={
+          createInitialApartmentId ||
+          (selectedApartmentId === allApartmentsValue ? "" : selectedApartmentId)
+        }
         existingStay={selectedReservation ? rentalStaysMap.get(selectedReservation.id) : null}
+        initialStartDate={createInitialStartDate}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSaved={() => {

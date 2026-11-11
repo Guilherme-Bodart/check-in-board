@@ -8,7 +8,7 @@ export function DataTable({
   ...props
 }: TableHTMLAttributes<HTMLTableElement> & { children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table
         className={cn("w-full border-collapse text-left text-sm", className)}
         {...props}

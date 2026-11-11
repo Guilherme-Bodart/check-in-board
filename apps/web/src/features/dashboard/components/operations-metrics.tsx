@@ -8,7 +8,7 @@ export function OperationsMetrics({ totals }: { totals: OperationsBoard["totals"
   return (
     <section
       aria-label={messages.dashboard.operationalSummary}
-      className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+      className="grid gap-3 grid-cols-2 lg:grid-cols-4"
     >
       <MetricCard icon={DoorOpen} label="Check-ins" tone="info" value={totals.checkIns} />
       <MetricCard

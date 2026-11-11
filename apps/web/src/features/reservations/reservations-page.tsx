@@ -132,7 +132,7 @@ export function ReservationsPage() {
   return (
     <div className="grid gap-6">
       {/* KPI Cards */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           icon={ClipboardList}
           label="Total de Reservas"

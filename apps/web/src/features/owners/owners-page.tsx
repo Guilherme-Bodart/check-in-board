@@ -131,7 +131,7 @@ export function OwnersPage() {
         title="Proprietários"
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <SummaryCard label="Proprietários" value={summary.total} icon={UsersRound} />
         <SummaryCard label="Clientes" value={summary.clients} icon={BriefcaseBusiness} />
         <SummaryCard label="Próprios" value={summary.internal} icon={UserRound} />
@@ -139,17 +139,7 @@ export function OwnersPage() {
       </section>
 
       <Panel>
-        <Toolbar
-          actions={
-            <Link
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95 focus:outline-none focus:ring-4 focus:ring-primary-soft"
-              href="/clientes/novo"
-            >
-              <Plus aria-hidden className="h-4 w-4" />
-              Novo
-            </Link>
-          }
-        >
+        <Toolbar>
           <div className="relative">
             <Search
               aria-hidden

@@ -121,17 +121,7 @@ export function ApartmentsPage() {
       </section>
 
       <Panel>
-        <Toolbar
-          actions={
-            <Link
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95 focus:outline-none focus:ring-4 focus:ring-primary-soft"
-              href="/apartamentos/novo"
-            >
-              <Plus aria-hidden className="h-4 w-4" />
-              Novo
-            </Link>
-          }
-        >
+        <Toolbar>
           <div className="relative">
             <Search
               aria-hidden
@@ -170,7 +160,7 @@ export function ApartmentsPage() {
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary transition-transform group-hover:scale-105">
                           <Building2 aria-hidden className="h-6 w-6" />
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                           <IconButton
                             aria-label={messages.apartments.deleteConfirm}
                             icon={Trash2}

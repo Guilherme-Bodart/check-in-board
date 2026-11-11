@@ -113,9 +113,9 @@ export function CalendarStats({
   }, [bookedNights, totalRevenueCents]);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
       {/* 1. Taxa de Ocupação */}
-      <article className="relative overflow-hidden rounded-2xl border border-border bg-surface p-4.5 shadow-sm transition hover:shadow-md">
+      <article className="relative overflow-hidden rounded-2xl border border-border bg-surface p-3.5 sm:p-4.5 shadow-sm transition hover:shadow-md">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
             Taxa de Ocupação
@@ -141,7 +141,7 @@ export function CalendarStats({
       </article>
 
       {/* 2. Receita Confirmada do Mês */}
-      <article className="relative overflow-hidden rounded-2xl border border-border bg-surface p-4.5 shadow-sm transition hover:shadow-md">
+      <article className="relative overflow-hidden rounded-2xl border border-border bg-surface p-3.5 sm:p-4.5 shadow-sm transition hover:shadow-md">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
             Receita no Mês
@@ -151,39 +151,39 @@ export function CalendarStats({
           </span>
         </div>
         <div className="mt-3 flex items-baseline gap-2">
-          <strong className="text-2xl font-bold tracking-tight text-emerald-700">
+          <strong className="text-xl sm:text-2xl font-bold tracking-tight text-emerald-700">
             {formatMoney(totalRevenueCents)}
           </strong>
         </div>
-        <p className="mt-1 text-xs text-text-muted">
+        <p className="mt-1 text-xs text-text-muted truncate">
           {rentalStays.length} {rentalStays.length === 1 ? "reserva faturada" : "reservas faturadas"}
         </p>
       </article>
 
       {/* 3. Diária Média (ADR) */}
-      <article className="relative overflow-hidden rounded-2xl border border-border bg-surface p-4.5 shadow-sm transition hover:shadow-md">
+      <article className="relative overflow-hidden rounded-2xl border border-border bg-surface p-3.5 sm:p-4.5 shadow-sm transition hover:shadow-md">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-            Diária Média (ADR)
+            Diária Média
           </span>
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-200">
             <TrendingUp className="h-4 w-4" />
           </span>
         </div>
         <div className="mt-3 flex items-baseline gap-2">
-          <strong className="text-2xl font-bold tracking-tight text-text-primary">
+          <strong className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
             {averageDailyRateCents > 0 ? formatMoney(averageDailyRateCents) : "—"}
           </strong>
           <span className="text-xs text-text-muted">/ noite</span>
         </div>
-        <p className="mt-1 text-xs text-text-muted">
-          Com base nas diárias com preço
+        <p className="mt-1 text-xs text-text-muted truncate">
+          Com base nas diárias
         </p>
       </article>
 
       {/* 4. Pendências de Atenção (Filtro Rápido) */}
       <article
-        className={`relative cursor-pointer overflow-hidden rounded-2xl border p-4.5 shadow-sm transition hover:shadow-md ${
+        className={`relative cursor-pointer overflow-hidden rounded-2xl border p-3.5 sm:p-4.5 shadow-sm transition hover:shadow-md ${
           pendingCount > 0
             ? isPendingFilterActive
               ? "border-amber-400 bg-amber-50/80 ring-2 ring-amber-400/50"

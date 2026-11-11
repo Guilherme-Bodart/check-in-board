@@ -180,17 +180,7 @@ export function FinancePage() {
       </section>
 
       <Panel>
-        <Toolbar
-          actions={
-            <Link
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95 focus:outline-none focus:ring-4 focus:ring-primary-soft"
-              href="/financeiro/lancamentos/novo"
-            >
-              <Plus aria-hidden className="h-4 w-4" />
-              Novo
-            </Link>
-          }
-        >
+        <Toolbar>
           <Input
             className="sm:w-40"
             onChange={(event) => setDateFrom(event.target.value)}

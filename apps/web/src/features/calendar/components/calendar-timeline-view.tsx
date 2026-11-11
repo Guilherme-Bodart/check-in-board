@@ -26,6 +26,7 @@ export type CalendarTimelineViewProps = {
   reservations: ReservationListItem[];
   rentalStaysMap: Map<string, RentalStay>;
   onReservationClick: (reservation: ReservationListItem) => void;
+  onCellClick?: (date: string, apartmentId: string) => void;
   isLoading: boolean;
 };
 
@@ -36,6 +37,7 @@ export function CalendarTimelineView({
   reservations,
   rentalStaysMap,
   onReservationClick,
+  onCellClick,
   isLoading,
 }: CalendarTimelineViewProps) {
   // Filter apartments
@@ -180,7 +182,7 @@ export function CalendarTimelineView({
                     {/* Background Day Columns */}
                     {days.map((day) => (
                       <div
-                        className={`border-r border-border/40 min-h-[64px] ${
+                        className={`border-r border-border/40 min-h-[64px] cursor-pointer transition-colors hover:bg-primary-soft/30 ${
                           day.isToday
                             ? "bg-primary-soft/20"
                             : day.isWeekend
@@ -188,6 +190,8 @@ export function CalendarTimelineView({
                               : ""
                         }`}
                         key={day.date}
+                        onClick={() => onCellClick?.(day.date, apartment.id)}
+                        title={`Clique para criar reserva para ${apartment.name} a partir de ${day.date}`}
                       />
                     ))}
 
@@ -241,7 +245,10 @@ export function CalendarTimelineView({
                                   : "border-emerald-300 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-900"
                             }`}
                             key={reservation.id}
-                            onClick={() => onReservationClick(reservation)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onReservationClick(reservation);
+                            }}
                             style={{
                               left: `${leftPercent}%`,
                               width: `calc(${widthPercent}% - 4px)`,

@@ -42,6 +42,8 @@ export type ReservationUnifiedModalProps = {
   apartments: Apartment[];
   allReservations?: ReservationListItem[];
   defaultApartmentId?: string;
+  initialStartDate?: string;
+  initialEndDate?: string;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -71,6 +73,8 @@ export function ReservationUnifiedModal({
   apartments,
   allReservations = [],
   defaultApartmentId = "all",
+  initialStartDate,
+  initialEndDate,
   onClose,
   onSaved,
 }: ReservationUnifiedModalProps) {
@@ -188,11 +192,15 @@ export function ReservationUnifiedModal({
         setCheckOutTime("10:00");
         setNotes("");
 
-        const today = new Date().toISOString().substring(0, 10);
-        setStartsAt(today);
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 2);
-        setEndsAt(tomorrow.toISOString().substring(0, 10));
+        const start = initialStartDate || new Date().toISOString().substring(0, 10);
+        setStartsAt(start);
+        if (initialEndDate) {
+          setEndsAt(initialEndDate);
+        } else {
+          const d = new Date(`${start}T12:00:00`);
+          d.setDate(d.getDate() + 2);
+          setEndsAt(d.toISOString().substring(0, 10));
+        }
 
         setOperationalItems([
           {
@@ -205,7 +213,7 @@ export function ReservationUnifiedModal({
         ]);
       }
     }
-  }, [isOpen, reservation, existingStay, apartments, defaultApartmentId]);
+  }, [isOpen, reservation, existingStay, apartments, defaultApartmentId, initialStartDate, initialEndDate]);
 
   const isGenericAirbnbSummary =
     isAirbnb &&
