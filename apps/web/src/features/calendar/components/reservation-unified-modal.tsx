@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
   AlertTriangle,
   Building2,
   Calendar as CalendarIcon,
@@ -11,19 +10,16 @@ import {
   Copy,
   DollarSign,
   Plus,
-  ShieldCheck,
-  Sparkles,
   Trash2,
   User,
   Users,
   Wrench,
-  X,
 } from "lucide-react";
 
 import type { Apartment, RentalStay } from "../../../api";
 import { Button } from "../../../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../components/ui/dialog";
-import { Field, Input } from "../../../components/ui/form-controls";
+import { Dialog, DialogContent, DialogTitle } from "../../../components/ui/dialog";
+import { Input } from "../../../components/ui/form-controls";
 import { MessageBanner } from "../../../components/ui/message-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
@@ -83,10 +79,12 @@ export function ReservationUnifiedModal({
   const provider = reservation?.provider?.toLowerCase() ?? "manual";
   const isAirbnb = provider === "airbnb";
 
+  const [activeTab, setActiveTab] = useState<"main" | "operational">("main");
+
   // Form states
   const [formApartmentId, setFormApartmentId] = useState("");
   const [guestName, setGuestName] = useState("");
-  const [guestCount, setGuestCount] = useState("");
+  const [guestCount, setGuestCount] = useState("1");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [checkInTime, setCheckInTime] = useState("14:00");
@@ -148,6 +146,7 @@ export function ReservationUnifiedModal({
       setMessage("");
       setIsSuccess(false);
       setCopiedCode(false);
+      setActiveTab("main");
 
       if (reservation) {
         setFormApartmentId(reservation.apartmentId);
@@ -218,10 +217,8 @@ export function ReservationUnifiedModal({
   const isGenericAirbnbSummary =
     isAirbnb &&
     (!reservation?.guestName || reservation.guestName.trim() === "") &&
-    Boolean(
-      reservation?.rawSummary?.toLowerCase().includes("reserved") ||
-        reservation?.rawSummary?.toLowerCase().includes("airbnb"),
-    );
+    (reservation?.rawSummary?.toLowerCase().includes("reserved") ||
+      reservation?.rawSummary?.toLowerCase().includes("airbnb"));
 
   function addOperationalItem() {
     setOperationalItems((prev) => [
@@ -229,8 +226,8 @@ export function ReservationUnifiedModal({
       {
         id: String(Date.now()),
         category: "manutencao",
-        title: "Manutenção / Reparo rápido",
-        amount: "50,00",
+        title: "",
+        amount: "0,00",
         scheduleOn: "checkout",
       },
     ]);
@@ -240,9 +237,9 @@ export function ReservationUnifiedModal({
     setOperationalItems((prev) => prev.filter((item) => item.id !== id));
   }
 
-  function updateOperationalItem(id: string, updates: Partial<OperationalItem>) {
+  function updateOperationalItem(id: string, patch: Partial<OperationalItem>) {
     setOperationalItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
   }
 
@@ -251,31 +248,24 @@ export function ReservationUnifiedModal({
     const session = readStoredSession();
     if (!session) return;
 
+    if (!formApartmentId) {
+      setMessage("Selecione um imóvel para continuar.");
+      return;
+    }
+
+    if (!startsAt || !endsAt || endsAt <= startsAt) {
+      setMessage("A data de check-out deve ser posterior à data de check-in.");
+      return;
+    }
+
     setIsSaving(true);
     setMessage("");
 
     try {
-      if (!formApartmentId) {
-        throw new Error("Selecione um apartamento.");
-      }
-
-      if (conflictingReservation && !isIcal) {
-        const confirmOverbook = window.confirm(
-          `Atenção: Já existe uma reserva no período selecionado (${formatDateBR(
-            conflictingReservation.startsAt,
-          )} a ${formatDateBR(conflictingReservation.endsAt)}) para "${
-            conflictingReservation.guestName || conflictingReservation.rawSummary
-          }". Deseja continuar com a reserva?`,
-        );
-        if (!confirmOverbook) {
-          setIsSaving(false);
-          return;
-        }
-      }
-
       const rentAmountCents = parseMoneyToCents(rentAmount);
       const parsedGuestCount = guestCount ? parseInt(guestCount, 10) : 1;
-      const effectiveGuestName = guestName.trim() || reservation?.rawSummary || "Hóspede";
+      const effectiveGuestName =
+        guestName.trim() || reservation?.rawSummary || "Hóspede Confirmado";
 
       const startDateTimeStr = `${startsAt}T${checkInTime || "14:00"}:00`;
       const endDateTimeStr = `${endsAt}T${checkOutTime || "10:00"}:00`;
@@ -383,7 +373,7 @@ export function ReservationUnifiedModal({
       setIsSuccess(true);
       setTimeout(() => {
         onSaved();
-      }, 300);
+      }, 250);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao salvar dados da reserva.");
     } finally {
@@ -402,12 +392,12 @@ export function ReservationUnifiedModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-2xl border-border bg-surface shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-surface-muted/40 px-6 py-3.5">
-          <div className="flex items-center gap-3">
+      <DialogContent className="max-w-2xl p-0 overflow-hidden border-border bg-surface shadow-2xl">
+        {/* Header Fixo */}
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-muted/40 px-5 py-4 pr-14 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <span
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-extrabold ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-extrabold ${
                 isAirbnb
                   ? "bg-[#FFF1F2] text-[#E11D48] ring-1 ring-[#FECDD3]"
                   : provider === "manual"
@@ -417,13 +407,13 @@ export function ReservationUnifiedModal({
             >
               {isAirbnb ? "Ab" : provider === "manual" ? "Mn" : "Bk"}
             </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <DialogTitle className="text-base font-bold tracking-tight text-text-primary">
-                  {isEditing ? "Gestão da Reserva" : "Nova Reserva Manual"}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-text-primary truncate">
+                  {isEditing ? "Detalhes da Reserva" : "Nova Reserva"}
                 </DialogTitle>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                  className={`inline-flex items-center shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                     isAirbnb
                       ? "bg-[#FFE4E6] text-[#BE123C]"
                       : provider === "manual"
@@ -431,108 +421,126 @@ export function ReservationUnifiedModal({
                       : "bg-blue-100 text-blue-800"
                   }`}
                 >
-                  {isAirbnb ? "Airbnb iCal" : provider === "manual" ? "Manual" : provider}
+                  {isAirbnb ? "Airbnb" : provider === "manual" ? "Manual" : provider}
                 </span>
                 {existingStay ? (
-                  <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                  <span className="inline-flex items-center gap-1 shrink-0 whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                     <CheckCircle2 className="h-3 w-3" /> Faturado
                   </span>
                 ) : (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                  <span className="inline-flex items-center shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                     Pendente
                   </span>
                 )}
               </div>
+              {selectedApartment && (
+                <p className="mt-0.5 text-xs text-text-muted truncate">
+                  Proprietário: <strong className="font-medium text-text-secondary">{selectedApartment.owner?.name ?? "Não informado"}</strong>
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 pr-6">
-            {reservation?.externalEventKey && (
-              <button
-                className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:border-primary hover:text-primary"
-                onClick={copyReservationCode}
-                title="Copiar código externo da reserva"
-                type="button"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                {copiedCode ? "Copiado!" : "Cód. Airbnb"}
-              </button>
-            )}
-          </div>
+          {reservation?.externalEventKey && (
+            <button
+              className="hidden sm:flex items-center gap-1.5 shrink-0 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-secondary transition hover:border-primary hover:text-primary"
+              onClick={copyReservationCode}
+              title="Copiar código da reserva"
+              type="button"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {copiedCode ? "Copiado!" : "Código"}
+            </button>
+          )}
         </div>
 
-        {/* Body */}
-        <form className="flex flex-1 flex-col" onSubmit={handleSubmit}>
-          <div className="p-5 space-y-3.5">
+        {/* Form Body & Tabs */}
+        <form className="flex flex-1 flex-col min-h-0 overflow-hidden" onSubmit={handleSubmit}>
+          {/* Tab Selector Bar */}
+          <div className="border-b border-border bg-surface px-5 pt-3 pb-2.5 shrink-0">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "main" | "operational")}>
+              <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+                <TabsTrigger value="main" className="gap-1.5 text-xs">
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  Reserva & Financeiro
+                </TabsTrigger>
+                <TabsTrigger value="operational" className="gap-1.5 text-xs">
+                  <Wrench className="h-3.5 w-3.5" />
+                  Tarefas & Limpeza ({operationalItems.length})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-4">
             {message && <MessageBanner isError message={message} />}
 
             {/* Overbooking Alert */}
             {conflictingReservation && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-red-300 bg-red-50 p-2.5 text-xs text-red-900 shadow-xs animate-pulse">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
-                <div>
-                  <strong>Alerta de Conflito!</strong> Conflita com a reserva de{" "}
+              <div className="flex items-start gap-2.5 rounded-xl border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+                <div className="min-w-0">
+                  <strong>Conflito de Datas!</strong> Já existe reserva de{" "}
                   <strong>{conflictingReservation.guestName || conflictingReservation.rawSummary}</strong> (
                   {formatDateBR(conflictingReservation.startsAt)} a {formatDateBR(conflictingReservation.endsAt)}).
                 </div>
               </div>
             )}
 
-            {/* Main 2-Column Grid */}
-            <div className="grid gap-4 lg:grid-cols-12">
-              {/* LEFT COLUMN: Imóvel, Datas, Hóspede & Preço (Span 7) */}
-              <div className="lg:col-span-7 space-y-3">
-                {/* Imóvel & Datas */}
-                <div className="rounded-xl border border-border bg-surface p-3.5 shadow-2xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-primary" />
-                      {!isEditing ? (
-                        <Select onValueChange={(val) => setFormApartmentId(val)} value={formApartmentId}>
-                          <SelectTrigger className="h-8 w-60 text-xs font-semibold">
-                            <SelectValue placeholder="Selecione o imóvel" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {apartments.map((apt) => (
-                              <SelectItem key={apt.id} value={apt.id}>
-                                {apt.name} ({apt.owner?.name ?? "Proprietário"})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-xs font-bold text-text-primary">
-                          {reservation?.apartmentName}
-                        </span>
-                      )}
-                    </div>
-
-                    <span className="text-[11px] text-text-muted">
-                      Proprietário: <strong>{selectedApartment?.owner?.name ?? "Não informado"}</strong>
-                    </span>
+            {activeTab === "main" ? (
+              <div className="space-y-4">
+                {/* Seção 1: Imóvel e Período */}
+                <div className="rounded-2xl border border-border bg-surface p-4 space-y-4">
+                  {/* Imóvel */}
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary">
+                      <Building2 className="h-3.5 w-3.5 text-primary" />
+                      Imóvel da Hospedagem
+                    </label>
+                    {!isEditing ? (
+                      <Select onValueChange={(val) => setFormApartmentId(val)} value={formApartmentId}>
+                        <SelectTrigger className="h-10 w-full text-sm font-medium">
+                          <SelectValue placeholder="Selecione o apartamento..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {apartments.map((apt) => (
+                            <SelectItem key={apt.id} value={apt.id}>
+                              {apt.name} ({apt.owner?.name ?? "Sem proprietário"})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex h-10 items-center rounded-xl border border-border bg-surface-muted/40 px-3 text-sm font-bold text-text-primary">
+                        {reservation?.apartmentName}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Check-in e Check-out Editáveis */}
-                  <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2.5 text-xs">
+                  {/* Datas de Check-in e Check-out (Cada uma em sua própria coluna larga) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/60">
                     {/* Check-in */}
-                    <div className="space-y-1">
-                      <span className="text-[11px] font-semibold text-text-muted">Check-in (Entrada)</span>
-                      <div className="flex items-center gap-1">
+                    <div className="space-y-1.5 min-w-0">
+                      <label className="block text-xs font-semibold text-text-secondary">
+                        Check-in (Entrada)
+                      </label>
+                      <div className="flex items-center gap-2 min-w-0">
                         {!isIcal ? (
                           <Input
-                            className="h-8 text-xs font-medium"
+                            className="h-10 flex-1 min-w-0 text-xs sm:text-sm font-medium"
                             onChange={(e) => setStartsAt(e.target.value)}
                             required
                             type="date"
                             value={startsAt}
                           />
                         ) : (
-                          <span className="h-8 flex items-center font-bold text-text-primary px-2 border rounded-md bg-surface-muted/30">
+                          <span className="h-10 flex-1 min-w-0 flex items-center font-bold text-text-primary px-3 border border-border rounded-xl bg-surface-muted/30 text-sm">
                             {formatDateBR(startsAt)}
                           </span>
                         )}
                         <Input
-                          className="h-8 w-20 text-xs font-semibold text-center"
+                          className="h-10 w-24 shrink-0 text-xs sm:text-sm font-semibold text-center"
                           onChange={(e) => setCheckInTime(e.target.value)}
                           title="Horário de Check-in"
                           type="time"
@@ -542,24 +550,26 @@ export function ReservationUnifiedModal({
                     </div>
 
                     {/* Check-out */}
-                    <div className="space-y-1">
-                      <span className="text-[11px] font-semibold text-text-muted">Check-out (Saída)</span>
-                      <div className="flex items-center gap-1">
+                    <div className="space-y-1.5 min-w-0">
+                      <label className="block text-xs font-semibold text-text-secondary">
+                        Check-out (Saída)
+                      </label>
+                      <div className="flex items-center gap-2 min-w-0">
                         {!isIcal ? (
                           <Input
-                            className="h-8 text-xs font-medium"
+                            className="h-10 flex-1 min-w-0 text-xs sm:text-sm font-medium"
                             onChange={(e) => setEndsAt(e.target.value)}
                             required
                             type="date"
                             value={endsAt}
                           />
                         ) : (
-                          <span className="h-8 flex items-center font-bold text-text-primary px-2 border rounded-md bg-surface-muted/30">
+                          <span className="h-10 flex-1 min-w-0 flex items-center font-bold text-text-primary px-3 border border-border rounded-xl bg-surface-muted/30 text-sm">
                             {formatDateBR(endsAt)}
                           </span>
                         )}
                         <Input
-                          className="h-8 w-20 text-xs font-semibold text-center"
+                          className="h-10 w-24 shrink-0 text-xs sm:text-sm font-semibold text-center"
                           onChange={(e) => setCheckOutTime(e.target.value)}
                           title="Horário de Check-out"
                           type="time"
@@ -569,128 +579,152 @@ export function ReservationUnifiedModal({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-border/40 pt-2 text-[11px] text-text-muted">
-                    <span className="flex items-center gap-1 font-bold text-primary">
-                      <Clock className="h-3.5 w-3.5" />
-                      {totalNights} {totalNights === 1 ? "diária" : "diárias"}
+                  {/* Resumo de Diárias */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-muted/50 px-3.5 py-2 text-xs">
+                    <span className="flex items-center gap-1.5 font-bold text-primary">
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
+                      {totalNights} {totalNights === 1 ? "diária selecionada" : "diárias selecionadas"}
                     </span>
-                    <span>
-                      Diária Média: <strong className="text-text-primary">{averageDailyRate > 0 ? formatMoney(averageDailyRate) : "—"}</strong>
+                    <span className="text-text-secondary">
+                      Diária Média:{" "}
+                      <strong className="font-bold text-text-primary">
+                        {averageDailyRate > 0 ? formatMoney(averageDailyRate) : "—"}
+                      </strong>
                     </span>
                   </div>
                 </div>
 
-                {/* Hóspede Titular */}
-                <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
-                      <User className="h-3.5 w-3.5 text-primary" />
-                      Hóspede Titular
-                    </span>
-                    {isGenericAirbnbSummary && (
-                      <span className="text-[10px] text-amber-700 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                        ⚠ Airbnb importou como "{reservation?.rawSummary}"
+                {/* Seção 2: Hóspede e Valor Financeiro */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Card Hóspede */}
+                  <div className="rounded-2xl border border-border bg-surface p-4 space-y-3 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary">
+                        <User className="h-3.5 w-3.5 text-primary" />
+                        Hóspede Titular
                       </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
-                      <Input
-                        className="h-8.5 text-xs"
-                        onChange={(e) => setGuestName(e.target.value)}
-                        placeholder="Nome Completo do Hóspede"
-                        required={!isIcal}
-                        value={guestName}
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        className="h-8.5 text-xs text-center"
-                        min={1}
-                        onChange={(e) => setGuestCount(e.target.value)}
-                        placeholder="Pessoas"
-                        type="number"
-                        value={guestCount}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Preço & Faturamento */}
-                <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
-                      <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
-                      Preço & Faturamento
-                    </span>
-                    {existingStay ? (
-                      <span className="text-[11px] font-bold text-emerald-700">
-                        Faturado: {formatMoney(existingStay.rentAmountCents)}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <div className="relative">
-                        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-text-muted">
-                          R$
+                      {isGenericAirbnbSummary && (
+                        <span className="inline-flex shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                          Sem nome no iCal
                         </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="mb-1 block text-[11px] font-medium text-text-muted">
+                          Nome Completo
+                        </label>
                         <Input
-                          className="h-8.5 pl-8 text-xs font-bold text-emerald-700"
-                          inputMode="decimal"
-                          onChange={(e) => setRentAmount(e.target.value)}
-                          placeholder="1500,00"
-                          value={rentAmount}
+                          className="h-10 w-full text-sm"
+                          onChange={(e) => setGuestName(e.target.value)}
+                          placeholder="Ex: Mariana Costa"
+                          required={!isIcal}
+                          value={guestName}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 flex items-center gap-1 text-[11px] font-medium text-text-muted">
+                          <Users className="h-3 w-3" /> Quantidade de Hóspedes
+                        </label>
+                        <Input
+                          className="h-10 w-full text-sm"
+                          min={1}
+                          onChange={(e) => setGuestCount(e.target.value)}
+                          placeholder="1"
+                          type="number"
+                          value={guestCount}
                         />
                       </div>
                     </div>
-                    <div>
-                      <Input
-                        className="h-8.5 text-xs"
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Notas/Cofre/Pagamento"
-                        value={notes}
-                      />
+                  </div>
+
+                  {/* Card Preço & Faturamento */}
+                  <div className="rounded-2xl border border-border bg-surface p-4 space-y-3 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                        Valor & Faturamento
+                      </span>
+                      {existingStay && (
+                        <span className="inline-flex shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          {formatMoney(existingStay.rentAmountCents)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="mb-1 block text-[11px] font-medium text-text-muted">
+                          Valor Total da Reserva (R$)
+                        </label>
+                        <div className="relative">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-text-muted">
+                            R$
+                          </span>
+                          <Input
+                            className="h-10 w-full pl-9 text-sm font-bold text-emerald-700"
+                            inputMode="decimal"
+                            onChange={(e) => setRentAmount(e.target.value)}
+                            placeholder="1.500,00"
+                            value={rentAmount}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-[11px] font-medium text-text-muted">
+                          Observações / Senha da Porta
+                        </label>
+                        <Input
+                          className="h-10 w-full text-sm"
+                          onChange={(e) => setNotes(e.target.value)}
+                          placeholder="Ex: Senha 4892# / Check-in antecipado"
+                          value={notes}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* RIGHT COLUMN: Tarefas & Despesas Operacionais (Span 5) */}
-              <div className="lg:col-span-5 rounded-xl border border-border bg-surface-muted/30 p-3.5 flex flex-col justify-between space-y-3">
-                <div>
-                  <div className="flex items-center justify-between pb-2 border-b border-border">
-                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-primary">
-                      <Wrench className="h-3.5 w-3.5 text-primary" />
-                      Tarefas & Despesas Operacionais
-                    </span>
-                    <button
-                      className="flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
-                      onClick={addOperationalItem}
-                      type="button"
-                    >
-                      <Plus className="h-3 w-3" /> Adicionar
-                    </button>
+            ) : (
+              /* ABA 2: Tarefas & Despesas Operacionais */
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-muted/30 px-4 py-3">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                      Governança, Limpeza & Manutenção
+                    </h4>
+                    <p className="text-[11px] text-text-muted">
+                      Itens com valor geram lançamento automático no Financeiro e tarefa no Checklist.
+                    </p>
                   </div>
+                  <Button
+                    className="h-9 gap-1.5 text-xs"
+                    onClick={addOperationalItem}
+                    type="button"
+                    variant="secondary"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Nova Tarefa
+                  </Button>
+                </div>
 
-                  {/* List of Operational Items */}
-                  <div className="mt-2.5 space-y-2 max-h-[260px] overflow-y-auto pr-1">
-                    {operationalItems.length === 0 ? (
-                      <p className="py-6 text-center text-xs text-text-muted">
-                        Nenhuma tarefa ou despesa lançada.
-                      </p>
-                    ) : (
-                      operationalItems.map((item) => (
-                        <div
-                          className="rounded-lg border border-border bg-surface p-2 text-xs space-y-1.5 shadow-2xs"
-                          key={item.id}
-                        >
-                          <div className="flex items-center justify-between gap-1">
-                            {/* Categoria */}
+                {operationalItems.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border py-10 text-center text-xs text-text-muted">
+                    Nenhuma tarefa ou despesa operacional vinculada a esta reserva.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {operationalItems.map((item) => (
+                      <div
+                        className="rounded-2xl border border-border bg-surface p-3.5 space-y-3 shadow-2xs"
+                        key={item.id}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                             <select
-                              className="h-6 rounded border border-border bg-surface-muted px-1 text-[10px] font-bold text-text-primary outline-none"
+                              className="h-8 rounded-lg border border-border bg-surface-muted px-2.5 text-xs font-bold text-text-primary outline-none focus:border-primary"
                               onChange={(e) =>
                                 updateOperationalItem(item.id, {
                                   category: e.target.value as OperationalCategory,
@@ -705,9 +739,8 @@ export function ReservationUnifiedModal({
                               ))}
                             </select>
 
-                            {/* Execução */}
                             <select
-                              className="h-6 rounded border border-border bg-surface-muted px-1 text-[10px] font-semibold text-text-secondary outline-none"
+                              className="h-8 rounded-lg border border-border bg-surface-muted px-2.5 text-xs font-medium text-text-secondary outline-none focus:border-primary"
                               onChange={(e) =>
                                 updateOperationalItem(item.id, {
                                   scheduleOn: e.target.value as "checkout" | "checkin" | "now",
@@ -715,75 +748,74 @@ export function ReservationUnifiedModal({
                               }
                               value={item.scheduleOn}
                             >
-                              <option value="checkout">Na Saída ({checkOutTime})</option>
-                              <option value="checkin">Na Entrada ({checkInTime})</option>
-                              <option value="now">Imediata</option>
+                              <option value="checkout">Agendar na Saída ({checkOutTime})</option>
+                              <option value="checkin">Agendar na Entrada ({checkInTime})</option>
+                              <option value="now">Execução Imediata</option>
                             </select>
-
-                            {/* Remover */}
-                            <button
-                              aria-label="Remover item"
-                              className="text-text-muted hover:text-red-600 transition"
-                              onClick={() => removeOperationalItem(item.id)}
-                              type="button"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
                           </div>
 
-                          {/* Título & Valor */}
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <div className="col-span-2">
+                          <button
+                            aria-label="Remover tarefa"
+                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/60 text-text-muted transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                            onClick={() => removeOperationalItem(item.id)}
+                            type="button"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                          <div className="sm:col-span-8 min-w-0">
+                            <Input
+                              className="h-9 w-full text-xs sm:text-sm"
+                              onChange={(e) =>
+                                updateOperationalItem(item.id, { title: e.target.value })
+                              }
+                              placeholder="Descrição da atividade (ex: Limpeza pós check-out)"
+                              value={item.title}
+                            />
+                          </div>
+                          <div className="sm:col-span-4 min-w-0">
+                            <div className="relative">
+                              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-text-muted">
+                                R$
+                              </span>
                               <Input
-                                className="h-7 text-[11px]"
-                                onChange={(e) => updateOperationalItem(item.id, { title: e.target.value })}
-                                placeholder="Descrição da tarefa"
-                                value={item.title}
+                                className="h-9 w-full pl-8 text-xs sm:text-sm font-semibold text-emerald-700"
+                                inputMode="decimal"
+                                onChange={(e) =>
+                                  updateOperationalItem(item.id, { amount: e.target.value })
+                                }
+                                placeholder="0,00"
+                                value={item.amount}
                               />
-                            </div>
-                            <div>
-                              <div className="relative">
-                                <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-text-muted">
-                                  R$
-                                </span>
-                                <Input
-                                  className="h-7 pl-6 text-[11px] font-semibold text-emerald-700"
-                                  inputMode="decimal"
-                                  onChange={(e) => updateOperationalItem(item.id, { amount: e.target.value })}
-                                  placeholder="0,00"
-                                  value={item.amount}
-                                />
-                              </div>
                             </div>
                           </div>
                         </div>
-                      ))
-                    )}
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
 
-                {/* Total Despesas Operacionais */}
-                <div className="border-t border-border pt-2 flex items-center justify-between text-xs font-semibold text-text-primary">
-                  <span>Total Despesas Lançadas:</span>
-                  <span className="font-bold text-emerald-700">
+                <div className="flex items-center justify-between rounded-xl border border-border bg-surface-muted/40 px-4 py-3 text-xs font-semibold text-text-primary">
+                  <span>Total de Despesas Operacionais:</span>
+                  <span className="text-sm font-bold text-emerald-700">
                     {formatMoney(totalOperationalExpensesCents)}
                   </span>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Footer Actions */}
-          <div className="flex items-center justify-between border-t border-border bg-surface-muted/40 px-6 py-3 shrink-0">
+          {/* Footer Fixo */}
+          <div className="flex items-center justify-between gap-3 border-t border-border bg-surface-muted/40 px-5 py-3.5 shrink-0">
             <Button onClick={onClose} type="button" variant="secondary">
               Cancelar
             </Button>
 
-            <div className="flex items-center gap-2">
-              <Button disabled={isSaving || isSuccess} type="submit">
-                {isSaving ? "Salvando..." : isSuccess ? "Salvo com sucesso!" : "Salvar Reserva"}
-              </Button>
-            </div>
+            <Button disabled={isSaving || isSuccess} type="submit">
+              {isSaving ? "Salvando..." : isSuccess ? "Salvo com sucesso!" : "Salvar Reserva"}
+            </Button>
           </div>
         </form>
       </DialogContent>

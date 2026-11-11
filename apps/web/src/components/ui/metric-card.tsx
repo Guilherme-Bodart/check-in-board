@@ -44,17 +44,17 @@ export function MetricCard({
   return (
     <article
       className={cn(
-        "min-h-32 rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
+        "min-w-0 rounded-2xl border p-3.5 sm:p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
         classes.card,
       )}
     >
-      <div className="flex items-start justify-between gap-4">
-        <span className="text-sm font-semibold text-text-secondary">{label}</span>
-        <span className={cn("grid h-10 w-10 place-items-center rounded-xl", classes.icon)}>
-          <Icon aria-hidden className="h-5 w-5" />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs sm:text-sm font-semibold text-text-secondary truncate">{label}</span>
+        <span className={cn("grid h-8 w-8 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl", classes.icon)}>
+          <Icon aria-hidden className="h-4 w-4 sm:h-5 sm:w-5" />
         </span>
       </div>
-      <strong className={cn("mt-5 block text-4xl font-semibold leading-none", classes.value)}>
+      <strong className={cn("mt-3 sm:mt-4 block text-2xl sm:text-4xl font-bold leading-none truncate", classes.value)}>
         {value}
       </strong>
     </article>

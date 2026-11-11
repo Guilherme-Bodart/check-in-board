@@ -387,48 +387,50 @@ export function CalendarPage() {
           {/* Filter Bar */}
           <div className="flex flex-col gap-3 border-t border-border/80 pt-5 lg:flex-row lg:items-center lg:justify-between">
             {/* Left: Search & Filter Dropdowns */}
-            <div className="flex flex-1 flex-wrap items-center gap-3">
+            <div className="grid grid-cols-1 sm:flex sm:flex-1 sm:flex-wrap items-center gap-2.5">
               {/* Search */}
-              <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+              <div className="relative w-full sm:min-w-[220px] sm:flex-1 sm:max-w-xs">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
                 <input
                   className="h-10 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-xs outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar hóspede, código ou apartamento..."
+                  placeholder="Buscar hóspede, código ou imóvel..."
                   value={query}
                 />
               </div>
 
-              {/* Apartment Select */}
-              <select
-                className="h-10 rounded-xl border border-border bg-surface px-3 text-xs font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
-                onChange={(e) => changeApartment(e.target.value)}
-                value={selectedApartmentId}
-              >
-                <option value={allApartmentsValue}>🏢 Todos os Apartamentos</option>
-                {apartments.map((apt) => (
-                  <option key={apt.id} value={apt.id}>
-                    {apt.name} ({apt.owner?.name ?? "Sem locador"})
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 sm:flex items-center gap-2.5 w-full sm:w-auto">
+                {/* Apartment Select */}
+                <select
+                  className="h-10 w-full sm:w-auto min-w-0 truncate rounded-xl border border-border bg-surface px-3 text-xs font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
+                  onChange={(e) => changeApartment(e.target.value)}
+                  value={selectedApartmentId}
+                >
+                  <option value={allApartmentsValue}>🏢 Todos os Imóveis</option>
+                  {apartments.map((apt) => (
+                    <option key={apt.id} value={apt.id}>
+                      {apt.name} ({apt.owner?.name ?? "Sem locador"})
+                    </option>
+                  ))}
+                </select>
 
-              {/* Channel Filter */}
-              <select
-                className="h-10 rounded-xl border border-border bg-surface px-3 text-xs font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
-                onChange={(e) => setChannelFilter(e.target.value as any)}
-                value={channelFilter}
-              >
-                <option value="all">🌐 Todos os Canais</option>
-                <option value="airbnb">Airbnb (iCal)</option>
-                <option value="manual">Manual / Direta</option>
-              </select>
+                {/* Channel Filter */}
+                <select
+                  className="h-10 w-full sm:w-auto min-w-0 truncate rounded-xl border border-border bg-surface px-3 text-xs font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
+                  onChange={(e) => setChannelFilter(e.target.value as any)}
+                  value={channelFilter}
+                >
+                  <option value="all">🌐 Todos os Canais</option>
+                  <option value="airbnb">Airbnb (iCal)</option>
+                  <option value="manual">Manual / Direta</option>
+                </select>
+              </div>
             </div>
 
             {/* Right: Month Navigation & Today Button */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between sm:justify-end gap-2">
               <button
-                className="h-10 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
+                className="h-10 shrink-0 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
                 onClick={handleResetToCurrentMonth}
                 title="Ir para o mês atual"
                 type="button"
@@ -436,31 +438,33 @@ export function CalendarPage() {
                 Hoje
               </button>
 
-              <button
-                aria-label="Mês anterior"
-                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
-                onClick={() => shiftMonth(-1)}
-                type="button"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
+              <div className="flex flex-1 sm:flex-initial items-center gap-1.5">
+                <button
+                  aria-label="Mês anterior"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
+                  onClick={() => shiftMonth(-1)}
+                  type="button"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
 
-              <input
-                aria-label="Selecionar mês"
-                className="h-10 rounded-xl border border-border bg-surface px-3 text-xs font-semibold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
-                onChange={(e) => setMonth(e.target.value)}
-                type="month"
-                value={month}
-              />
+                <input
+                  aria-label="Selecionar mês"
+                  className="h-10 flex-1 sm:flex-initial min-w-0 rounded-xl border border-border bg-surface px-3 text-xs font-semibold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
+                  onChange={(e) => setMonth(e.target.value)}
+                  type="month"
+                  value={month}
+                />
 
-              <button
-                aria-label="Próximo mês"
-                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
-                onClick={() => shiftMonth(1)}
-                type="button"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+                <button
+                  aria-label="Próximo mês"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
+                  onClick={() => shiftMonth(1)}
+                  type="button"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -39,14 +39,14 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 top-auto z-50 grid w-full max-h-[92vh] overflow-y-auto rounded-t-3xl border-t border-border/80 bg-surface p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:inset-auto sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
+        "fixed inset-x-0 bottom-0 top-auto z-50 flex flex-col w-full max-w-lg max-sm:max-w-none max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-t-3xl border-t border-border/80 bg-surface p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:inset-auto sm:left-[50%] sm:top-[50%] sm:w-[calc(100vw-2rem)] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
         className
       )}
       {...props}
     >
       {children}
       {!hideCloseButton && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-xl border border-border/60 text-text-muted transition-all hover:border-border hover:bg-surface-muted hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:pointer-events-none">
+        <DialogPrimitive.Close className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-xl border border-border/60 bg-surface text-text-muted transition-all hover:border-border hover:bg-surface-muted hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:pointer-events-none">
           <X className="h-4 w-4" />
           <span className="sr-only">Fechar</span>
         </DialogPrimitive.Close>

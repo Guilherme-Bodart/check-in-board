@@ -138,25 +138,25 @@ export function CalendarReportsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-2xl border-border bg-surface shadow-2xl">
+      <DialogContent className="max-w-4xl p-0 overflow-hidden border-border bg-surface shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-surface-muted/40 px-6 py-4 print:hidden">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-muted/40 px-5 py-4 pr-14 shrink-0 print:hidden">
+          <div className="flex items-center gap-3 min-w-0">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary font-bold">
               <FileText className="h-5 w-5" />
             </span>
-            <div>
-              <DialogTitle className="text-base font-bold tracking-tight text-text-primary">
+            <div className="min-w-0">
+              <DialogTitle className="text-base font-bold tracking-tight text-text-primary truncate">
                 Central de Relatórios & Demonstrativos
               </DialogTitle>
-              <p className="text-xs text-text-muted">
-                Gere prestação de contas aos proprietários, escala de governança ou lista para portaria
+              <p className="text-xs text-text-muted truncate">
+                Prestação de contas aos proprietários, escala de limpeza e portaria
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 pr-6">
-            <Button className="h-8.5 gap-1.5 text-xs font-semibold" onClick={handlePrint} variant="secondary">
+          <div className="flex items-center gap-2">
+            <Button className="h-9 gap-1.5 text-xs font-semibold" onClick={handlePrint} variant="secondary">
               <Printer className="h-3.5 w-3.5" />
               Imprimir / PDF
             </Button>
@@ -164,20 +164,20 @@ export function CalendarReportsModal({
         </div>
 
         {/* Toolbar & Selector */}
-        <div className="flex flex-col gap-3 border-b border-border bg-surface px-6 py-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
+        <div className="flex flex-col gap-3 border-b border-border bg-surface px-5 py-3 sm:flex-row sm:items-center sm:justify-between shrink-0 print:hidden">
           <Tabs value={activeReport} onValueChange={(val) => setActiveReport(val as ReportType)}>
-            <TabsList>
-              <TabsTrigger value="owner-statement">📄 Proprietário</TabsTrigger>
-              <TabsTrigger value="cleaning-schedule">🧹 Limpeza</TabsTrigger>
-              <TabsTrigger value="building-reception">🏢 Portaria</TabsTrigger>
+            <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+              <TabsTrigger value="owner-statement" className="text-xs">📄 Proprietário</TabsTrigger>
+              <TabsTrigger value="cleaning-schedule" className="text-xs">🧹 Limpeza</TabsTrigger>
+              <TabsTrigger value="building-reception" className="text-xs">🏢 Portaria</TabsTrigger>
             </TabsList>
           </Tabs>
 
           {activeReport === "owner-statement" && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-text-muted">Imóvel:</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs font-semibold text-text-muted shrink-0">Imóvel:</span>
               <Select value={chosenApartmentId} onValueChange={(val) => setChosenApartmentId(val)}>
-                <SelectTrigger className="h-8 w-56 text-xs font-semibold">
+                <SelectTrigger className="h-9 w-full sm:w-64 text-xs font-semibold">
                   <SelectValue placeholder="Selecione o imóvel" />
                 </SelectTrigger>
                 <SelectContent>
@@ -193,9 +193,9 @@ export function CalendarReportsModal({
         </div>
 
         {/* Content Body (A4 Paper Preview) */}
-        <div className="max-h-[72vh] overflow-y-auto bg-neutral-100 p-6 print:bg-white print:p-0">
+        <div className="flex-1 overflow-y-auto bg-neutral-100 p-4 sm:p-6 print:bg-white print:p-0">
           {activeReport === "owner-statement" && (
-            <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-md print:max-w-none print:border-none print:p-0 print:shadow-none">
+            <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-200 bg-white p-4 sm:p-8 shadow-md print:max-w-none print:border-none print:p-0 print:shadow-none">
               <div className="border-b border-neutral-200 pb-4">
                 <h1 className="text-xl font-bold tracking-tight text-neutral-900 underline decoration-neutral-300">
                   Demonstrativo de Reservas Concluídas

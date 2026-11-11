@@ -1,9 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { X, Calendar as CalendarIcon, User } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "../../components/ui/dialog";
 import { Field, Input, Select } from "../../components/ui/form-controls";
 import type { Reservation, Apartment } from "../../api";
 import { readStoredSession } from "../../lib/session-storage";
@@ -13,7 +14,7 @@ export type ReservationFormModalProps = {
   isOpen: boolean;
   apartments: Apartment[];
   apartmentId: string;
-  reservation?: Reservation | null; // se nulo, cria nova; se preenchido, edita
+  reservation?: Reservation | null;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -28,7 +29,7 @@ export function ReservationFormModal({
 }: ReservationFormModalProps) {
   const isEditing = Boolean(reservation);
   const isIcal = isEditing && reservation?.provider !== "manual";
-  
+
   const [formApartmentId, setFormApartmentId] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestCount, setGuestCount] = useState("");
@@ -44,7 +45,7 @@ export function ReservationFormModal({
         setFormApartmentId(reservation.apartmentId);
         setGuestName(reservation.guestName || "");
         setGuestCount(reservation.guestCount ? String(reservation.guestCount) : "");
-        setStartsAt(reservation.startsAt.substring(0, 10)); // YYYY-MM-DD
+        setStartsAt(reservation.startsAt.substring(0, 10));
         setEndsAt(reservation.endsAt.substring(0, 10));
       } else {
         setFormApartmentId(apartmentId === "all" ? (apartments[0]?.id || "") : apartmentId);
@@ -52,17 +53,13 @@ export function ReservationFormModal({
         setGuestCount("");
         const today = new Date().toISOString().substring(0, 10);
         setStartsAt(today);
-        
+
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         setEndsAt(tomorrow.toISOString().substring(0, 10));
       }
     }
-  }, [isOpen, reservation]);
-
-  if (!isOpen) {
-    return null;
-  }
+  }, [isOpen, reservation, apartmentId, apartments]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -99,98 +96,90 @@ export function ReservationFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-text-primary/35 px-4 backdrop-blur-sm">
-      <section className="w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-xl">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-              <CalendarIcon aria-hidden className="h-5 w-5" />
-            </span>
-            <h2 className="text-lg font-semibold text-text-primary">
-              {isEditing ? "Editar Reserva" : "Nova Reserva Manual"}
-            </h2>
-          </div>
-          <button
-            aria-label="Fechar"
-            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
-            onClick={onClose}
-            type="button"
-          >
-            <X aria-hidden className="h-4 w-4" />
-          </button>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg p-0 overflow-hidden border-border bg-surface shadow-2xl">
+        <div className="flex items-center gap-3 border-b border-border bg-surface-muted/40 px-5 py-4 pr-14 shrink-0">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+            <CalendarIcon aria-hidden className="h-5 w-5" />
+          </span>
+          <DialogTitle className="text-base font-bold text-text-primary truncate">
+            {isEditing ? "Editar Reserva" : "Nova Reserva Manual"}
+          </DialogTitle>
         </div>
 
-        {error && (
-          <div className="mt-4 rounded-lg bg-danger-soft p-3 text-sm text-danger">
-            {error}
-          </div>
-        )}
+        <form className="flex flex-col" onSubmit={handleSubmit}>
+          <div className="p-5 space-y-4">
+            {error && (
+              <div className="rounded-xl bg-danger-soft p-3 text-sm text-danger">
+                {error}
+              </div>
+            )}
 
-        <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-          {!isEditing && (
-            <Field label="Apartamento">
-              <Select
-                onChange={(e) => setFormApartmentId(e.target.value)}
-                required
-                value={formApartmentId}
-              >
-                <option disabled value="">Selecione um apartamento...</option>
-                {apartments.map(apt => (
-                  <option key={apt.id} value={apt.id}>{apt.name}</option>
-                ))}
-              </Select>
+            {!isEditing && (
+              <Field label="Apartamento">
+                <Select
+                  onChange={(e) => setFormApartmentId(e.target.value)}
+                  required
+                  value={formApartmentId}
+                >
+                  <option disabled value="">Selecione um apartamento...</option>
+                  {apartments.map((apt) => (
+                    <option key={apt.id} value={apt.id}>{apt.name}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+
+            {!isIcal && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Data de Check-in">
+                  <Input
+                    disabled={isEditing}
+                    onChange={(e) => setStartsAt(e.target.value)}
+                    required
+                    type="date"
+                    value={startsAt}
+                  />
+                </Field>
+                <Field label="Data de Check-out">
+                  <Input
+                    disabled={isEditing}
+                    onChange={(e) => setEndsAt(e.target.value)}
+                    required
+                    type="date"
+                    value={endsAt}
+                  />
+                </Field>
+              </div>
+            )}
+
+            {isIcal && (
+              <div className="rounded-xl border border-border bg-surface-muted p-3 text-xs text-text-secondary">
+                Esta reserva foi importada via iCal ({reservation?.provider}). As datas não podem ser alteradas, mas você pode preencher os dados complementares abaixo.
+              </div>
+            )}
+
+            <Field label="Nome do Hóspede Principal">
+              <Input
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Ex: João da Silva"
+                required={!isIcal}
+                value={guestName}
+              />
             </Field>
-          )}
 
-          {!isIcal && (
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Data de Check-in">
-                <Input
-                  disabled={isEditing}
-                  onChange={(e) => setStartsAt(e.target.value)}
-                  required
-                  type="date"
-                  value={startsAt}
-                />
-              </Field>
-              <Field label="Data de Check-out">
-                <Input
-                  disabled={isEditing}
-                  onChange={(e) => setEndsAt(e.target.value)}
-                  required
-                  type="date"
-                  value={endsAt}
-                />
-              </Field>
-            </div>
-          )}
+            <Field label="Quantidade Total de Hóspedes">
+              <Input
+                min={1}
+                onChange={(e) => setGuestCount(e.target.value)}
+                placeholder="Ex: 2"
+                type="number"
+                value={guestCount}
+              />
+            </Field>
+          </div>
 
-          {isIcal && (
-             <div className="rounded-lg border border-border bg-surface-muted p-3 text-sm text-text-secondary">
-               Esta reserva foi importada via iCal ({reservation?.provider}). As datas não podem ser alteradas, mas você pode preencher os dados complementares abaixo.
-             </div>
-          )}
-
-          <Field label="Nome do Hóspede Principal">
-            <Input
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Ex: João da Silva"
-              required={!isIcal}
-              value={guestName}
-            />
-          </Field>
-
-          <Field label="Quantidade Total de Hóspedes">
-            <Input
-              min={1}
-              onChange={(e) => setGuestCount(e.target.value)}
-              placeholder="Ex: 2"
-              type="number"
-              value={guestCount}
-            />
-          </Field>
-
-          <div className="mt-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <div className="flex items-center justify-end gap-2.5 border-t border-border bg-surface-muted/40 px-5 py-3.5 shrink-0">
             <Button
               disabled={isSaving}
               onClick={onClose}
@@ -204,7 +193,7 @@ export function ReservationFormModal({
             </Button>
           </div>
         </form>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

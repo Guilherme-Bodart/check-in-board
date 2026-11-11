@@ -9,7 +9,7 @@ export function Panel({
 }: HTMLAttributes<HTMLElement> & { children: ReactNode }) {
   return (
     <section
-      className={cn("rounded-lg border border-border bg-surface p-5 shadow-sm", className)}
+      className={cn("min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-6 shadow-sm", className)}
       {...props}
     >
       {children}
