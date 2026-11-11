@@ -45,6 +45,7 @@ import { CalendarGridView, type CalendarDay } from "./components/calendar-grid-v
 import { CalendarTimelineView } from "./components/calendar-timeline-view";
 import { ReservationUnifiedModal } from "./components/reservation-unified-modal";
 import { CalendarReportsModal } from "./components/calendar-reports-modal";
+import { EmptyState } from "../../components/ui/empty-state";
 
 const allApartmentsValue = "all";
 
@@ -73,13 +74,23 @@ export function CalendarPage() {
 
   async function loadCalendar(nextApartmentId = selectedApartmentId) {
     const session = readStoredSession();
-    if (!session) return;
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setMessage("");
 
     try {
       const nextApartments = await fetchApartments(session.token);
+      if (nextApartments.length === 0) {
+        setApartments([]);
+        setRentalStays([]);
+        setReservations([]);
+        return;
+      }
+
       const apartmentIds =
         nextApartmentId === allApartmentsValue
           ? nextApartments.map((apartment) => apartment.id)
@@ -351,6 +362,16 @@ export function CalendarPage() {
               <span>{syncNotification}</span>
             </div>
           )}
+
+          {!isLoading && apartments.length === 0 ? (
+            <EmptyState
+              actionHref="/apartamentos/novo"
+              actionLabel="Cadastrar apartamento"
+              description="Cadastre seu primeiro imóvel para visualizar reservas, ocupação e controle financeiro no calendário."
+              icon={Building2}
+              title="Nenhum apartamento cadastrado"
+            />
+          ) : null}
 
           {/* KPI Metrics Cards */}
           <CalendarStats

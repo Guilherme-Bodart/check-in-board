@@ -27,6 +27,7 @@ import {
   type ReservationListItem,
 } from "./reservation-view-model";
 import { ReservationUnifiedModal } from "../calendar/components/reservation-unified-modal";
+import { EmptyState } from "../../components/ui/empty-state";
 
 const allApartmentsValue = "all";
 
@@ -44,13 +45,23 @@ export function ReservationsPage() {
 
   async function loadReservations(nextApartmentId = selectedApartmentId) {
     const session = readStoredSession();
-    if (!session) return;
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setMessage("");
 
     try {
       const nextApartments = await fetchApartments(session.token);
+      if (nextApartments.length === 0) {
+        setApartments([]);
+        setRentalStays([]);
+        setReservations([]);
+        return;
+      }
+
       const apartmentIds =
         nextApartmentId === allApartmentsValue
           ? nextApartments.map((apartment) => apartment.id)
@@ -214,6 +225,18 @@ export function ReservationsPage() {
           <p className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
             {message}
           </p>
+        ) : null}
+
+        {!isLoading && apartments.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              actionHref="/apartamentos/novo"
+              actionLabel="Cadastrar apartamento"
+              description="Cadastre seu primeiro imóvel para começar a registrar ou importar reservas do Airbnb."
+              icon={Building2}
+              title="Nenhum apartamento cadastrado"
+            />
+          </div>
         ) : null}
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-border">
