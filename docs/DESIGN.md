@@ -1,7 +1,7 @@
 # Check-in Board — Design System & UI Architecture (`DESIGN.md`)
 
-**Identidade Visual:** *Warm Luxury Hospitality & Precision SaaS*  
-**Referências de Engenharia de UI:** Airbnb Host, Linear, Vercel Geist, Stripe Dashboard, shadcn/ui.
+**Identidade Visual:** *Carbon Enterprise — Clareza Produtiva & Precisão Operacional*  
+**Referências de Engenharia de UI:** Stitch Project *Check-in Board Anfitrião* (`639271905691226277`), IBM Carbon, Linear, Vercel Geist, shadcn/ui.
 
 Este documento é a **fonte única da verdade** para o design e implementação de interfaces do **Check-in Board** (Web & Mobile-First). Todas as telas, modais, tabelas e componentes devem obedecer estritamente às regras abaixo para garantir **zero textos quebrados, zero vazamento de containers (overflow) e máxima clareza operacional**.
 
@@ -100,27 +100,32 @@ Todo modal deve ser estruturado como `flex flex-col max-h-[90vh] overflow-hidden
   - Colunas de dias largas (`78px` no mobile, `88px` no desktop) exibindo 3 a 4 dias completos na tela do celular com auto-scroll automático para o dia de **HOJE**.
   - Blocos de reserva sólidos, sérios e de alto contraste: Verde Floresta (`#15803D`) para reservas Diretas/Manuais, Azul Executivo (`#1D4ED8`) para Airbnb e Ardósia Escuro (`#1E293B`) para outros canais.
 
-### 4.4 Tabelas de Dados (`DataTable`)
-- Sempre envolvidas por `overflow-x-auto rounded-xl border border-border` para permitir deslize horizontal suave em telas pequenas sem cortar colunas de valores ou botões de ação.
+### 4.4 Listagens Responsivas: Cards no Mobile (`md:hidden`) + Tabelas no Desktop (`hidden md:block`)
+- **Regra Mobile-First (< 768px):** Em telas de celular, tabelas largas de 5 ou 6 colunas (como em *Reservas*, *Clientes/Proprietários* e *Financeiro*) devem ser substituídas por **Cards Estruturados (`md:hidden`)** com:
+  1. Cabeçalho do card com badges atômicas (`Airbnb` / `Direto`, `Faturada` / `Sem Preço`) à esquerda e código `#ID` em `font-mono` à direita.
+  2. Nome principal (`truncate`) + subtítulo do imóvel/proprietário.
+  3. Caixa interna (`rounded-lg border border-border/70 bg-surface p-2.5`) destacando o período, datas ou contatos.
+  4. Rodapé do card com o valor em destaque à esquerda e o botão de ação (`Editar & Precificar` / `Editar`) à direita.
+- **Regra Desktop (>= 768px):** Exibir `DataTable` limpa (`hidden md:block`) envolvida por `overflow-x-auto rounded-xl border border-border`.
 
 ---
 
-## 5. Paleta de Cores & Tokens Semânticos (Estilo Executivo & Sóbrio)
+## 5. Paleta de Cores & Tokens Semânticos (Carbon Enterprise — Stitch `639271905691226277`)
 
 | Token | Cor / Valor | Uso Principal |
 | :--- | :--- | :--- |
-| `--background` | `#F8FAFC` | Fundo geral da aplicação (Slate ultra claro, neutro e sério) |
-| `--surface` | `#FFFFFF` | Fundo de cards, modais, tabelas e barras de navegação |
-| `--surface-muted` | `#F1F5F9` | Fundos secundários, cabeçalhos de tabela e estados inativos |
-| `--border` | `#E2E8F0` | Bordas sutis de `1px` para divisão estrutural |
-| `--primary` | `#1D4ED8` | Azul Executivo para ações principais, botões de destaque e indicadores ativos |
-| `--primary-soft` | `#EFF6FF` | Fundo suave para itens de menu ativos, coluna HOJE e seleção |
-| `--text-primary` | `#0F172A` | Títulos, nomes de hóspedes e valores principais (Slate 900) |
-| `--text-secondary`| `#475569` | Subtítulos, descrições e rótulos de formulário (Slate 600) |
-| `--text-muted` | `#64748B` | Placeholders, ícones neutros e metadados secundários (Slate 500) |
-| `--success` | `#15803D` | Reservas diretas, valores faturados e status livre/concluído |
-| `--warning` | `#B45309` | Reservas sem preço, nomes genéricos e alertas operacionais |
-| `--danger` | `#B91C1C` | Conflitos de overbooking, despesas e exclusões |
+| `--cib-color-background` | `#F4F4F4` | Fundo geral da aplicação (Cinza neutro Carbon, contraste limpo com cards brancos) |
+| `--cib-color-surface` | `#FFFFFF` | Fundo de cards principais, modais, tabelas e barras de navegação |
+| `--cib-color-surface-muted` | `#F4F4F4` | Fundos secundários de cards internos, cabeçalhos de tabela e estados inativos |
+| `--cib-color-border` | `#E0E0E0` | Bordas sutis e estruturais de `1px` |
+| `--cib-color-primary` | `#0F62FE` | Azul Executivo (IBM Blue) para ações primárias, reserva selecionada e canal Airbnb |
+| `--cib-color-primary-soft` | `#D0E2FF` | Fundo suave para itens ativos, coluna HOJE e badges primárias |
+| `--cib-color-text-primary` | `#161616` | Títulos, nomes de hóspedes e valores principais (Carbon Gray 100) |
+| `--cib-color-text-secondary`| `#525252` | Subtítulos, descrições e rótulos de formulário (Carbon Gray 70) |
+| `--cib-color-text-muted` | `#6F6F6F` | Placeholders, ícones neutros e metadados secundários (Carbon Gray 60) |
+| `--cib-color-success` | `#198038` | Verde Floresta para reservas Diretas/Manuais, valores faturados e status livre |
+| `--cib-color-warning` | `#B45309` | Reservas sem preço, nomes genéricos e alertas operacionais |
+| `--cib-color-danger` | `#DA1E28` | Conflitos de overbooking, despesas e exclusões |
 
 ---
 

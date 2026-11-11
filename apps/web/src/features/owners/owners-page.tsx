@@ -171,68 +171,75 @@ export function OwnersPage() {
 
         <div className="mt-5">
           {isLoading || filteredOwners.length > 0 ? (
-            <DataTable>
-              <thead className="bg-surface-muted text-xs uppercase tracking-[0.12em] text-text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Proprietário</th>
-                  <th className="px-4 py-3 font-semibold">Contato</th>
-                  <th className="px-4 py-3 font-semibold">Apartamentos</th>
-                  <th className="px-4 py-3 font-semibold">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-surface">
+            <>
+              {/* Mobile-First Owner Cards (< 768px) */}
+              <div className="grid gap-3 md:hidden">
                 {isLoading ? (
-                  <TableStateRow colSpan={4}>Carregando proprietários...</TableStateRow>
+                  <div className="rounded-xl border border-border py-10 text-center text-xs text-text-muted">
+                    Carregando proprietários...
+                  </div>
                 ) : (
                   filteredOwners.map((owner) => (
-                    <tr key={owner.id}>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
+                    <article
+                      className="flex flex-col gap-3 rounded-xl border border-border bg-surface-muted/40 p-4"
+                      key={owner.id}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border bg-surface text-primary">
                             {owner.type === "client" ? (
                               <BriefcaseBusiness aria-hidden className="h-4 w-4" />
                             ) : (
                               <UserRound aria-hidden className="h-4 w-4" />
                             )}
                           </span>
-                          <div>
-                            <strong className="block font-semibold text-text-primary">
+                          <div className="min-w-0">
+                            <strong className="block truncate text-base font-bold text-text-primary">
                               {owner.name}
                             </strong>
-                            <Badge tone={owner.type === "client" ? "info" : "primary"}>
-                              {ownerTypeLabels[owner.type]}
-                            </Badge>
+                            <p className="truncate text-xs text-text-secondary">
+                              {owner.contactName ?? "Titular"}
+                            </p>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-4 text-text-secondary">
-                        <div className="grid gap-1">
-                          <span>{owner.contactName ?? "Sem contato"}</span>
-                          {owner.email ? (
-                            <span className="flex items-center gap-1 text-xs text-text-muted">
-                              <Mail aria-hidden className="h-3.5 w-3.5" />
-                              {owner.email}
-                            </span>
-                          ) : null}
-                          {owner.phone ? (
-                            <span className="flex items-center gap-1 text-xs text-text-muted">
-                              <Phone aria-hidden className="h-3.5 w-3.5" />
-                              {owner.phone}
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-text-secondary">
-                        {owner.apartmentCount}
-                      </td>
-                      <td className="px-4 py-4">
+
+                        <Badge tone={owner.type === "client" ? "info" : "primary"}>
+                          {ownerTypeLabels[owner.type]}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-1.5 rounded-lg border border-border/70 bg-surface p-2.5 text-xs text-text-secondary">
+                        {owner.email ? (
+                          <span className="flex items-center gap-1.5 truncate">
+                            <Mail aria-hidden className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                            <span className="truncate">{owner.email}</span>
+                          </span>
+                        ) : null}
+                        {owner.phone ? (
+                          <span className="flex items-center gap-1.5">
+                            <Phone aria-hidden className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                            <span>{owner.phone}</span>
+                          </span>
+                        ) : null}
+                        {!owner.email && !owner.phone ? (
+                          <span className="text-text-muted">Sem e-mail ou telefone cadastrado</span>
+                        ) : null}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-primary">
+                          <Building2 className="h-3.5 w-3.5 text-primary" />
+                          {owner.apartmentCount}{" "}
+                          {owner.apartmentCount === 1 ? "imóvel vinculado" : "imóveis vinculados"}
+                        </span>
+
                         <div className="flex items-center gap-2">
                           <Link
-                            aria-label="Editar proprietário"
-                            className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
                             href={`/clientes/${owner.id}/editar`}
                           >
-                            <Pencil aria-hidden className="h-4 w-4" />
+                            <Pencil aria-hidden className="h-3.5 w-3.5" />
+                            Editar
                           </Link>
                           <IconButton
                             aria-label="Remover proprietário"
@@ -242,12 +249,93 @@ export function OwnersPage() {
                             variant="danger"
                           />
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </article>
                   ))
                 )}
-              </tbody>
-            </DataTable>
+              </div>
+
+              {/* Desktop Table (>= 768px) */}
+              <div className="hidden md:block">
+                <DataTable>
+                  <thead className="bg-surface-muted text-xs uppercase tracking-[0.12em] text-text-muted">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Proprietário</th>
+                      <th className="px-4 py-3 font-semibold">Contato</th>
+                      <th className="px-4 py-3 font-semibold">Apartamentos</th>
+                      <th className="px-4 py-3 font-semibold">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border bg-surface">
+                    {isLoading ? (
+                      <TableStateRow colSpan={4}>Carregando proprietários...</TableStateRow>
+                    ) : (
+                      filteredOwners.map((owner) => (
+                        <tr key={owner.id}>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
+                                {owner.type === "client" ? (
+                                  <BriefcaseBusiness aria-hidden className="h-4 w-4" />
+                                ) : (
+                                  <UserRound aria-hidden className="h-4 w-4" />
+                                )}
+                              </span>
+                              <div>
+                                <strong className="block font-semibold text-text-primary">
+                                  {owner.name}
+                                </strong>
+                                <Badge tone={owner.type === "client" ? "info" : "primary"}>
+                                  {ownerTypeLabels[owner.type]}
+                                </Badge>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-text-secondary">
+                            <div className="grid gap-1">
+                              <span>{owner.contactName ?? "Sem contato"}</span>
+                              {owner.email ? (
+                                <span className="flex items-center gap-1 text-xs text-text-muted">
+                                  <Mail aria-hidden className="h-3.5 w-3.5" />
+                                  {owner.email}
+                                </span>
+                              ) : null}
+                              {owner.phone ? (
+                                <span className="flex items-center gap-1 text-xs text-text-muted">
+                                  <Phone aria-hidden className="h-3.5 w-3.5" />
+                                  {owner.phone}
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-text-secondary">
+                            {owner.apartmentCount}
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2">
+                              <Link
+                                aria-label="Editar proprietário"
+                                className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
+                                href={`/clientes/${owner.id}/editar`}
+                              >
+                                <Pencil aria-hidden className="h-4 w-4" />
+                              </Link>
+                              <IconButton
+                                aria-label="Remover proprietário"
+                                disabled={owner.apartmentCount > 0}
+                                icon={Trash2}
+                                onClick={() => setOwnerToDelete(owner)}
+                                variant="danger"
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </DataTable>
+              </div>
+            </>
           ) : (
             <EmptyState
               actionHref="/clientes/novo"
@@ -283,14 +371,14 @@ function SummaryCard({
   value: number;
 }) {
   return (
-    <article className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-text-secondary">{label}</span>
-        <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-          <Icon aria-hidden className="h-4 w-4" />
+    <article className="rounded-xl border border-border bg-surface p-3.5 sm:p-4 shadow-2xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-text-muted truncate">
+          {label}
         </span>
+        <Icon aria-hidden className="h-4 w-4 shrink-0 text-primary" />
       </div>
-      <strong className="mt-4 block text-3xl font-semibold tracking-tight text-text-primary">
+      <strong className="mt-1.5 block text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
         {value}
       </strong>
     </article>

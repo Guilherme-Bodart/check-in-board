@@ -282,9 +282,20 @@ export function CalendarPage() {
   }, [month]);
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4">
+      {/* Compact Horizontal Snap KPI Strip on Mobile / 4-Col Grid on Desktop */}
+      <CalendarStats
+        apartments={apartments}
+        isPendingFilterActive={isPendingFilterActive}
+        month={month}
+        onTogglePendingFilter={() => setIsPendingFilterActive((prev) => !prev)}
+        rentalStays={rentalStays}
+        reservations={monthReservations}
+        selectedApartmentId={selectedApartmentId}
+      />
+
       {/* Main Calendar Card (Mobile-First matching Stitch reference) */}
-      <section className="rounded-2xl border border-border bg-surface p-3.5 sm:p-5 shadow-2xs">
+      <section className="rounded-xl border border-border bg-surface p-3.5 sm:p-5 shadow-2xs">
         <div className="flex flex-col gap-3.5">
           {/* Row 1: View Switcher (Cronograma / Mês) + Primary "+ Reserva" Button */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
@@ -499,36 +510,25 @@ export function CalendarPage() {
         )}
       </section>
 
-      {/* KPI Metrics Summary Below Calendar */}
-      <CalendarStats
-        apartments={apartments}
-        isPendingFilterActive={isPendingFilterActive}
-        month={month}
-        onTogglePendingFilter={() => setIsPendingFilterActive((prev) => !prev)}
-        rentalStays={rentalStays}
-        reservations={monthReservations}
-        selectedApartmentId={selectedApartmentId}
-      />
-
-      {/* Bottom Section: Detailed Reservation List for the Month */}
-      <section className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {/* Bottom Section: Detailed Reservation List for the Month (Stitch Mobile-First Cards) */}
+      <section className="rounded-xl border border-border bg-surface p-4 sm:p-6 shadow-2xs">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-              Detalhamento de Reservas
+            <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+              Detalhamento Operacional
             </p>
-            <h2 className="text-xl font-bold tracking-tight text-text-primary">
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-text-primary">
               Reservas no Mês ({monthReservations.length})
             </h2>
           </div>
           <span className="text-xs text-text-muted">
-            Clique em "Editar & Precificar" para atualizar hóspede titular, preço e dados
+            Toque em "Editar & Precificar" para atualizar titular, valor e tarefas
           </span>
         </div>
 
-        <div className="mt-5 grid gap-3">
+        <div className="mt-4 grid gap-3">
           {monthReservations.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border py-12 text-center text-sm text-text-muted">
+            <div className="rounded-xl border border-dashed border-border py-10 text-center text-sm text-text-muted">
               Nenhuma reserva encontrada para os filtros selecionados.
             </div>
           ) : (
@@ -542,25 +542,48 @@ export function CalendarPage() {
                 reservation.rawSummary?.toLowerCase().includes("reserved") ||
                 reservation.rawSummary?.toLowerCase().includes("airbnb");
 
+              const codeSnippet = (reservation.externalEventKey || reservation.id)
+                .slice(-6)
+                .toUpperCase();
+
               return (
                 <article
-                  className="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-surface-muted/30 p-4 transition-all hover:border-primary/40 hover:bg-surface-muted/60 md:flex-row md:items-center"
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-surface-muted/50 p-3.5 sm:p-4 transition hover:border-primary/40"
                   key={reservation.id}
                 >
-                  {/* Left: Guest, Apartment & Locador */}
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
+                  {/* Top Row: Atomic Badges + Code */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span
-                        className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${
+                        className={`inline-flex items-center shrink-0 whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
                           isAirbnb
-                            ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
-                            : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                            ? "bg-primary-soft text-primary"
+                            : "bg-success-soft text-success"
                         }`}
                       >
                         {isAirbnb ? "Airbnb" : "Direto"}
                       </span>
 
-                      <strong className="text-sm font-bold text-text-primary">
+                      <span
+                        className={`inline-flex items-center shrink-0 whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                          stay
+                            ? "bg-emerald-100 text-emerald-900"
+                            : "bg-amber-100 text-amber-900"
+                        }`}
+                      >
+                        {stay ? "Faturada" : "Sem Preço"}
+                      </span>
+                    </div>
+
+                    <span className="font-mono text-[11px] font-semibold text-text-muted shrink-0">
+                      #{codeSnippet}
+                    </span>
+                  </div>
+
+                  {/* Middle Row: Guest Name + Apartment + Guest Count */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <strong className="block truncate text-base font-bold text-text-primary">
                         {isGenericName && !reservation.guestName ? (
                           <span className="text-amber-800 underline decoration-amber-400">
                             {reservation.rawSummary || "Hóspede Não Identificado"}
@@ -569,54 +592,60 @@ export function CalendarPage() {
                           reservation.guestName || reservation.rawSummary || "Reserva"
                         )}
                       </strong>
-
-                      {reservation.guestCount ? (
-                        <span className="text-xs text-text-muted">
-                          ({reservation.guestCount} {reservation.guestCount === 1 ? "hóspede" : "hóspedes"})
-                        </span>
-                      ) : null}
+                      <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-text-secondary truncate">
+                        <Building2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="truncate">{reservation.apartmentName}</span>
+                        <span className="text-text-muted">• {reservation.ownerName}</span>
+                      </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
-                      <span className="flex items-center gap-1 font-medium">
-                        <Building2 className="h-3.5 w-3.5 text-primary" />
-                        {reservation.apartmentName}
+                    {reservation.guestCount ? (
+                      <span className="shrink-0 whitespace-nowrap rounded border border-border bg-surface px-2 py-1 text-[11px] font-medium text-text-secondary">
+                        {reservation.guestCount}{" "}
+                        {reservation.guestCount === 1 ? "hóspede" : "hóspedes"}
                       </span>
-                      <span className="flex items-center gap-1 text-text-muted">
-                        <ShieldCheck className="h-3.5 w-3.5 text-info" />
-                        Locador: {reservation.ownerName}
-                      </span>
-                      <span className="text-text-muted">
-                        📅 {new Date(reservation.startsAt).toLocaleDateString("pt-BR")} a{" "}
-                        {new Date(reservation.endsAt).toLocaleDateString("pt-BR")} ({nights} noites)
-                      </span>
-                    </div>
+                    ) : null}
                   </div>
 
-                  {/* Right: Price & Quick Action */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    {stay ? (
-                      <div className="text-right">
-                        <span className="block text-sm font-bold text-emerald-700">
-                          {formatMoney(stay.rentAmountCents)}
+                  {/* Inner Box: Dates & Nights + Price & Action on Desktop */}
+                  <div className="flex flex-col gap-3 rounded-lg border border-border/70 bg-surface p-2.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2 text-xs">
+                      <CalendarDays className="h-4 w-4 shrink-0 text-text-muted" />
+                      <div>
+                        <span className="font-semibold text-text-primary">
+                          {new Date(reservation.startsAt).toLocaleDateString("pt-BR")} a{" "}
+                          {new Date(reservation.endsAt).toLocaleDateString("pt-BR")}
                         </span>
-                        <span className="block text-[10px] font-medium text-emerald-800">
-                          Faturado
+                        <span className="ml-1.5 font-bold text-primary">
+                          ({nights} {nights === 1 ? "noite" : "noites"})
                         </span>
                       </div>
-                    ) : (
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                        Preço Pendente
-                      </span>
-                    )}
+                    </div>
 
-                    <button
-                      className="rounded-xl border border-border bg-surface px-3.5 py-2 text-xs font-bold text-text-primary shadow-sm transition hover:border-primary hover:text-primary active:scale-95"
-                      onClick={() => handleOpenEditModal(reservation)}
-                      type="button"
-                    >
-                      Editar & Precificar
-                    </button>
+                    <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2.5 sm:border-t-0 sm:pt-0">
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                          Total da Reserva
+                        </span>
+                        {stay ? (
+                          <strong className="text-sm font-bold text-text-primary">
+                            {formatMoney(stay.rentAmountCents)}
+                          </strong>
+                        ) : (
+                          <strong className="text-xs font-bold text-amber-700">
+                            A definir
+                          </strong>
+                        )}
+                      </div>
+
+                      <button
+                        className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
+                        onClick={() => handleOpenEditModal(reservation)}
+                        type="button"
+                      >
+                        Editar & Precificar
+                      </button>
+                    </div>
                   </div>
                 </article>
               );

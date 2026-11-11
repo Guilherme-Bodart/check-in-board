@@ -99,21 +99,21 @@ export function CalendarStats({
   }, [bookedNights, totalRevenueCents]);
 
   return (
-    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+    <div className="flex gap-2.5 overflow-x-auto pb-1 snap-x no-scrollbar sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4">
       {/* 1. Taxa de Ocupação */}
-      <article className="rounded-xl border border-border bg-surface p-3.5 shadow-2xs">
+      <article className="w-44 shrink-0 snap-start rounded-xl border border-border bg-surface p-3.5 shadow-2xs sm:w-auto">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Ocupação
           </span>
-          <Percent className="h-4 w-4 text-text-muted" />
+          <Percent className="h-3.5 w-3.5 text-text-muted" />
         </div>
-        <div className="mt-2 flex items-baseline gap-2">
+        <div className="mt-1.5 flex items-baseline gap-1.5">
           <strong className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
             {occupancyPercent}%
           </strong>
           <span className="text-[11px] text-text-muted truncate">
-            {bookedNights}/{totalPossibleNights} diárias
+            {bookedNights}/{totalPossibleNights}d
           </span>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
@@ -125,45 +125,44 @@ export function CalendarStats({
       </article>
 
       {/* 2. Receita no Mês */}
-      <article className="rounded-xl border border-border bg-surface p-3.5 shadow-2xs">
+      <article className="w-48 shrink-0 snap-start rounded-xl border border-border bg-surface p-3.5 shadow-2xs sm:w-auto">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-            Receita no Mês
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            Receita Mês
           </span>
-          <DollarSign className="h-4 w-4 text-text-muted" />
+          <DollarSign className="h-3.5 w-3.5 text-success" />
         </div>
-        <div className="mt-2 flex items-baseline gap-2">
-          <strong className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <strong className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary truncate">
             {formatMoney(totalRevenueCents)}
           </strong>
         </div>
-        <p className="mt-1 text-[11px] text-text-muted truncate">
-          {rentalStays.length} {rentalStays.length === 1 ? "reserva faturada" : "reservas faturadas"}
+        <p className="mt-1 text-[11px] font-medium text-success truncate">
+          {rentalStays.length} {rentalStays.length === 1 ? "faturada" : "faturadas"}
         </p>
       </article>
 
       {/* 3. Diária Média */}
-      <article className="rounded-xl border border-border bg-surface p-3.5 shadow-2xs">
+      <article className="w-44 shrink-0 snap-start rounded-xl border border-border bg-surface p-3.5 shadow-2xs sm:w-auto">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Diária Média
           </span>
-          <TrendingUp className="h-4 w-4 text-text-muted" />
+          <TrendingUp className="h-3.5 w-3.5 text-text-muted" />
         </div>
-        <div className="mt-2 flex items-baseline gap-1.5">
-          <strong className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
+        <div className="mt-1.5 flex items-baseline gap-1">
+          <strong className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary truncate">
             {averageDailyRateCents > 0 ? formatMoney(averageDailyRateCents) : "—"}
           </strong>
-          <span className="text-[11px] text-text-muted">/ noite</span>
         </div>
         <p className="mt-1 text-[11px] text-text-muted truncate">
-          Média das diárias faturadas
+          Por noite ocupada
         </p>
       </article>
 
       {/* 4. Pendências */}
       <article
-        className={`cursor-pointer rounded-xl border p-3.5 shadow-2xs transition ${
+        className={`w-44 shrink-0 snap-start cursor-pointer rounded-xl border p-3.5 shadow-2xs transition sm:w-auto ${
           pendingCount > 0
             ? isPendingFilterActive
               ? "border-amber-500 bg-amber-50/70"
@@ -173,14 +172,14 @@ export function CalendarStats({
         onClick={onTogglePendingFilter}
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Pendências
           </span>
           <AlertCircle
-            className={`h-4 w-4 ${pendingCount > 0 ? "text-amber-600" : "text-text-muted"}`}
+            className={`h-3.5 w-3.5 ${pendingCount > 0 ? "text-amber-600" : "text-text-muted"}`}
           />
         </div>
-        <div className="mt-2 flex items-baseline gap-2">
+        <div className="mt-1.5 flex items-baseline gap-1.5">
           <strong
             className={`text-xl sm:text-2xl font-bold tracking-tight ${
               pendingCount > 0 ? "text-amber-700" : "text-text-primary"
@@ -189,11 +188,11 @@ export function CalendarStats({
             {pendingCount}
           </strong>
           <span className="text-[11px] text-text-muted truncate">
-            {pendingCount === 1 ? "requer atenção" : "requerem atenção"}
+            {pendingCount === 1 ? "pendente" : "pendentes"}
           </span>
         </div>
         <div className="mt-1 flex items-center justify-between text-[11px] text-text-muted">
-          <span className="truncate">Sem preço ou titular</span>
+          <span className="truncate">S/ preço ou nome</span>
           <span className="font-semibold text-primary underline shrink-0 ml-1">
             {isPendingFilterActive ? "Limpar" : "Filtrar"}
           </span>

@@ -34,6 +34,7 @@ export function ApartmentsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
+  const [ownerTypeFilter, setOwnerTypeFilter] = useState<"all" | "internal" | "client">("all");
 
   async function loadData() {
     const session = readStoredSession();
@@ -61,16 +62,23 @@ export function ApartmentsPage() {
   const filteredApartments = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    if (!normalizedQuery) {
-      return apartments;
-    }
+    return apartments.filter((apartment) => {
+      if (ownerTypeFilter === "internal" && apartment.owner?.type !== "internal") {
+        return false;
+      }
+      if (ownerTypeFilter === "client" && apartment.owner?.type !== "client") {
+        return false;
+      }
 
-    return apartments.filter((apartment) =>
-      [apartment.name, apartment.owner?.name, apartment.timezone]
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return [apartment.name, apartment.owner?.name, apartment.timezone]
         .filter(Boolean)
-        .some((value) => value?.toLowerCase().includes(normalizedQuery)),
-    );
-  }, [apartments, query]);
+        .some((value) => value?.toLowerCase().includes(normalizedQuery));
+    });
+  }, [apartments, query, ownerTypeFilter]);
 
   const summary = useMemo(
     () => ({
@@ -115,27 +123,64 @@ export function ApartmentsPage() {
         title="Apartamentos"
       />
 
-      <section className="grid gap-4 md:grid-cols-3">
+      {/* Compact 3-Column Summary Bar (Single Row on Mobile & Desktop) */}
+      <section className="grid grid-cols-3 gap-2.5 sm:gap-4">
         <SummaryCard label={messages.apartments.apartments} value={summary.total} />
         <SummaryCard label={messages.apartments.owned} value={summary.internal} />
         <SummaryCard label={messages.apartments.clientsOwned} value={summary.client} />
       </section>
 
       <Panel>
-        <Toolbar>
-          <div className="relative">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 sm:max-w-xs">
             <Search
               aria-hidden
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
             />
             <Input
-              className="pl-9 sm:w-80"
+              className="pl-9 w-full"
               onChange={(event) => setQuery(event.target.value)}
               placeholder={messages.apartments.searchPlaceholder}
               value={query}
             />
           </div>
-        </Toolbar>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+            <button
+              className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+                ownerTypeFilter === "all"
+                  ? "bg-text-primary text-surface"
+                  : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
+              }`}
+              onClick={() => setOwnerTypeFilter("all")}
+              type="button"
+            >
+              Todos ({summary.total})
+            </button>
+            <button
+              className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+                ownerTypeFilter === "internal"
+                  ? "bg-text-primary text-surface"
+                  : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
+              }`}
+              onClick={() => setOwnerTypeFilter("internal")}
+              type="button"
+            >
+              Próprios ({summary.internal})
+            </button>
+            <button
+              className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+                ownerTypeFilter === "client"
+                  ? "bg-text-primary text-surface"
+                  : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
+              }`}
+              onClick={() => setOwnerTypeFilter("client")}
+              type="button"
+            >
+              Clientes ({summary.client})
+            </button>
+          </div>
+        </div>
 
         {message ? (
           <p className="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
@@ -143,25 +188,46 @@ export function ApartmentsPage() {
           </p>
         ) : null}
 
-        <div className="mt-8">
+        <div className="mt-5">
           {isLoading || filteredApartments.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-48 animate-pulse rounded-2xl bg-surface-muted" />
+                  <div key={i} className="h-44 animate-pulse rounded-xl bg-surface-muted" />
                 ))
               ) : (
                 filteredApartments.map((apartment) => (
                   <article
                     key={apartment.id}
-                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-surface transition-all hover:-translate-y-1 hover:shadow-lg"
+                    className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-surface-muted/40 p-4 transition-all hover:border-primary/40 hover:bg-surface"
                   >
-                    <div className="p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary transition-transform group-hover:scale-105">
-                          <Building2 aria-hidden className="h-6 w-6" />
+                    <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-primary shadow-2xs">
+                            <Building2 aria-hidden className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <Link
+                              className="block truncate text-base font-bold tracking-tight text-text-primary outline-none transition hover:text-primary"
+                              href={`/apartamentos/${apartment.id}`}
+                            >
+                              {apartment.name}
+                            </Link>
+                            <p className="mt-0.5 truncate text-xs font-medium text-text-secondary">
+                              Proprietário: {apartment.owner?.name ?? messages.apartments.noOwner}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge
+                            tone={apartment.owner?.type === "client" ? "info" : "primary"}
+                          >
+                            {apartment.owner?.type === "client"
+                              ? messages.apartments.client
+                              : messages.apartments.own}
+                          </Badge>
                           <IconButton
                             aria-label={messages.apartments.deleteConfirm}
                             icon={Trash2}
@@ -170,29 +236,11 @@ export function ApartmentsPage() {
                           />
                         </div>
                       </div>
-                      
-                      <div className="mt-4 min-w-0">
-                        <Link
-                          className="block truncate text-xl font-bold tracking-tight text-text-primary outline-none transition hover:text-primary focus:text-primary focus:underline"
-                          href={`/apartamentos/${apartment.id}`}
-                        >
-                          {apartment.name}
-                        </Link>
-                        <p className="mt-1 truncate text-sm font-medium text-text-secondary">
-                          {apartment.owner?.name ?? messages.apartments.noOwner}
-                        </p>
-                      </div>
 
-                      <div className="mt-5 flex flex-wrap items-center gap-1.5">
-                        <Badge
-                          tone={apartment.owner?.type === "client" ? "info" : "primary"}
-                        >
-                          {apartment.owner?.type === "client"
-                            ? messages.apartments.client
-                            : messages.apartments.own}
-                        </Badge>
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
                         <Badge tone="neutral">{apartment.timezone}</Badge>
                         <Badge tone="neutral">
+                          Comissão:{" "}
                           {((apartment.managementCommissionBps ?? 0) / 100).toLocaleString(
                             "pt-BR",
                           )}
@@ -201,24 +249,29 @@ export function ApartmentsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-border bg-surface-muted/30 px-6 py-4">
-                      <IconLink
+                    <div className="mt-4 flex items-center gap-2 border-t border-border/70 pt-3">
+                      <Link
+                        className="flex-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
+                        href={`/apartamentos/${apartment.id}`}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Ver Ficha
+                      </Link>
+                      <Link
+                        className="flex-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
+                        href={`/apartamentos/${apartment.id}/editar`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Editar
+                      </Link>
+                      <Link
+                        className="inline-flex h-8 items-center justify-center gap-1 rounded-lg bg-primary-soft px-2.5 text-xs font-bold text-primary transition hover:brightness-95"
                         href={`/apartamentos/${apartment.id}/ical`}
-                        icon={CalendarDays}
-                        label={messages.apartments.manageIcal}
-                      />
-                      <div className="flex items-center gap-2">
-                        <IconLink
-                          href={`/apartamentos/${apartment.id}`}
-                          icon={Eye}
-                          label="Ver detalhes"
-                        />
-                        <IconLink
-                          href={`/apartamentos/${apartment.id}/editar`}
-                          icon={Pencil}
-                          label={messages.apartments.editApartment}
-                        />
-                      </div>
+                        title={messages.apartments.manageIcal}
+                      >
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        iCal
+                      </Link>
                     </div>
                   </article>
                 ))
@@ -271,14 +324,11 @@ function IconLink({
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <article className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-text-secondary">{label}</span>
-        <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-          <UserRound aria-hidden className="h-4 w-4" />
-        </span>
-      </div>
-      <strong className="mt-4 block text-3xl font-semibold tracking-tight text-text-primary">
+    <article className="rounded-xl border border-border bg-surface p-3 sm:p-4 text-center sm:text-left shadow-2xs">
+      <span className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-text-muted truncate">
+        {label}
+      </span>
+      <strong className="mt-1 block text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
         {value}
       </strong>
     </article>
