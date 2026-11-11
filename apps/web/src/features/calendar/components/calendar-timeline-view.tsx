@@ -1,20 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import {
-  AlertCircle,
-  Building2,
-  CalendarDays,
-  Clock,
-  DollarSign,
-  ShieldCheck,
-  User,
-} from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { AlertCircle, BedDouble, KeyRound, UserRound } from "lucide-react";
 
 import type { Apartment, RentalStay } from "../../../api";
 import { formatMoney } from "../../finance/money";
 import {
-  nightsBetween,
   reservationLocalDate,
   type ReservationListItem,
 } from "../../reservations/reservation-view-model";
@@ -30,6 +21,9 @@ export type CalendarTimelineViewProps = {
   isLoading: boolean;
 };
 
+const weekDayUpper = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+const weekDayTitle = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
 export function CalendarTimelineView({
   month,
   apartments,
@@ -40,6 +34,8 @@ export function CalendarTimelineView({
   onCellClick,
   isLoading,
 }: CalendarTimelineViewProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   // Filter apartments
   const displayApartments = useMemo(() => {
     if (selectedApartmentId === "all") return apartments;
@@ -58,18 +54,37 @@ export function CalendarTimelineView({
       const dayStr = String(dayNum).padStart(2, "0");
       const dateStr = `${month}-${dayStr}`;
       const dayDate = new Date(`${dateStr}T12:00:00`);
-      const weekDay = dayDate.getDay(); // 0 = Dom, 6 = Sáb
+      const weekDay = dayDate.getDay();
 
       list.push({
         dayNumber: dayNum,
         date: dateStr,
         isToday: dateStr === todayStr,
         isWeekend: weekDay === 0 || weekDay === 6,
-        weekDayShort: ["D", "S", "T", "Q", "Q", "S", "S"][weekDay],
+        weekDayUpper: weekDayUpper[weekDay],
+        weekDayTitle: weekDayTitle[weekDay],
       });
     }
     return list;
   }, [month]);
+
+  // Auto-scroll to Today (or 1 day before Today) when opening/changing month
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || days.length === 0) return;
+
+    const todayIndex = days.findIndex((d) => d.isToday);
+    if (todayIndex > 0) {
+      const targetIndex = Math.max(0, todayIndex - 1);
+      const dayWidth = window.innerWidth < 640 ? 78 : 88;
+      container.scrollTo({
+        left: targetIndex * dayWidth,
+        behavior: "smooth",
+      });
+    } else {
+      container.scrollTo({ left: 0 });
+    }
+  }, [days]);
 
   // Group reservations by apartment
   const reservationsByApartment = useMemo(() => {
@@ -88,54 +103,57 @@ export function CalendarTimelineView({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface py-20 text-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="mt-3 text-sm text-text-muted">Carregando cronograma de ocupação...</p>
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface py-16 text-center">
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="mt-3 text-xs font-medium text-text-muted">
+          Carregando cronograma de ocupação...
+        </p>
       </div>
     );
   }
 
   if (displayApartments.length === 0) {
     return (
-      <div className="rounded-2xl border border-border bg-surface p-12 text-center text-sm text-text-muted">
-        Nenhum apartamento encontrado para este filtro.
+      <div className="rounded-2xl border border-border bg-surface p-10 text-center text-sm text-text-muted">
+        Nenhum imóvel encontrado para este filtro.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
-      <div className="overflow-x-auto">
-        <div className="min-w-[1000px]">
-          {/* Header Row: Days of Month */}
-          <div className="grid grid-cols-[220px_1fr] border-b border-border bg-surface-muted/70">
-            <div className="border-r border-border p-3 text-xs font-bold uppercase tracking-wider text-text-muted">
-              Imóvel / Locador
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-2xs">
+      <div className="overflow-x-auto" ref={scrollContainerRef}>
+        <div className="inline-block min-w-full align-middle">
+          {/* Header Row: UNIDADE + Days of Month */}
+          <div className="flex border-b border-border bg-surface-muted/80">
+            <div className="sticky left-0 z-20 flex w-[115px] sm:w-[190px] shrink-0 items-center border-r border-border bg-surface-muted px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-text-muted">
+              Unidade
             </div>
-            <div
-              className="grid"
-              style={{
-                gridTemplateColumns: `repeat(${days.length}, minmax(36px, 1fr))`,
-              }}
-            >
+            <div className="flex flex-1">
               {days.map((day) => (
                 <div
-                  className={`flex flex-col items-center justify-center border-r border-border/50 py-2 text-center transition ${
+                  className={`flex w-[78px] sm:w-[88px] shrink-0 flex-col items-center justify-center border-r border-border/60 py-2 text-center transition ${
                     day.isToday
-                      ? "bg-primary-soft/80 font-bold text-primary"
+                      ? "bg-primary-soft border-b-2 border-b-primary text-primary"
                       : day.isWeekend
-                        ? "bg-surface-muted text-text-muted"
-                        : "text-text-secondary"
+                        ? "bg-surface-muted/60 text-text-muted"
+                        : "bg-surface-muted/30 text-text-secondary"
                   }`}
                   key={day.date}
                 >
-                  <span className="text-[10px] font-semibold">{day.weekDayShort}</span>
                   <span
-                    className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${
-                      day.isToday ? "bg-primary text-white" : ""
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      day.isToday ? "text-primary font-extrabold" : "text-text-muted"
                     }`}
                   >
-                    {day.dayNumber}
+                    {day.isToday ? "HOJE" : day.weekDayUpper}
+                  </span>
+                  <span
+                    className={`mt-0.5 text-xs sm:text-sm font-bold ${
+                      day.isToday ? "text-primary font-extrabold" : "text-text-primary"
+                    }`}
+                  >
+                    {day.isToday ? `${day.dayNumber} ${day.weekDayTitle}` : day.dayNumber}
                   </span>
                 </div>
               ))}
@@ -146,68 +164,92 @@ export function CalendarTimelineView({
           <div className="divide-y divide-border">
             {displayApartments.map((apartment) => {
               const aptReservations = reservationsByApartment.get(apartment.id) ?? [];
+              const isSelectedRow = selectedApartmentId === apartment.id;
 
               return (
-                <div className="grid grid-cols-[220px_1fr] group/row hover:bg-surface-muted/20" key={apartment.id}>
-                  {/* Left Column: Apartment and Owner info */}
-                  <div className="border-r border-border p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
-                        <Building2 className="h-4 w-4" />
-                      </div>
-                      <strong className="truncate text-xs font-bold text-text-primary" title={apartment.name}>
-                        {apartment.name}
-                      </strong>
-                    </div>
-                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-muted">
-                      <ShieldCheck className="h-3 w-3 shrink-0 text-info" />
-                      <span className="truncate" title={`Locador: ${apartment.owner?.name ?? "Não informado"}`}>
-                        {apartment.owner?.name ?? "Sem locador"}
-                      </span>
-                      {apartment.managementCommissionBps ? (
-                        <span className="shrink-0 text-[10px] text-text-muted/80">
-                          ({apartment.managementCommissionBps / 100}%)
-                        </span>
-                      ) : null}
-                    </div>
+                <div
+                  className="flex group/row hover:bg-surface-muted/20 transition-colors"
+                  key={apartment.id}
+                >
+                  {/* Sticky Left Column: Unit Name & Subtitle */}
+                  <div
+                    className={`sticky left-0 z-20 flex w-[115px] sm:w-[190px] shrink-0 flex-col justify-center border-r border-border px-3 py-3 transition-colors ${
+                      isSelectedRow
+                        ? "bg-primary-soft/90"
+                        : "bg-surface group-hover/row:bg-surface-muted/40"
+                    }`}
+                  >
+                    <strong
+                      className="block truncate text-xs sm:text-sm font-bold text-text-primary"
+                      title={apartment.name}
+                    >
+                      {apartment.name}
+                    </strong>
+                    <span
+                      className={`mt-0.5 block truncate text-[11px] font-medium ${
+                        isSelectedRow ? "text-primary" : "text-text-muted"
+                      }`}
+                      title={apartment.owner?.name ?? "Próprio"}
+                    >
+                      {apartment.owner?.name ?? "Próprio"}
+                    </span>
                   </div>
 
-                  {/* Right Column: Timeline Bar Grid */}
-                  <div
-                    className="relative grid"
-                    style={{
-                      gridTemplateColumns: `repeat(${days.length}, minmax(36px, 1fr))`,
-                    }}
-                  >
-                    {/* Background Day Columns */}
-                    {days.map((day) => (
-                      <div
-                        className={`border-r border-border/40 min-h-[64px] cursor-pointer transition-colors hover:bg-primary-soft/30 ${
-                          day.isToday
-                            ? "bg-primary-soft/20"
-                            : day.isWeekend
-                              ? "bg-surface-muted/30"
-                              : ""
-                        }`}
-                        key={day.date}
-                        onClick={() => onCellClick?.(day.date, apartment.id)}
-                        title={`Clique para criar reserva para ${apartment.name} a partir de ${day.date}`}
-                      />
-                    ))}
+                  {/* Right Column: Day Cells + Spanning Reservation Bars */}
+                  <div className="relative flex flex-1">
+                    {days.map((day) => {
+                      const isOccupied = aptReservations.some((r) => {
+                        const s = reservationLocalDate(r.startsAt);
+                        const e = reservationLocalDate(r.endsAt);
+                        return day.date >= s && day.date < e;
+                      });
+
+                      return (
+                        <div
+                          className={`group/cell flex w-[78px] sm:w-[88px] shrink-0 min-h-[64px] cursor-pointer items-center justify-center border-r border-border/50 p-1 transition-colors hover:bg-primary-soft/30 ${
+                            day.isToday
+                              ? "bg-primary-soft/20"
+                              : day.isWeekend
+                                ? "bg-surface-muted/25"
+                                : "bg-surface"
+                          }`}
+                          key={day.date}
+                          onClick={() => onCellClick?.(day.date, apartment.id)}
+                          title={`Criar reserva em ${apartment.name} (${day.date})`}
+                        >
+                          {!isOccupied && aptReservations.length > 0 && (
+                            <span className="rounded-md bg-surface-muted/80 px-2 py-1 text-[10px] font-medium text-text-muted opacity-70 transition group-hover/cell:bg-primary-soft group-hover/cell:text-primary group-hover/cell:opacity-100">
+                              Livre
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* When Apartment is 100% Free in the Month */}
+                    {aptReservations.length === 0 && (
+                      <div className="pointer-events-none absolute inset-y-2 left-3 flex items-center">
+                        <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface/95 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-700 shadow-2xs">
+                          <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                          Totalmente livre neste período
+                        </div>
+                      </div>
+                    )}
 
                     {/* Horizontal Spanning Reservation Bars */}
-                    <div className="absolute inset-y-1.5 inset-x-0 pointer-events-none">
+                    <div className="pointer-events-none absolute inset-y-2 inset-x-0">
                       {aptReservations.map((reservation) => {
                         const stay = rentalStaysMap.get(reservation.id);
                         const startDate = reservationLocalDate(reservation.startsAt);
                         const endDate = reservationLocalDate(reservation.endsAt);
                         const isAirbnb = reservation.provider?.toLowerCase() === "airbnb";
+                        const isManual =
+                          !reservation.provider ||
+                          reservation.provider.toLowerCase() === "manual";
 
-                        // Find start and end day indices
                         const startIndex = days.findIndex((d) => d.date === startDate);
                         const endIndex = days.findIndex((d) => d.date === endDate);
 
-                        // If out of current month bounds, clamp
                         const effectiveStart = startIndex !== -1 ? startIndex : 0;
                         const effectiveEnd =
                           endIndex !== -1
@@ -235,64 +277,64 @@ export function CalendarTimelineView({
                           return !isTurnover && startDate < oEnd && endDate > oStart;
                         });
 
+                        // Serious, solid color blocks matching the reference design
+                        const barStyle = hasConflict
+                          ? "bg-red-700 text-white ring-2 ring-red-400"
+                          : isManual
+                            ? "bg-[#15803D] hover:bg-[#166534] text-white"
+                            : isAirbnb
+                              ? "bg-[#1D4ED8] hover:bg-[#1E40AF] text-white"
+                              : "bg-[#1E293B] hover:bg-[#0F172A] text-white";
+
+                        const displayName =
+                          isGenericName && !reservation.guestName
+                            ? reservation.rawSummary || "Definir hóspede"
+                            : reservation.guestName || reservation.rawSummary || "Reserva";
+
                         return (
                           <div
-                            className={`group/bar pointer-events-auto absolute top-1 bottom-1 flex cursor-pointer items-center justify-between overflow-hidden rounded-xl border px-2.5 shadow-sm transition-all hover:scale-[1.01] hover:shadow-md hover:z-20 ${
-                              hasConflict
-                                ? "border-red-400 bg-red-100 text-red-900 ring-2 ring-red-400/50"
-                                : isAirbnb
-                                  ? "border-[#FECDD3] bg-gradient-to-r from-[#FFF1F2] to-[#FFE4E6] text-[#9F1239]"
-                                  : "border-emerald-300 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-900"
-                            }`}
+                            className={`pointer-events-auto absolute top-0.5 bottom-0.5 flex cursor-pointer items-center justify-between gap-2 overflow-hidden rounded-lg px-2.5 sm:px-3 shadow-sm transition-all hover:z-30 hover:shadow-md ${barStyle}`}
                             key={reservation.id}
                             onClick={(e) => {
                               e.stopPropagation();
                               onReservationClick(reservation);
                             }}
                             style={{
-                              left: `${leftPercent}%`,
-                              width: `calc(${widthPercent}% - 4px)`,
-                              marginLeft: "2px",
+                              left: `calc(${leftPercent}% + 3px)`,
+                              width: `calc(${widthPercent}% - 6px)`,
                             }}
-                            title={`${reservation.guestName || reservation.rawSummary} (${startDate} a ${endDate}) - ${
+                            title={`${displayName} (${startDate} a ${endDate}) - ${
                               stay ? formatMoney(stay.rentAmountCents) : "Sem preço"
                             }`}
                           >
-                            {/* Left: Badge + Guest */}
-                            <div className="flex items-center gap-1.5 truncate">
-                              <span
-                                className={`rounded px-1 text-[9px] font-extrabold uppercase shrink-0 ${
-                                  isAirbnb
-                                    ? "bg-[#FFE4E6] text-[#BE123C]"
-                                    : "bg-emerald-200 text-emerald-800"
-                                }`}
-                              >
-                                {isAirbnb ? "Airbnb" : "Manual"}
-                              </span>
-                              <span className="truncate text-xs font-bold">
-                                {isGenericName && !reservation.guestName ? (
-                                  <span className="inline-flex items-center gap-1 text-amber-800 font-medium">
-                                    <AlertCircle className="h-3 w-3 shrink-0" />
-                                    {reservation.rawSummary || "Definir hóspede"}
-                                  </span>
-                                ) : (
-                                  reservation.guestName || reservation.rawSummary
-                                )}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {isManual ? (
+                                <UserRound className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                              ) : isAirbnb ? (
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-white" />
+                              ) : (
+                                <BedDouble className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                              )}
+                              <span className="truncate text-xs font-semibold tracking-tight">
+                                {displayName}
+                                {isManual ? " (Direto)" : ""}
                               </span>
                             </div>
 
-                            {/* Right: Price */}
-                            <div className="shrink-0 pl-1">
-                              {stay ? (
-                                <span className="text-[11px] font-bold text-emerald-800">
-                                  {formatMoney(stay.rentAmountCents)}
-                                </span>
-                              ) : (
-                                <span className="rounded bg-amber-200/80 px-1.5 py-0.5 text-[9px] font-bold text-amber-900">
-                                  S/ Preço
-                                </span>
-                              )}
-                            </div>
+                            {spanDays >= 2 && (
+                              <div className="hidden sm:flex items-center shrink-0">
+                                {stay ? (
+                                  <span className="rounded bg-black/20 px-1.5 py-0.5 text-[10px] font-semibold text-white/95">
+                                    {formatMoney(stay.rentAmountCents)}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-0.5 rounded bg-amber-400/90 px-1.5 py-0.5 text-[9px] font-bold text-slate-950">
+                                    <AlertCircle className="h-2.5 w-2.5" />
+                                    S/ Preço
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}

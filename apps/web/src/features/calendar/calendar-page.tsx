@@ -57,7 +57,7 @@ export function CalendarPage() {
   const [month, setMonth] = useState("");
   const [query, setQuery] = useState("");
   const [channelFilter, setChannelFilter] = useState<"all" | "airbnb" | "manual">("all");
-  const [viewMode, setViewMode] = useState<"grid" | "timeline">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "timeline">("timeline");
   const [isPendingFilterActive, setIsPendingFilterActive] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -270,100 +270,198 @@ export function CalendarPage() {
     }
   }
 
+  const formattedMonthLabel = useMemo(() => {
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) return "Mês Atual";
+    const [yearValue, monthValue] = month.split("-").map(Number);
+    const date = new Date(yearValue, monthValue - 1, 1, 12);
+    const formatted = date.toLocaleDateString("pt-BR", {
+      month: "long",
+      year: "numeric",
+    });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1).replace(" de ", " ");
+  }, [month]);
+
   return (
-    <div className="grid gap-6">
-      {/* Top Header & Global Controls */}
-      <section className="rounded-3xl border border-border bg-surface p-4 sm:p-6 shadow-sm">
-        <div className="flex flex-col gap-6">
-          {/* Top Row: Title, Eyebrow & Main Actions */}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="flex h-6 items-center rounded-full bg-primary-soft px-2.5 text-xs font-bold uppercase tracking-wider text-primary">
-                  Airbnb & Gestão Direta
-                </span>
-                <span className="text-xs text-text-muted">
-                  {apartments.length} {apartments.length === 1 ? "imóvel conectado" : "imóveis conectados"}
-                </span>
-              </div>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
-                Calendário & Ocupação
-              </h1>
+    <div className="grid gap-5">
+      {/* Main Calendar Card (Mobile-First matching Stitch reference) */}
+      <section className="rounded-2xl border border-border bg-surface p-3.5 sm:p-5 shadow-2xs">
+        <div className="flex flex-col gap-3.5">
+          {/* Row 1: View Switcher (Cronograma / Mês) + Primary "+ Reserva" Button */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
+            <div className="flex rounded-xl border border-border bg-surface-muted p-1">
+              <button
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  viewMode === "timeline"
+                    ? "bg-surface text-primary shadow-2xs"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+                onClick={() => setViewMode("timeline")}
+                type="button"
+              >
+                <TableIcon className="h-3.5 w-3.5" />
+                Cronograma
+              </button>
+              <button
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  viewMode === "grid"
+                    ? "bg-surface text-primary shadow-2xs"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+                onClick={() => setViewMode("grid")}
+                type="button"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Mês (Grade)
+              </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Sincronizar Airbnb Agora */}
+            <div className="flex items-center gap-2">
               <button
-                className="flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-xs font-bold text-text-primary shadow-sm transition hover:border-primary hover:text-primary active:scale-95 disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary disabled:opacity-50"
                 disabled={isSyncingAirbnb}
                 onClick={handleSyncAirbnb}
                 title="Sincronizar reservas iCal do Airbnb agora"
                 type="button"
               >
                 <RotateCw className={`h-3.5 w-3.5 ${isSyncingAirbnb ? "animate-spin text-primary" : ""}`} />
-                {isSyncingAirbnb ? "Sincronizando..." : "Sincronizar Airbnb"}
+                <span className="hidden sm:inline">
+                  {isSyncingAirbnb ? "Sincronizando..." : "Sincronizar iCal"}
+                </span>
               </button>
 
-              {/* Relatórios & Prestação de Contas */}
               <button
-                className="flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-xs font-bold text-text-primary shadow-sm transition hover:border-primary hover:text-primary active:scale-95"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={() => setIsReportsModalOpen(true)}
                 title="Gerar Demonstrativo do Proprietário, Escala de Limpeza ou Portaria"
                 type="button"
               >
-                <FileText className="h-3.5 w-3.5 text-primary" />
-                Relatórios
+                <FileText className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Relatórios</span>
               </button>
 
-              {/* View Mode Toggle: Grid vs Timeline */}
-              <div className="flex rounded-xl border border-border bg-surface-muted/60 p-1">
-                <button
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    viewMode === "grid"
-                      ? "bg-surface text-primary shadow-sm"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                  onClick={() => setViewMode("grid")}
-                  type="button"
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  Mês (Grade)
-                </button>
-                <button
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    viewMode === "timeline"
-                      ? "bg-surface text-primary shadow-sm"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                  onClick={() => setViewMode("timeline")}
-                  type="button"
-                >
-                  <TableIcon className="h-3.5 w-3.5" />
-                  Cronograma (Tape Chart)
-                </button>
-              </div>
-
-              {/* + Nova Reserva Manual */}
               <button
-                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-95"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
                 onClick={() => handleOpenCreateModal()}
                 type="button"
               >
                 <Plus className="h-4 w-4" />
-                Nova Reserva
+                Reserva
               </button>
             </div>
           </div>
 
-          {/* Sincronização Sucesso Notification */}
-          {syncNotification && (
-            <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs font-semibold text-emerald-800 animate-in fade-in duration-200">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-              <span>{syncNotification}</span>
-            </div>
-          )}
+          {/* Row 2: Month Navigation (< Outubro 2026 >) + Hoje + Search */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                aria-label="Mês anterior"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-muted text-text-primary transition hover:bg-border/60 active:scale-95"
+                onClick={() => shiftMonth(-1)}
+                type="button"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
 
-          {!isLoading && apartments.length === 0 ? (
+              <span className="min-w-[130px] text-center text-base sm:text-lg font-bold tracking-tight text-text-primary">
+                {formattedMonthLabel}
+              </span>
+
+              <button
+                aria-label="Próximo mês"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-muted text-text-primary transition hover:bg-border/60 active:scale-95"
+                onClick={() => shiftMonth(1)}
+                type="button"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative hidden md:block w-56">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
+                <input
+                  className="h-9 w-full rounded-lg border border-border bg-surface-muted/50 pl-8 pr-2.5 text-xs outline-none transition focus:border-primary focus:bg-surface"
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar hóspede ou imóvel..."
+                  value={query}
+                />
+              </div>
+
+              <button
+                className="h-9 shrink-0 rounded-lg bg-primary-soft px-3 text-xs font-bold text-primary transition hover:brightness-95 active:scale-95"
+                onClick={handleResetToCurrentMonth}
+                title="Ir para o mês atual"
+                type="button"
+              >
+                Hoje
+              </button>
+            </div>
+          </div>
+
+          {/* Row 3: Horizontal Filter Pills (Todos os Apês / Canais / Pendências) */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {/* Dark Pill Select for Apartments */}
+            <select
+              className="h-8 shrink-0 cursor-pointer rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white outline-none transition hover:bg-slate-800"
+              onChange={(e) => changeApartment(e.target.value)}
+              value={selectedApartmentId}
+            >
+              <option value={allApartmentsValue}>
+                Todos os Apês ({apartments.length})
+              </option>
+              {apartments.map((apt) => (
+                <option key={apt.id} value={apt.id}>
+                  {apt.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Channel Filter Pill */}
+            <div className="relative flex items-center shrink-0">
+              <span className="pointer-events-none absolute left-2.5 h-2 w-2 rounded-full bg-primary" />
+              <select
+                className="h-8 cursor-pointer rounded-lg border border-border bg-surface-muted/70 pl-6 pr-2.5 text-xs font-medium text-text-primary outline-none transition hover:bg-surface-muted"
+                onChange={(e) => setChannelFilter(e.target.value as "all" | "airbnb" | "manual")}
+                value={channelFilter}
+              >
+                <option value="all">Airbnb / Direto</option>
+                <option value="airbnb">Apenas Airbnb</option>
+                <option value="manual">Apenas Direto</option>
+              </select>
+            </div>
+
+            {/* Quick Pending Filter Pill */}
+            <button
+              className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition ${
+                isPendingFilterActive
+                  ? "border-amber-500 bg-amber-50 text-amber-900 font-semibold"
+                  : "border-border bg-surface-muted/70 text-text-secondary hover:text-text-primary"
+              }`}
+              onClick={() => setIsPendingFilterActive((prev) => !prev)}
+              type="button"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 text-text-muted" />
+              Apenas Pendências
+            </button>
+          </div>
+        </div>
+
+        {/* Sincronização Sucesso Notification */}
+        {syncNotification && (
+          <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3.5 py-2.5 text-xs font-semibold text-emerald-800">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span>{syncNotification}</span>
+          </div>
+        )}
+
+        {message && (
+          <p className="mt-3 rounded-xl bg-danger-soft px-3.5 py-2.5 text-xs font-medium text-danger">
+            {message}
+          </p>
+        )}
+
+        {!isLoading && apartments.length === 0 ? (
+          <div className="mt-4">
             <EmptyState
               actionHref="/apartamentos/novo"
               actionLabel="Cadastrar apartamento"
@@ -371,136 +469,46 @@ export function CalendarPage() {
               icon={Building2}
               title="Nenhum apartamento cadastrado"
             />
-          ) : null}
-
-          {/* KPI Metrics Cards */}
-          <CalendarStats
-            apartments={apartments}
-            isPendingFilterActive={isPendingFilterActive}
-            month={month}
-            onTogglePendingFilter={() => setIsPendingFilterActive((prev) => !prev)}
-            rentalStays={rentalStays}
-            reservations={monthReservations}
-            selectedApartmentId={selectedApartmentId}
-          />
-
-          {/* Filter Bar */}
-          <div className="flex flex-col gap-3 border-t border-border/80 pt-5 lg:flex-row lg:items-center lg:justify-between">
-            {/* Left: Search & Filter Dropdowns */}
-            <div className="grid grid-cols-1 sm:flex sm:flex-1 sm:flex-wrap items-center gap-2.5">
-              {/* Search */}
-              <div className="relative w-full sm:min-w-[220px] sm:flex-1 sm:max-w-xs">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input
-                  className="h-10 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-xs outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar hóspede, código ou imóvel..."
-                  value={query}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 sm:flex items-center gap-2.5 w-full sm:w-auto">
-                {/* Apartment Select */}
-                <select
-                  className="h-10 w-full sm:w-auto min-w-0 truncate rounded-xl border border-border bg-surface px-3 text-xs font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
-                  onChange={(e) => changeApartment(e.target.value)}
-                  value={selectedApartmentId}
-                >
-                  <option value={allApartmentsValue}>🏢 Todos os Imóveis</option>
-                  {apartments.map((apt) => (
-                    <option key={apt.id} value={apt.id}>
-                      {apt.name} ({apt.owner?.name ?? "Sem locador"})
-                    </option>
-                  ))}
-                </select>
-
-                {/* Channel Filter */}
-                <select
-                  className="h-10 w-full sm:w-auto min-w-0 truncate rounded-xl border border-border bg-surface px-3 text-xs font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
-                  onChange={(e) => setChannelFilter(e.target.value as any)}
-                  value={channelFilter}
-                >
-                  <option value="all">🌐 Todos os Canais</option>
-                  <option value="airbnb">Airbnb (iCal)</option>
-                  <option value="manual">Manual / Direta</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Right: Month Navigation & Today Button */}
-            <div className="flex items-center justify-between sm:justify-end gap-2">
-              <button
-                className="h-10 shrink-0 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
-                onClick={handleResetToCurrentMonth}
-                title="Ir para o mês atual"
-                type="button"
-              >
-                Hoje
-              </button>
-
-              <div className="flex flex-1 sm:flex-initial items-center gap-1.5">
-                <button
-                  aria-label="Mês anterior"
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
-                  onClick={() => shiftMonth(-1)}
-                  type="button"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-
-                <input
-                  aria-label="Selecionar mês"
-                  className="h-10 flex-1 sm:flex-initial min-w-0 rounded-xl border border-border bg-surface px-3 text-xs font-semibold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft"
-                  onChange={(e) => setMonth(e.target.value)}
-                  type="month"
-                  value={month}
-                />
-
-                <button
-                  aria-label="Próximo mês"
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary active:scale-95"
-                  onClick={() => shiftMonth(1)}
-                  type="button"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
-
-        {message && (
-          <p className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
-            {message}
-          </p>
+        ) : (
+          /* Calendar Main View Immediately Visible */
+          <div className="mt-3">
+            {viewMode === "grid" ? (
+              <CalendarGridView
+                calendarDays={calendarDays}
+                isLoading={isLoading}
+                onDayClick={(date) => handleOpenCreateModal(date)}
+                onReservationClick={handleOpenEditModal}
+                rentalStaysMap={rentalStaysMap}
+                reservationsByDay={reservationsByDay}
+                selectedApartmentId={selectedApartmentId}
+              />
+            ) : (
+              <CalendarTimelineView
+                apartments={apartments}
+                isLoading={isLoading}
+                month={month}
+                onCellClick={(date, aptId) => handleOpenCreateModal(date, aptId)}
+                onReservationClick={handleOpenEditModal}
+                rentalStaysMap={rentalStaysMap}
+                reservations={monthReservations}
+                selectedApartmentId={selectedApartmentId}
+              />
+            )}
+          </div>
         )}
-
-        {/* Calendar Main View (Grid or Timeline) */}
-        <div className="mt-6">
-          {viewMode === "grid" ? (
-            <CalendarGridView
-              calendarDays={calendarDays}
-              isLoading={isLoading}
-              onDayClick={(date) => handleOpenCreateModal(date)}
-              onReservationClick={handleOpenEditModal}
-              rentalStaysMap={rentalStaysMap}
-              reservationsByDay={reservationsByDay}
-              selectedApartmentId={selectedApartmentId}
-            />
-          ) : (
-            <CalendarTimelineView
-              apartments={apartments}
-              isLoading={isLoading}
-              month={month}
-              onCellClick={(date, aptId) => handleOpenCreateModal(date, aptId)}
-              onReservationClick={handleOpenEditModal}
-              rentalStaysMap={rentalStaysMap}
-              reservations={monthReservations}
-              selectedApartmentId={selectedApartmentId}
-            />
-          )}
-        </div>
       </section>
+
+      {/* KPI Metrics Summary Below Calendar */}
+      <CalendarStats
+        apartments={apartments}
+        isPendingFilterActive={isPendingFilterActive}
+        month={month}
+        onTogglePendingFilter={() => setIsPendingFilterActive((prev) => !prev)}
+        rentalStays={rentalStays}
+        reservations={monthReservations}
+        selectedApartmentId={selectedApartmentId}
+      />
 
       {/* Bottom Section: Detailed Reservation List for the Month */}
       <section className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
@@ -545,11 +553,11 @@ export function CalendarPage() {
                       <span
                         className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${
                           isAirbnb
-                            ? "bg-[#FFE4E6] text-[#BE123C] ring-1 ring-[#FECDD3]"
-                            : "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200"
+                            ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                            : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
                         }`}
                       >
-                        {isAirbnb ? "Airbnb" : "Manual"}
+                        {isAirbnb ? "Airbnb" : "Direto"}
                       </span>
 
                       <strong className="text-sm font-bold text-text-primary">

@@ -88,34 +88,39 @@ Todo modal deve ser estruturado como `flex flex-col max-h-[90vh] overflow-hidden
 - **Mobile (`< 640px`):** Grade compacta `grid-cols-2 gap-3` com padding reduzido (`p-3.5`) e valores com `truncate`. Nunca empilhar 4 cards gigantes ocupando 2 telas inteiras de rolagem no celular.
 - **Desktop (`>= 1024px`):** Grade ` lg:grid-cols-4 gap-4` com padding `p-5`.
 
-### 4.3 Calendário (Mês em Grade & Tape Chart)
-- **Header do Calendário:**
-  - Título limpo à esquerda + Ações bem distribuídas à direita.
-  - Em telas mobile, os filtros (Busca, Apartamento, Canal) e seletor de mês empilham de forma organizada com largura `w-full` para toque fácil.
-- **Visualização no Mobile:**
-  - Além da grade tradicional com scroll suave, no mobile as células e listas de reservas do mês são exibidas em cartões claros, sem textos espremidos.
+### 4.3 Calendário (Cronograma & Mês em Grade)
+- **Foco Imediato no Calendário (Above the Fold):**
+  - Barra superior compacta em 3 linhas enxutas:
+    1. Seletor `[ Cronograma ]` | `[ Mês (Grade) ]` à esquerda + botão `[ + Reserva ]` à direita.
+    2. Navegação de mês `[ < ] Outubro 2026 [ > ]` à esquerda + botão `[ Hoje ]` à direita.
+    3. Filtros em pílulas horizontais (`Todos os Apês`, `Airbnb / Direto`, `Apenas Pendências`).
+  - O **Cronograma** aparece imediatamente abaixo dos filtros (sem empurrar o calendário para o fim da página com blocos gigantes de estatísticas).
+- **Cronograma Mobile-First:**
+  - Coluna esquerda fixa (`sticky left-0 w-[115px] sm:w-[190px]`) com o nome da **Unidade** e subtítulo do proprietário, sem ícones decorativos desnecessários.
+  - Colunas de dias largas (`78px` no mobile, `88px` no desktop) exibindo 3 a 4 dias completos na tela do celular com auto-scroll automático para o dia de **HOJE**.
+  - Blocos de reserva sólidos, sérios e de alto contraste: Verde Floresta (`#15803D`) para reservas Diretas/Manuais, Azul Executivo (`#1D4ED8`) para Airbnb e Ardósia Escuro (`#1E293B`) para outros canais.
 
 ### 4.4 Tabelas de Dados (`DataTable`)
 - Sempre envolvidas por `overflow-x-auto rounded-xl border border-border` para permitir deslize horizontal suave em telas pequenas sem cortar colunas de valores ou botões de ação.
 
 ---
 
-## 5. Paleta de Cores & Tokens Semânticos
+## 5. Paleta de Cores & Tokens Semânticos (Estilo Executivo & Sóbrio)
 
 | Token | Cor / Valor | Uso Principal |
 | :--- | :--- | :--- |
-| `--background` | `#F8F7F4` | Fundo geral da aplicação (Off-white quente e confortável) |
+| `--background` | `#F8FAFC` | Fundo geral da aplicação (Slate ultra claro, neutro e sério) |
 | `--surface` | `#FFFFFF` | Fundo de cards, modais, tabelas e barras de navegação |
-| `--surface-muted` | `#F1EFEA` | Fundos secundários, cabeçalhos de tabela e estados inativos |
-| `--border` | `#E5E0D8` | Bordas sutis de `1px` para divisão estrutural |
-| `--primary` | `#E11D48` / `#D85A38` | Ações principais, botões de destaque e indicadores ativos |
-| `--primary-soft` | `#FFE4E6` / `#FAF0E6` | Fundo suave para itens de menu ativos e badges |
-| `--text-primary` | `#1C1917` | Títulos, nomes de hóspedes e valores principais |
-| `--text-secondary`| `#57534E` | Subtítulos, descrições e rótulos de formulário |
-| `--text-muted` | `#78716C` | Placeholders, metadados secundários e dicas |
-| `--success` | `#059669` | Valores faturados, receitas e status concluído |
-| `--warning` | `#D97706` | Reservas sem preço, nomes genéricos e alertas operacionais |
-| `--danger` | `#DC2626` | Conflitos de overbooking, despesas e exclusões |
+| `--surface-muted` | `#F1F5F9` | Fundos secundários, cabeçalhos de tabela e estados inativos |
+| `--border` | `#E2E8F0` | Bordas sutis de `1px` para divisão estrutural |
+| `--primary` | `#1D4ED8` | Azul Executivo para ações principais, botões de destaque e indicadores ativos |
+| `--primary-soft` | `#EFF6FF` | Fundo suave para itens de menu ativos, coluna HOJE e seleção |
+| `--text-primary` | `#0F172A` | Títulos, nomes de hóspedes e valores principais (Slate 900) |
+| `--text-secondary`| `#475569` | Subtítulos, descrições e rótulos de formulário (Slate 600) |
+| `--text-muted` | `#64748B` | Placeholders, ícones neutros e metadados secundários (Slate 500) |
+| `--success` | `#15803D` | Reservas diretas, valores faturados e status livre/concluído |
+| `--warning` | `#B45309` | Reservas sem preço, nomes genéricos e alertas operacionais |
+| `--danger` | `#B91C1C` | Conflitos de overbooking, despesas e exclusões |
 
 ---
 

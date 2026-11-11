@@ -181,10 +181,10 @@ function CalendarCell({
 
           return (
             <div
-              className={`group/item cursor-pointer rounded-xl border p-1.5 text-left text-[11px] transition-all hover:scale-[1.02] hover:shadow-md ${
+              className={`group/item cursor-pointer rounded-xl border p-1.5 text-left text-[11px] transition-all hover:scale-[1.01] hover:shadow-sm ${
                 isAirbnb
-                  ? "border-[#FECDD3] bg-[#FFF1F2]/90 text-[#9F1239] hover:bg-[#FFE4E6]"
-                  : "border-emerald-200 bg-emerald-50/90 text-emerald-900 hover:bg-emerald-100"
+                  ? "border-blue-200 bg-blue-50/90 text-blue-900 hover:bg-blue-100/80"
+                  : "border-emerald-200 bg-emerald-50/90 text-emerald-900 hover:bg-emerald-100/80"
               }`}
               key={`${reservation.id}-${day.date}`}
               onClick={(e) => {
@@ -199,21 +199,21 @@ function CalendarCell({
               <div className="flex items-center justify-between gap-1">
                 <span className="flex items-center gap-1 font-bold">
                   {isCheckIn && (
-                    <span className="flex items-center text-[10px] text-emerald-600 font-semibold" title="Check-in">
+                    <span className="flex items-center text-[10px] text-emerald-700 font-semibold" title="Check-in">
                       <ArrowDownLeft className="h-3 w-3" /> In
                     </span>
                   )}
                   {isCheckOut && (
-                    <span className="flex items-center text-[10px] text-rose-600 font-semibold" title="Check-out">
+                    <span className="flex items-center text-[10px] text-slate-600 font-semibold" title="Check-out">
                       <ArrowUpRight className="h-3 w-3" /> Out
                     </span>
                   )}
                   <span
                     className={`rounded px-1 text-[9px] font-extrabold uppercase ${
-                      isAirbnb ? "bg-[#FFE4E6] text-[#BE123C]" : "bg-emerald-200 text-emerald-800"
+                      isAirbnb ? "bg-blue-100 text-blue-800" : "bg-emerald-200 text-emerald-800"
                     }`}
                   >
-                    {isAirbnb ? "Airbnb" : "Manual"}
+                    {isAirbnb ? "Airbnb" : "Direto"}
                   </span>
                 </span>
 

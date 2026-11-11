@@ -327,11 +327,11 @@ function ReservationRow({
           <span
             className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase shrink-0 ${
               isAirbnb
-                ? "bg-[#FFE4E6] text-[#BE123C] ring-1 ring-[#FECDD3]"
-                : "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200"
+                ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
             }`}
           >
-            {isAirbnb ? "Airbnb" : "Manual"}
+            {isAirbnb ? "Airbnb" : "Direto"}
           </span>
           <strong className="block font-bold text-text-primary">
             {isGenericName && !reservation.guestName ? (

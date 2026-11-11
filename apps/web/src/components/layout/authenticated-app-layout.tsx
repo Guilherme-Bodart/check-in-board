@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { UserRound } from "lucide-react";
 
 import {
   clearStoredSession,
@@ -87,11 +88,11 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <div className="hidden rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary sm:block">
-                {session.user.email}
-              </div>
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-primary-soft text-xs font-bold text-primary sm:hidden">
-                {session.user.email.slice(0, 2).toUpperCase()}
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted/70 px-3 py-1 text-xs font-medium text-text-secondary">
+                <UserRound className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                <span className="max-w-[140px] sm:max-w-[220px] truncate">
+                  {session.user.email}
+                </span>
               </div>
             </div>
           </div>
