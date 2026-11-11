@@ -2,11 +2,12 @@ import type { HTMLAttributes, ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
 
-type BadgeTone = "danger" | "info" | "primary" | "success" | "warning";
+type BadgeTone = "danger" | "info" | "neutral" | "primary" | "success" | "warning";
 
 const toneClasses: Record<BadgeTone, string> = {
   danger: "bg-danger-soft text-danger",
   info: "bg-info-soft text-info",
+  neutral: "border border-border/60 bg-surface-muted text-text-secondary",
   primary: "bg-primary-soft text-primary",
   success: "bg-success-soft text-success",
   warning: "bg-warning-soft text-warning",

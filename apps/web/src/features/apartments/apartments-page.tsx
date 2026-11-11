@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import type { Apartment } from "../../api";
+import { Badge } from "../../components/ui/badge";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { DataTable, TableStateRow } from "../../components/ui/data-table";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -170,31 +171,33 @@ export function ApartmentsPage() {
                         </div>
                       </div>
                       
-                      <div className="mt-4">
+                      <div className="mt-4 min-w-0">
                         <Link
-                          className="text-xl font-bold tracking-tight text-text-primary outline-none transition hover:text-primary focus:text-primary focus:underline"
+                          className="block truncate text-xl font-bold tracking-tight text-text-primary outline-none transition hover:text-primary focus:text-primary focus:underline"
                           href={`/apartamentos/${apartment.id}`}
                         >
                           {apartment.name}
                         </Link>
-                        <p className="mt-1 text-sm font-medium text-text-secondary">
-                          {apartment.owner?.name ?? messages.apartments.noOwner} •{" "}
-                          {apartment.owner?.type === "client"
-                            ? messages.apartments.client
-                            : messages.apartments.own}
+                        <p className="mt-1 truncate text-sm font-medium text-text-secondary">
+                          {apartment.owner?.name ?? messages.apartments.noOwner}
                         </p>
                       </div>
 
-                      <div className="mt-6 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-text-secondary">
-                          {apartment.timezone}
-                        </span>
-                        <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-text-secondary">
+                      <div className="mt-5 flex flex-wrap items-center gap-1.5">
+                        <Badge
+                          tone={apartment.owner?.type === "client" ? "info" : "primary"}
+                        >
+                          {apartment.owner?.type === "client"
+                            ? messages.apartments.client
+                            : messages.apartments.own}
+                        </Badge>
+                        <Badge tone="neutral">{apartment.timezone}</Badge>
+                        <Badge tone="neutral">
                           {((apartment.managementCommissionBps ?? 0) / 100).toLocaleString(
                             "pt-BR",
                           )}
                           %
-                        </span>
+                        </Badge>
                       </div>
                     </div>
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Trash2, UserPlus, UsersRound } from "lucide-react";
 
 import type { AuthRole, TeamMember } from "../../api";
+import { Badge } from "../../components/ui/badge";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { DataTable, TableStateRow } from "../../components/ui/data-table";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -127,11 +128,11 @@ export function TeamPage() {
                       <span className="text-xs text-text-muted">{member.email}</span>
                     </td>
                     <td className="px-4 py-4 text-text-secondary">
-                      <div className="grid gap-1">
-                        <span>{roleLabels[member.role]}</span>
-                        <span className="text-xs text-text-muted">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge tone="primary">{roleLabels[member.role]}</Badge>
+                        <Badge tone={member.active ? "success" : "neutral"}>
                           {member.active ? "Ativo" : "Inativo"}
-                        </span>
+                        </Badge>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-text-secondary">
