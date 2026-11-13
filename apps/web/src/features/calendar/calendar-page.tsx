@@ -707,15 +707,12 @@ function buildCalendarDays(month: string): CalendarDay[] {
   const range = monthRange(month);
   if (!range) return [];
 
-  const [yearValue, monthValue] = month.split("-").map(Number);
-  const daysInMonth = new Date(yearValue, monthValue, 0).getDate();
   const firstWeekday = new Date(`${range.monthStart}T12:00:00`).getDay();
-  const totalCells = firstWeekday + daysInMonth <= 35 ? 35 : 42;
   const start = addDays(range.monthStart, -firstWeekday);
   const todayStr = new Date().toISOString().slice(0, 10);
   const days: CalendarDay[] = [];
 
-  for (let index = 0; index < totalCells; index += 1) {
+  for (let index = 0; index < 42; index += 1) {
     const date = addDays(start, index);
     const dayDate = new Date(`${date}T12:00:00`);
     const weekDay = dayDate.getDay();
