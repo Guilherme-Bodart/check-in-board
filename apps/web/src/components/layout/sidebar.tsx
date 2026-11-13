@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Bell,
   Building2,
   CalendarDays,
   CircleDollarSign,
@@ -10,6 +11,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
+import type { AuthRole } from "../../api";
 import { messages } from "../../i18n";
 import { cn } from "../../lib/utils";
 
@@ -20,16 +22,23 @@ const navigationItems = [
   { href: "/reservas", icon: ClipboardList, label: messages.shell.routes.reservations.navLabel },
   { href: "/calendario", icon: CalendarDays, label: messages.shell.routes.calendar.navLabel },
   { href: "/financeiro", icon: CircleDollarSign, label: messages.shell.routes.finance.navLabel },
+  { href: "/notificacoes", icon: Bell, label: messages.shell.routes.notifications.navLabel },
   { href: "/configuracoes", icon: Settings, label: messages.shell.routes.settings.navLabel },
 ];
 
 export function Sidebar({
   currentPath,
   onSignOut,
+  userRole,
 }: {
   currentPath: string;
   onSignOut: () => void;
+  userRole?: AuthRole | null;
 }) {
+  const visibleItems = navigationItems.filter(
+    (item) => item.href !== "/clientes" || userRole === "host_admin",
+  );
+
   return (
     <aside
       aria-label={messages.shell.sidebarLabel}
@@ -44,7 +53,7 @@ export function Sidebar({
         </span>
       </div>
       <nav className="grid gap-1">
-        {navigationItems.map((item) => {
+        {visibleItems.map((item) => {
           const isActive =
             currentPath === item.href || currentPath.startsWith(`${item.href}/`);
 
@@ -65,7 +74,7 @@ export function Sidebar({
         })}
       </nav>
       <button
-        className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
+        className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary active:scale-[0.98]"
         onClick={onSignOut}
         type="button"
       >

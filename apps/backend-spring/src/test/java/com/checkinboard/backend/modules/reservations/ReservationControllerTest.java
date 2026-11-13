@@ -400,6 +400,92 @@ class ReservationControllerTest {
             .andExpect(jsonPath("$.syncRuns[0].errorMessage").value("iCal feed returned HTTP 500."));
     }
 
+    @Test
+    void autoSyncRespectsOneHourWindowSilenceRuleAndListsSyncNotifications() throws Exception {
+        when(icalFeedClient.fetch(any())).thenReturn(ICS_TEXT);
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+
+        // 1. Initial auto-sync: source never synced -> syncs and creates 1 reservation (notable!)
+        mockMvc
+            .perform(
+                post("/ical-sources/auto-sync")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.sourcesChecked").value(1))
+            .andExpect(jsonPath("$.sourcesSynced").value(1))
+            .andExpect(jsonPath("$.notableRuns", hasSize(1)))
+            .andExpect(jsonPath("$.notableRuns[0].reservationsCreated").value(1))
+            .andExpect(jsonPath("$.notableRuns[0].reservationsCancelled").value(0))
+            .andExpect(jsonPath("$.notableRuns[0].changes", hasSize(1)))
+            .andExpect(jsonPath("$.notableRuns[0].changes[0].changeType").value("created"));
+
+        // 2. Immediate second auto-sync within 1 hour -> 0 sources synced
+        mockMvc
+            .perform(
+                post("/ical-sources/auto-sync")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.sourcesChecked").value(1))
+            .andExpect(jsonPath("$.sourcesSynced").value(0))
+            .andExpect(jsonPath("$.notableRuns", hasSize(0)));
+
+        // 3. Backdate last_success_at by 2 hours and sync unchanged feed -> Silence Rule (0 notableRuns)
+        jdbcTemplate.update(
+            "update ical_sources set last_success_at = ? where id = ?",
+            java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(7200)),
+            icalSourceId
+        );
+
+        mockMvc
+            .perform(
+                post("/ical-sources/auto-sync")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.sourcesChecked").value(1))
+            .andExpect(jsonPath("$.sourcesSynced").value(1))
+            .andExpect(jsonPath("$.notableRuns", hasSize(0)));
+
+        // 4. Backdate last_success_at by 2 hours and return a feed where booking-1 disappeared and booking-2 is created
+        String updatedFeed = ICS_TEXT
+            .replace("UID:booking-1", "UID:booking-2")
+            .replace("Guest Maria", "Guest Carlos");
+        when(icalFeedClient.fetch(any())).thenReturn(updatedFeed);
+        jdbcTemplate.update(
+            "update ical_sources set last_success_at = ? where id = ?",
+            java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(7200)),
+            icalSourceId
+        );
+
+        mockMvc
+            .perform(
+                post("/ical-sources/auto-sync")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.sourcesChecked").value(1))
+            .andExpect(jsonPath("$.sourcesSynced").value(1))
+            .andExpect(jsonPath("$.notableRuns", hasSize(1)))
+            .andExpect(jsonPath("$.notableRuns[0].reservationsCreated").value(1))
+            .andExpect(jsonPath("$.notableRuns[0].reservationsCancelled").value(1))
+            .andExpect(jsonPath("$.notableRuns[0].changes", hasSize(2)));
+
+        // 5. GET /notifications/sync returns only the 2 notable runs (the silent update run is excluded)
+        mockMvc
+            .perform(
+                get("/notifications/sync")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.notifications", hasSize(2)))
+            .andExpect(jsonPath("$.notifications[0].apartmentId").value(apartmentId))
+            .andExpect(jsonPath("$.notifications[0].apartmentName").value("Apto 204"));
+    }
+
     private void syncIcalSource(String accessToken, String icalSourceId, String icsText)
         throws Exception {
         mockMvc

@@ -157,8 +157,8 @@ export function ReservationsPage() {
 
   return (
     <div className="grid gap-5">
-      {/* KPI Cards (Horizontal Snap on Mobile, 4-Col Grid on Desktop) */}
-      <section className="flex gap-2.5 overflow-x-auto pb-1 snap-x no-scrollbar sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4">
+      {/* KPI Cards (Desktop Grid Only — Hidden on Mobile for Direct List View) */}
+      <section className="hidden md:grid md:grid-cols-2 md:gap-4 lg:grid-cols-4">
         <SummaryCard
           icon={ClipboardList}
           label="Total Reservas"

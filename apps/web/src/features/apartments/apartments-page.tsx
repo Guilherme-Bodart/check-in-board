@@ -13,7 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-import type { Apartment } from "../../api";
+import type { Apartment, AuthRole } from "../../api";
 import { Badge } from "../../components/ui/badge";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { DataTable, TableStateRow } from "../../components/ui/data-table";
@@ -25,16 +25,20 @@ import { Panel } from "../../components/ui/panel";
 import { Toolbar } from "../../components/ui/toolbar";
 import { messages } from "../../i18n";
 import { readStoredSession } from "../../lib/session-storage";
+import { fetchMe } from "../auth/auth-api";
 import { deleteApartment, fetchApartments } from "../dashboard/dashboard-api";
 
 export function ApartmentsPage() {
   const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [userRole, setUserRole] = useState<AuthRole | null>(null);
   const [apartmentToDelete, setApartmentToDelete] = useState<Apartment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [ownerTypeFilter, setOwnerTypeFilter] = useState<"all" | "internal" | "client">("all");
+
+  const isHostAdmin = userRole === "host_admin";
 
   async function loadData() {
     const session = readStoredSession();
@@ -47,7 +51,16 @@ export function ApartmentsPage() {
     setMessage("");
 
     try {
-      setApartments(await fetchApartments(session.token));
+      const [loadedApartments, me] = await Promise.all([
+        fetchApartments(session.token),
+        fetchMe(session.token).catch(() => null),
+      ]);
+      setApartments(loadedApartments);
+      if (me) {
+        const activeMembership =
+          me.memberships.find((membership) => membership.isActive) ?? me.memberships[0];
+        setUserRole(activeMembership?.role ?? null);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : messages.apartments.loadFailed);
     } finally {
@@ -115,16 +128,16 @@ export function ApartmentsPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        actionHref="/apartamentos/novo"
-        actionIcon={Plus}
-        actionLabel="Novo apartamento"
+        actionHref={isHostAdmin ? "/apartamentos/novo" : undefined}
+        actionIcon={isHostAdmin ? Plus : undefined}
+        actionLabel={isHostAdmin ? "Novo apartamento" : undefined}
         description="Gerencie os imóveis da operação e acesse configurações específicas de cada apartamento."
         eyebrow="Imóveis"
         title="Apartamentos"
       />
 
-      {/* Compact 3-Column Summary Bar (Single Row on Mobile & Desktop) */}
-      <section className="grid grid-cols-3 gap-2.5 sm:gap-4">
+      {/* 3-Column Summary Bar on Desktop Only */}
+      <section className="hidden md:grid md:grid-cols-3 md:gap-4">
         <SummaryCard label={messages.apartments.apartments} value={summary.total} />
         <SummaryCard label={messages.apartments.owned} value={summary.internal} />
         <SummaryCard label={messages.apartments.clientsOwned} value={summary.client} />
@@ -228,12 +241,14 @@ export function ApartmentsPage() {
                               ? messages.apartments.client
                               : messages.apartments.own}
                           </Badge>
-                          <IconButton
-                            aria-label={messages.apartments.deleteConfirm}
-                            icon={Trash2}
-                            onClick={() => setApartmentToDelete(apartment)}
-                            variant="danger"
-                          />
+                          {isHostAdmin ? (
+                            <IconButton
+                              aria-label={messages.apartments.deleteConfirm}
+                              icon={Trash2}
+                              onClick={() => setApartmentToDelete(apartment)}
+                              variant="danger"
+                            />
+                          ) : null}
                         </div>
                       </div>
 
@@ -257,13 +272,15 @@ export function ApartmentsPage() {
                         <Eye className="h-3.5 w-3.5" />
                         Ver Ficha
                       </Link>
-                      <Link
-                        className="flex-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
-                        href={`/apartamentos/${apartment.id}/editar`}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Editar
-                      </Link>
+                      {isHostAdmin ? (
+                        <Link
+                          className="flex-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
+                          href={`/apartamentos/${apartment.id}/editar`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar
+                        </Link>
+                      ) : null}
                       <Link
                         className="inline-flex h-8 items-center justify-center gap-1 rounded-lg bg-primary-soft px-2.5 text-xs font-bold text-primary transition hover:brightness-95"
                         href={`/apartamentos/${apartment.id}/ical`}
@@ -279,9 +296,13 @@ export function ApartmentsPage() {
             </div>
           ) : (
             <EmptyState
-              actionHref="/apartamentos/novo"
-              actionLabel="Adicionar apartamento"
-              description="Cadastre o primeiro imóvel para importar reservas e organizar tarefas."
+              actionHref={isHostAdmin ? "/apartamentos/novo" : undefined}
+              actionLabel={isHostAdmin ? "Adicionar apartamento" : undefined}
+              description={
+                isHostAdmin
+                  ? "Cadastre o primeiro imóvel para importar reservas e organizar tarefas."
+                  : "Nenhum apartamento vinculado encontrado para sua conta."
+              }
               icon={Building2}
               title="Nenhum apartamento encontrado"
             />

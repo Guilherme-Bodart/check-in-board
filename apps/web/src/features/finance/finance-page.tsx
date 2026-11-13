@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   Banknote,
+  Info,
   Pencil,
   Plus,
   Search,
@@ -12,7 +13,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import type { Apartment, FinancialEntry, FinancialSummary } from "../../api";
+import type { Apartment, AuthRole, FinancialEntry, FinancialSummary } from "../../api";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { DataTable, TableStateRow } from "../../components/ui/data-table";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -21,6 +24,7 @@ import { Input, Select } from "../../components/ui/form-controls";
 import { PageHeader } from "../../components/ui/page-header";
 import { Panel } from "../../components/ui/panel";
 import { Toolbar } from "../../components/ui/toolbar";
+import { fetchMe } from "../auth/auth-api";
 import { fetchApartments } from "../dashboard/dashboard-api";
 import { fetchOwners } from "../owners/owners-api";
 import { readStoredSession } from "../../lib/session-storage";
@@ -35,6 +39,7 @@ import { formatMoney } from "./money";
 const allValue = "all";
 
 export function FinancePage() {
+  const [userRole, setUserRole] = useState<AuthRole | null>(null);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
   const [entries, setEntries] = useState<FinancialEntry[]>([]);
@@ -49,6 +54,8 @@ export function FinancePage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState("");
 
+  const isHostAdmin = userRole === "host_admin";
+
   async function loadFinance(nextFilters: FinanceFilters = currentFilters()) {
     const session = readStoredSession();
 
@@ -60,16 +67,33 @@ export function FinancePage() {
     setMessage("");
 
     try {
-      const [nextApartments, nextOwners, nextEntries, nextSummary] =
-        await Promise.all([
-          fetchApartments(session.token),
-          fetchOwners(session.token),
-          fetchFinancialEntries(session.token, nextFilters),
-          fetchFinancialSummary(session.token, nextFilters),
-        ]);
+      let resolvedRole = userRole;
+      if (!resolvedRole) {
+        const me = await fetchMe(session.token);
+        resolvedRole = me.memberships.find((m) => m.isActive)?.role ?? null;
+        setUserRole(resolvedRole);
+      }
+
+      const [nextApartments, nextEntries, nextSummary] = await Promise.all([
+        fetchApartments(session.token),
+        fetchFinancialEntries(session.token, nextFilters),
+        fetchFinancialSummary(session.token, nextFilters),
+      ]);
+
+      if (resolvedRole === "host_admin") {
+        const nextOwners = await fetchOwners(session.token);
+        setOwners(nextOwners.map((owner) => ({ id: owner.id, name: owner.name })));
+      } else {
+        const uniqueOwners = new Map<string, string>();
+        for (const apartment of nextApartments) {
+          uniqueOwners.set(apartment.owner.id, apartment.owner.name);
+        }
+        setOwners(
+          Array.from(uniqueOwners.entries()).map(([id, name]) => ({ id, name })),
+        );
+      }
 
       setApartments(nextApartments);
-      setOwners(nextOwners.map((owner) => ({ id: owner.id, name: owner.name })));
       setEntries(nextEntries);
       setSummary(nextSummary);
     } catch (error) {
@@ -150,13 +174,23 @@ export function FinancePage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        actionHref="/financeiro/lancamentos/novo"
-        actionIcon={Plus}
-        actionLabel="Novo lançamento"
-        description="Acompanhe receitas, despesas e resultado por período, proprietário e apartamento."
+        actionHref={isHostAdmin ? "/financeiro/lancamentos/novo" : undefined}
+        actionIcon={isHostAdmin ? Plus : undefined}
+        actionLabel={isHostAdmin ? "Novo lançamento" : undefined}
+        description="Acompanhe receitas, despesas e resultado por período e apartamento."
         eyebrow="Financeiro"
         title="Lançamentos e resultado"
       />
+
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-xs text-text-secondary shadow-2xs">
+        <Badge tone="info">Demonstrativo Gerencial</Badge>
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <Info aria-hidden className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+          <span>
+            Os valores exibidos são demonstrativos/gerenciais para controle e transparência — não há processamento de pagamentos dentro da plataforma.
+          </span>
+        </span>
+      </div>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <SummaryCard
@@ -195,17 +229,17 @@ export function FinancePage() {
             type="date"
             value={dateTo}
           />
-          <button
-            className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
-            onClick={reloadWithFilters}
-            type="button"
-          >
+          <Button onClick={reloadWithFilters} size="md">
             Atualizar
-          </button>
+          </Button>
         </Toolbar>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-3">
-          <div className="relative">
+        <div
+          className={`mt-4 grid gap-3 ${
+            isHostAdmin ? "lg:grid-cols-3" : "lg:grid-cols-2"
+          }`}
+        >
+          <div className="relative min-w-0">
             <Search
               aria-hidden
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
@@ -228,17 +262,19 @@ export function FinancePage() {
               </option>
             ))}
           </Select>
-          <Select
-            onChange={(event) => setOwnerFilter(event.target.value)}
-            value={ownerFilter}
-          >
-            <option value={allValue}>Todos os proprietários</option>
-            {owners.map((owner) => (
-              <option key={owner.id} value={owner.id}>
-                {owner.name}
-              </option>
-            ))}
-          </Select>
+          {isHostAdmin ? (
+            <Select
+              onChange={(event) => setOwnerFilter(event.target.value)}
+              value={ownerFilter}
+            >
+              <option value={allValue}>Todos os proprietários</option>
+              {owners.map((owner) => (
+                <option key={owner.id} value={owner.id}>
+                  {owner.name}
+                </option>
+              ))}
+            </Select>
+          ) : null}
         </div>
 
         {message ? (
@@ -296,21 +332,23 @@ export function FinancePage() {
                         </strong>
                       </div>
 
-                      <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-2">
-                        <Link
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
-                          href={`/financeiro/lancamentos/${entry.id}/editar`}
-                        >
-                          <Pencil aria-hidden className="h-3.5 w-3.5" />
-                          Editar
-                        </Link>
-                        <IconButton
-                          aria-label="Remover lançamento"
-                          icon={Trash2}
-                          onClick={() => setEntryToDelete(entry)}
-                          variant="danger"
-                        />
-                      </div>
+                      {isHostAdmin ? (
+                        <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-2">
+                          <Link
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
+                            href={`/financeiro/lancamentos/${entry.id}/editar`}
+                          >
+                            <Pencil aria-hidden className="h-3.5 w-3.5" />
+                            Editar
+                          </Link>
+                          <IconButton
+                            aria-label="Remover lançamento"
+                            icon={Trash2}
+                            onClick={() => setEntryToDelete(entry)}
+                            variant="danger"
+                          />
+                        </div>
+                      ) : null}
                     </article>
                   ))
                 )}
@@ -325,12 +363,16 @@ export function FinancePage() {
                       <th className="px-4 py-3 font-semibold">Apartamento</th>
                       <th className="px-4 py-3 font-semibold">Data</th>
                       <th className="px-4 py-3 font-semibold">Valor</th>
-                      <th className="px-4 py-3 font-semibold">Ações</th>
+                      {isHostAdmin ? (
+                        <th className="px-4 py-3 font-semibold">Ações</th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-surface">
                     {isLoading ? (
-                      <TableStateRow colSpan={5}>Carregando financeiro...</TableStateRow>
+                      <TableStateRow colSpan={isHostAdmin ? 5 : 4}>
+                        Carregando financeiro...
+                      </TableStateRow>
                     ) : (
                       filteredEntries.map((entry) => (
                         <tr key={entry.id}>
@@ -356,23 +398,25 @@ export function FinancePage() {
                           >
                             {formatMoney(entry.amountCents, entry.currency)}
                           </td>
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-2">
-                              <Link
-                                aria-label="Editar lançamento"
-                                className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
-                                href={`/financeiro/lancamentos/${entry.id}/editar`}
-                              >
-                                <Pencil aria-hidden className="h-4 w-4" />
-                              </Link>
-                              <IconButton
-                                aria-label="Remover lançamento"
-                                icon={Trash2}
-                                onClick={() => setEntryToDelete(entry)}
-                                variant="danger"
-                              />
-                            </div>
-                          </td>
+                          {isHostAdmin ? (
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  aria-label="Editar lançamento"
+                                  className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
+                                  href={`/financeiro/lancamentos/${entry.id}/editar`}
+                                >
+                                  <Pencil aria-hidden className="h-4 w-4" />
+                                </Link>
+                                <IconButton
+                                  aria-label="Remover lançamento"
+                                  icon={Trash2}
+                                  onClick={() => setEntryToDelete(entry)}
+                                  variant="danger"
+                                />
+                              </div>
+                            </td>
+                          ) : null}
                         </tr>
                       ))
                     )}
@@ -382,9 +426,13 @@ export function FinancePage() {
             </>
           ) : (
             <EmptyState
-              actionHref="/financeiro/lancamentos/novo"
-              actionLabel="Criar lançamento"
-              description="Registre uma receita ou despesa para o período selecionado."
+              actionHref={isHostAdmin ? "/financeiro/lancamentos/novo" : undefined}
+              actionLabel={isHostAdmin ? "Criar lançamento" : undefined}
+              description={
+                isHostAdmin
+                  ? "Registre uma receita ou despesa para o período selecionado."
+                  : "Não há lançamentos registrados para seus apartamentos no período selecionado."
+              }
               icon={Banknote}
               title="Nenhum lançamento encontrado"
             />

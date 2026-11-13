@@ -30,7 +30,7 @@ const emptyForm: TeamFormState = {
   email: "",
   fullName: "",
   password: "",
-  role: "team",
+  role: "co_host",
   active: true,
   apartmentPermissions: [],
 };
@@ -68,7 +68,7 @@ export function TeamMemberFormPage({ membershipId }: { membershipId?: string }) 
             email: member.email,
             fullName: member.fullName,
             password: "",
-            role: member.role,
+            role: member.role === "host_admin" ? "host_admin" : "co_host",
             active: member.active,
             apartmentPermissions: mergePermissions(nextApartments, member),
           });
@@ -125,35 +125,44 @@ export function TeamMemberFormPage({ membershipId }: { membershipId?: string }) 
     }
   }
 
-  function updatePermission(
-    apartmentId: string,
-    key: keyof Omit<TeamApartmentPermissionValues, "apartmentId">,
-    value: boolean,
-  ) {
+  function toggleApartmentAccess(apartmentId: string, canView: boolean) {
     setForm((current) => ({
       ...current,
       apartmentPermissions: current.apartmentPermissions.map((permission) =>
         permission.apartmentId === apartmentId
           ? {
               ...permission,
-              [key]: value,
-              canView: key === "canView" ? value : permission.canView || value,
+              canView,
+              canUpdateTaskStatus: false,
+              canManageIntegrations: false,
             }
           : permission,
       ),
     }));
   }
 
+  function setAllApartmentsAccess(canView: boolean) {
+    setForm((current) => ({
+      ...current,
+      apartmentPermissions: current.apartmentPermissions.map((permission) => ({
+        ...permission,
+        canView,
+        canUpdateTaskStatus: false,
+        canManageIntegrations: false,
+      })),
+    }));
+  }
+
   return (
     <FormPageLayout
       backHref="/configuracoes/equipe"
-      description="Defina papel e permissões por apartamento."
-      title={isEditing ? "Editar membro" : "Novo membro"}
+      description="Convide administradores gerais ou proprietários (Admin-Proprietário) vinculados aos seus apartamentos."
+      title={isEditing ? "Editar acesso" : "Novo acesso"}
     >
       <MessageBanner isError message={message} />
 
       {isLoading ? (
-        <p className="text-sm text-text-secondary">Carregando membro...</p>
+        <p className="text-sm text-text-secondary">Carregando dados do acesso...</p>
       ) : (
         <form className="grid gap-4" onSubmit={submitTeamMember}>
           <Field label="Nome">
@@ -184,31 +193,71 @@ export function TeamMemberFormPage({ membershipId }: { membershipId?: string }) 
               />
             </Field>
           )}
-          <Field label="Perfil">
+          <Field
+            hint={
+              form.role === "host_admin"
+                ? "Admin Geral tem acesso irrestrito a todos os imóveis, financeiro e configurações."
+                : "Admin-Proprietário visualiza reservas, calendário e demonstrativo financeiro (somente leitura) apenas dos apartamentos vinculados abaixo."
+            }
+            label="Perfil de acesso"
+          >
             <Select
               onChange={(event) =>
                 setForm({ ...form, role: event.target.value as AuthRole })
               }
               value={form.role}
             >
-              <option value="team">Equipe</option>
-              <option value="co_host">Co-host</option>
-              <option value="host_admin">Administrador</option>
+              <option value="co_host">
+                Admin-Proprietário — vê apenas os apartamentos vinculados e o financeiro deles
+              </option>
+              <option value="host_admin">
+                Admin Geral — acesso total a todos os imóveis e financeiro
+              </option>
             </Select>
           </Field>
           {isEditing ? (
-            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-text-secondary">
               <input
                 checked={form.active}
                 onChange={(event) => setForm({ ...form, active: event.target.checked })}
                 type="checkbox"
               />
-              Membro ativo
+              Acesso ativo
             </label>
           ) : null}
 
           <div className="grid gap-3 rounded-lg border border-border bg-surface-muted p-4">
-            <p className="text-sm font-semibold text-text-primary">Apartamentos</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text-primary">
+                  Apartamentos vinculados
+                </p>
+                <p className="text-xs text-text-secondary">
+                  {form.role === "co_host"
+                    ? "Selecione os imóveis que este proprietário poderá acompanhar (reservas, calendário e financeiro)."
+                    : "Admin Geral já possui acesso total; opcionalmente vincule os imóveis principais."}
+                </p>
+              </div>
+              {apartments.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setAllApartmentsAccess(true)}
+                    size="xs"
+                    variant="outline"
+                  >
+                    Marcar todos
+                  </Button>
+                  <Button
+                    onClick={() => setAllApartmentsAccess(false)}
+                    size="xs"
+                    variant="ghost"
+                  >
+                    Limpar
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+
             {apartments.length === 0 ? (
               <p className="text-sm text-text-secondary">
                 Crie um apartamento antes de configurar acessos.
@@ -220,55 +269,33 @@ export function TeamMemberFormPage({ membershipId }: { membershipId?: string }) 
                 );
 
                 return (
-                  <div
-                    className="grid gap-2 rounded-lg border border-border bg-surface p-3"
+                  <label
+                    className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface p-3 transition hover:border-primary/60"
                     key={permission.apartmentId}
                   >
-                    <label className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                      <input
-                        checked={permission.canView}
-                        onChange={(event) =>
-                          updatePermission(
-                            permission.apartmentId,
-                            "canView",
-                            event.target.checked,
-                          )
-                        }
-                        type="checkbox"
-                      />
-                      {apartment?.name ?? "Apartamento"}
-                    </label>
-                    <div className="grid gap-2 pl-6 text-xs font-medium text-text-secondary">
-                      <label className="flex items-center gap-2">
-                        <input
-                          checked={permission.canUpdateTaskStatus}
-                          onChange={(event) =>
-                            updatePermission(
-                              permission.apartmentId,
-                              "canUpdateTaskStatus",
-                              event.target.checked,
-                            )
-                          }
-                          type="checkbox"
-                        />
-                        Atualizar tarefas
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          checked={permission.canManageIntegrations}
-                          onChange={(event) =>
-                            updatePermission(
-                              permission.apartmentId,
-                              "canManageIntegrations",
-                              event.target.checked,
-                            )
-                          }
-                          type="checkbox"
-                        />
-                        Gerenciar iCal
-                      </label>
+                    <input
+                      checked={permission.canView}
+                      className="mt-1 shrink-0"
+                      onChange={(event) =>
+                        toggleApartmentAccess(
+                          permission.apartmentId,
+                          event.target.checked,
+                        )
+                      }
+                      type="checkbox"
+                    />
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-text-primary">
+                        {apartment?.name ?? "Apartamento"}
+                      </span>
+                      <span className="block truncate text-xs text-text-muted">
+                        {apartment?.owner.name
+                          ? `Proprietário: ${apartment.owner.name} · `
+                          : ""}
+                        Reservas, calendário e demonstrativo financeiro
+                      </span>
                     </div>
-                  </div>
+                  </label>
                 );
               })
             )}
@@ -283,7 +310,7 @@ export function TeamMemberFormPage({ membershipId }: { membershipId?: string }) 
               Cancelar
             </Button>
             <Button disabled={isSaving} type="submit">
-              {isSaving ? "Salvando..." : "Salvar membro"}
+              {isSaving ? "Salvando..." : "Salvar acesso"}
             </Button>
           </div>
         </form>
@@ -295,8 +322,8 @@ export function TeamMemberFormPage({ membershipId }: { membershipId?: string }) 
 function defaultPermissions(apartments: Apartment[]): TeamApartmentPermissionValues[] {
   return apartments.map((apartment) => ({
     apartmentId: apartment.id,
-    canView: true,
-    canUpdateTaskStatus: true,
+    canView: false,
+    canUpdateTaskStatus: false,
     canManageIntegrations: false,
   }));
 }

@@ -30,6 +30,10 @@ public class IcalReservationParser {
                 String summary = event.getSummary() != null
                     ? event.getSummary().getValue()
                     : null;
+                boolean cancelled = event
+                    .getProperty("STATUS")
+                    .map(property -> "CANCELLED".equalsIgnoreCase(property.getValue()))
+                    .orElse(false);
                 Instant startsAt = toInstant(event.getStartDate().get().getDate(), defaultZone);
                 Instant endsAt = toInstant(event.getEndDate().get().getDate(), defaultZone);
                 String externalEventKey = uid != null
@@ -46,7 +50,8 @@ public class IcalReservationParser {
                         "{\"uid\":%s,\"summary\":%s}".formatted(
                             jsonString(uid),
                             jsonString(summary)
-                        )
+                        ),
+                        cancelled
                     )
                 );
             }

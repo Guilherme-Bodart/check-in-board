@@ -40,6 +40,18 @@ public class SyncRunEntity {
     @Column(name = "reservations_upserted", nullable = false)
     private int reservationsUpserted;
 
+    @Column(name = "reservations_created", nullable = false)
+    private int reservationsCreated;
+
+    @Column(name = "reservations_updated", nullable = false)
+    private int reservationsUpdated;
+
+    @Column(name = "reservations_cancelled", nullable = false)
+    private int reservationsCancelled;
+
+    @Column(name = "diff_details_json", length = 4000)
+    private String diffDetailsJson;
+
     @Column(name = "error_message")
     private String errorMessage;
 
@@ -57,10 +69,43 @@ public class SyncRunEntity {
     }
 
     public void markSucceeded(int eventsSeen, int reservationsUpserted) {
+        markSucceeded(eventsSeen, reservationsUpserted, 0, 0, 0, null);
+    }
+
+    public void markSucceeded(
+        int eventsSeen,
+        int reservationsUpserted,
+        int reservationsCreated,
+        int reservationsUpdated,
+        int reservationsCancelled,
+        String diffDetailsJson
+    ) {
         status = SyncRunStatus.succeeded;
         finishedAt = Instant.now();
         this.eventsSeen = eventsSeen;
         this.reservationsUpserted = reservationsUpserted;
+        this.reservationsCreated = reservationsCreated;
+        this.reservationsUpdated = reservationsUpdated;
+        this.reservationsCancelled = reservationsCancelled;
+        this.diffDetailsJson = diffDetailsJson;
+    }
+
+    public void complete(
+        int eventsSeen,
+        int reservationsUpserted,
+        int reservationsCreated,
+        int reservationsUpdated,
+        int reservationsCancelled,
+        String diffDetailsJson
+    ) {
+        markSucceeded(
+            eventsSeen,
+            reservationsUpserted,
+            reservationsCreated,
+            reservationsUpdated,
+            reservationsCancelled,
+            diffDetailsJson
+        );
     }
 
     public void markFailed(String errorMessage) {
@@ -101,6 +146,22 @@ public class SyncRunEntity {
 
     public int getReservationsUpserted() {
         return reservationsUpserted;
+    }
+
+    public int getReservationsCreated() {
+        return reservationsCreated;
+    }
+
+    public int getReservationsUpdated() {
+        return reservationsUpdated;
+    }
+
+    public int getReservationsCancelled() {
+        return reservationsCancelled;
+    }
+
+    public String getDiffDetailsJson() {
+        return diffDetailsJson;
     }
 
     public String getErrorMessage() {

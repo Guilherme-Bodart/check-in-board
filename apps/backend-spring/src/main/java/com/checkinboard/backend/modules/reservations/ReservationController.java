@@ -1,10 +1,12 @@
 package com.checkinboard.backend.modules.reservations;
 
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.AutoSyncResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.OperationsBoardResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ReservationResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ReservationsResponse;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.SyncNotificationsResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.SyncRunsResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.CreateManualReservationRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.UpdateReservationRequest;
@@ -88,5 +90,19 @@ public class ReservationController {
         @PathVariable String icalSourceId
     ) {
         return reservationService.syncRuns(principal.userId(), icalSourceId);
+    }
+
+    @PostMapping("/ical-sources/auto-sync")
+    AutoSyncResponse autoSync(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return reservationService.autoSync(principal.userId());
+    }
+
+    @GetMapping("/notifications/sync")
+    SyncNotificationsResponse syncNotifications(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return reservationService.syncNotifications(principal.userId());
     }
 }

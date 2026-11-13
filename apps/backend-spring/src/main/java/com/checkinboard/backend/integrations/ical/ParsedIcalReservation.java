@@ -8,5 +8,17 @@ public record ParsedIcalReservation(
     Instant startsAt,
     Instant endsAt,
     String rawSummary,
-    String rawPayload
-) {}
+    String rawPayload,
+    boolean cancelled
+) {
+    public ParsedIcalReservation(
+        String externalEventKey,
+        String externalUid,
+        Instant startsAt,
+        Instant endsAt,
+        String rawSummary,
+        String rawPayload
+    ) {
+        this(externalEventKey, externalUid, startsAt, endsAt, rawSummary, rawPayload, false);
+    }
+}

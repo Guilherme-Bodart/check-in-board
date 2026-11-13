@@ -137,6 +137,11 @@ public class ReservationEntity {
         this.guestCount = guestCount;
     }
 
+    public void markCancelled() {
+        this.status = ReservationStatus.cancelled;
+        this.missingInFeedCount = this.missingInFeedCount + 1;
+    }
+
     public String getId() {
         return id;
     }

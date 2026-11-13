@@ -19,21 +19,22 @@ export function DashboardTopbar({
 }) {
   return (
     <header
-      className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+      className="flex flex-col gap-3 sm:gap-4 rounded-2xl border border-border bg-surface p-3.5 sm:p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between"
       id="board"
     >
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
+      <div className="min-w-0">
+        <p className="hidden sm:block text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
           {email}
         </p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-          {messages.dashboard.boardTitle}
+        <h2 className="text-lg sm:mt-2 sm:text-2xl font-semibold tracking-tight text-text-primary">
+          <span className="md:hidden">Hoje</span>
+          <span className="hidden md:inline">{messages.dashboard.boardTitle}</span>
         </h2>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center sm:gap-3">
         <Input
           aria-label={messages.dashboard.boardDateLabel}
-          className="h-10 sm:w-44"
+          className="h-10 min-w-0 sm:w-44"
           onChange={(event) => onBoardDateChange(event.target.value)}
           type="date"
           value={boardDate}

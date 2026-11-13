@@ -42,12 +42,33 @@ public final class ReservationDtos {
 
     public record ManualSyncRequest(@Size(min = 1, max = 2_000_000) String icsText) {}
 
+    public record SyncChangeItemResponse(
+        String reservationId,
+        String changeType,
+        String guestName,
+        String rawSummary,
+        Instant startsAt,
+        Instant endsAt
+    ) {}
+
     public record ManualSyncSummary(
         int eventsSeen,
         int reservationsUpserted,
+        int reservationsCreated,
+        int reservationsUpdated,
+        int reservationsCancelled,
         boolean syncSkipped,
         String syncSkippedReason
-    ) {}
+    ) {
+        public ManualSyncSummary(
+            int eventsSeen,
+            int reservationsUpserted,
+            boolean syncSkipped,
+            String syncSkippedReason
+        ) {
+            this(eventsSeen, reservationsUpserted, 0, 0, 0, syncSkipped, syncSkippedReason);
+        }
+    }
 
     public record ManualSyncResponse(
         List<ReservationResponse> reservations,
@@ -57,15 +78,33 @@ public final class ReservationDtos {
     public record SyncRunResponse(
         String id,
         String icalSourceId,
+        String apartmentId,
+        String apartmentName,
+        String provider,
+        String sourceLabel,
         SyncRunStatus status,
         Instant startedAt,
         Instant finishedAt,
         int eventsSeen,
         int reservationsUpserted,
-        String errorMessage
+        int reservationsCreated,
+        int reservationsUpdated,
+        int reservationsCancelled,
+        String errorMessage,
+        List<SyncChangeItemResponse> changes
     ) {}
 
     public record SyncRunsResponse(List<SyncRunResponse> syncRuns) {}
+
+    public record AutoSyncResponse(
+        int sourcesChecked,
+        int sourcesSynced,
+        List<SyncRunResponse> notableRuns
+    ) {}
+
+    public record SyncNotificationsResponse(
+        List<SyncRunResponse> notifications
+    ) {}
 
     public record OperationsBoardReservationResponse(
         String id,

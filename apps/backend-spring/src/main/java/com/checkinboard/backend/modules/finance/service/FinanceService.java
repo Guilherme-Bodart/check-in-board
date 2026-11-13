@@ -1,6 +1,7 @@
 package com.checkinboard.backend.modules.finance.service;
 
 import com.checkinboard.backend.modules.apartments.model.ApartmentEntity;
+import com.checkinboard.backend.modules.apartments.repository.ApartmentMembershipRepository;
 import com.checkinboard.backend.modules.apartments.repository.ApartmentRepository;
 import com.checkinboard.backend.modules.auth.model.AuthRole;
 import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +39,7 @@ public class FinanceService {
     private final FinancialEntryRepository financialEntryRepository;
     private final RentalStayRepository rentalStayRepository;
     private final ApartmentRepository apartmentRepository;
+    private final ApartmentMembershipRepository apartmentMembershipRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
     private static final Set<String> EXPENSE_CATEGORIES = Set.of(
         "limpeza",
@@ -53,11 +56,13 @@ public class FinanceService {
         FinancialEntryRepository financialEntryRepository,
         RentalStayRepository rentalStayRepository,
         ApartmentRepository apartmentRepository,
+        ApartmentMembershipRepository apartmentMembershipRepository,
         OrganizationMembershipRepository organizationMembershipRepository
     ) {
         this.financialEntryRepository = financialEntryRepository;
         this.rentalStayRepository = rentalStayRepository;
         this.apartmentRepository = apartmentRepository;
+        this.apartmentMembershipRepository = apartmentMembershipRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
     }
 
@@ -69,11 +74,12 @@ public class FinanceService {
         String apartmentId,
         String ownerId
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = getReadMembership(userId);
         DateRange dateRange = normalizeDateRange(dateFrom, dateTo);
 
         return new FinancialEntriesResponse(
             filteredEntries(
+                userId,
                 membership,
                 dateRange,
                 normalizeOptional(apartmentId),
@@ -93,9 +99,10 @@ public class FinanceService {
         String apartmentId,
         String ownerId
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = getReadMembership(userId);
         DateRange dateRange = normalizeDateRange(dateFrom, dateTo);
         List<FinancialEntryEntity> entries = filteredEntries(
+            userId,
             membership,
             dateRange,
             normalizeOptional(apartmentId),
@@ -123,11 +130,25 @@ public class FinanceService {
 
     @Transactional(readOnly = true)
     public FinancialEntryEnvelope get(String userId, String entryId) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = getReadMembership(userId);
         FinancialEntryEntity entry = findEntryInOrganization(
             entryId,
             membership.getOrganization().getId()
         );
+
+        if (membership.getRole() == AuthRole.co_host) {
+            Set<String> allowedApartmentIds = allowedApartmentIdsForCoHost(
+                userId,
+                membership.getOrganization().getId()
+            );
+            if (!allowedApartmentIds.contains(entry.getApartment().getId())) {
+                throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN",
+                    "You do not have access to this financial entry."
+                );
+            }
+        }
 
         return new FinancialEntryEnvelope(toResponse(entry));
     }
@@ -212,11 +233,40 @@ public class FinanceService {
     }
 
     private List<FinancialEntryEntity> filteredEntries(
+        String userId,
         OrganizationMembershipEntity membership,
         DateRange dateRange,
         String apartmentId,
         String ownerId
     ) {
+        if (membership.getRole() == AuthRole.co_host) {
+            Set<String> allowedApartmentIds = allowedApartmentIdsForCoHost(
+                userId,
+                membership.getOrganization().getId()
+            );
+            if (apartmentId != null && !allowedApartmentIds.contains(apartmentId)) {
+                throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN",
+                    "You do not have access to this apartment."
+                );
+            }
+            if (allowedApartmentIds.isEmpty()) {
+                return List.of();
+            }
+            return financialEntryRepository
+                .findByFilters(
+                    membership.getOrganization().getId(),
+                    dateRange.dateFrom(),
+                    dateRange.dateTo(),
+                    apartmentId,
+                    ownerId
+                )
+                .stream()
+                .filter(entry -> allowedApartmentIds.contains(entry.getApartment().getId()))
+                .toList();
+        }
+
         return financialEntryRepository.findByFilters(
             membership.getOrganization().getId(),
             dateRange.dateFrom(),
@@ -224,6 +274,15 @@ public class FinanceService {
             apartmentId,
             ownerId
         );
+    }
+
+    private Set<String> allowedApartmentIdsForCoHost(String userId, String organizationId) {
+        return apartmentMembershipRepository
+            .findByUserIdAndOrganizationId(userId, organizationId)
+            .stream()
+            .filter(m -> m.canView() && m.getApartment().getDeletedAt() == null)
+            .map(m -> m.getApartment().getId())
+            .collect(Collectors.toSet());
     }
 
     private ApartmentEntity findApartmentInOrganization(
@@ -274,6 +333,26 @@ public class FinanceService {
         }
 
         return entry;
+    }
+
+    private OrganizationMembershipEntity getReadMembership(String userId) {
+        OrganizationMembershipEntity membership =
+            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
+
+        if (
+            membership == null ||
+            !membership.isActive() ||
+            (membership.getRole() != AuthRole.host_admin &&
+                membership.getRole() != AuthRole.co_host)
+        ) {
+            throw new ApiException(
+                HttpStatus.FORBIDDEN,
+                "FORBIDDEN",
+                "You do not have permission to view financial data."
+            );
+        }
+
+        return membership;
     }
 
     private OrganizationMembershipEntity getHostAdminMembership(String userId) {

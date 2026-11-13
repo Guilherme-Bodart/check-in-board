@@ -208,6 +208,91 @@ class FinanceControllerTest {
             .andExpect(jsonPath("$.error.code").value("INVALID_EXPENSE_CATEGORY"));
     }
 
+    @Test
+    void allowsCoHostToReadOnlyPermittedApartmentFinancialEntriesAndSummary() throws Exception {
+        String hostToken = signUpHost("host@example.com", "Host Ops");
+        String permittedApartmentId = createApartment(hostToken, "Apto 101");
+        String otherApartmentId = createApartment(hostToken, "Apto 202");
+
+        MvcResult permittedEntryResult = createEntry(
+            hostToken,
+            permittedApartmentId,
+            "revenue",
+            "Hospedagem",
+            100000
+        );
+        MvcResult otherEntryResult = createEntry(
+            hostToken,
+            otherApartmentId,
+            "revenue",
+            "Hospedagem",
+            250000
+        );
+        String permittedEntryId = readJson(permittedEntryResult).get("financialEntry").get("id").asText();
+        String otherEntryId = readJson(otherEntryResult).get("financialEntry").get("id").asText();
+
+        createCoHostMember(hostToken, permittedApartmentId, "cohost@example.com");
+        String coHostToken = signIn("cohost@example.com", "secure-password");
+
+        mockMvc
+            .perform(
+                get("/financial-entries")
+                    .header("Authorization", "Bearer " + coHostToken)
+                    .param("dateFrom", "2026-05-01")
+                    .param("dateTo", "2026-05-31")
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.financialEntries", hasSize(1)))
+            .andExpect(jsonPath("$.financialEntries[0].id").value(permittedEntryId))
+            .andExpect(jsonPath("$.financialEntries[0].apartmentId").value(permittedApartmentId));
+
+        mockMvc
+            .perform(
+                get("/financial-summary")
+                    .header("Authorization", "Bearer " + coHostToken)
+                    .param("dateFrom", "2026-05-01")
+                    .param("dateTo", "2026-05-31")
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.revenueCents").value(100000))
+            .andExpect(jsonPath("$.byApartment", hasSize(1)))
+            .andExpect(jsonPath("$.byApartment[0].id").value(permittedApartmentId));
+
+        mockMvc
+            .perform(
+                get("/financial-entries/{entryId}", permittedEntryId)
+                    .header("Authorization", "Bearer " + coHostToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.financialEntry.id").value(permittedEntryId));
+
+        mockMvc
+            .perform(
+                get("/financial-entries/{entryId}", otherEntryId)
+                    .header("Authorization", "Bearer " + coHostToken)
+            )
+            .andExpect(status().isForbidden());
+
+        mockMvc
+            .perform(
+                get("/financial-entries")
+                    .header("Authorization", "Bearer " + coHostToken)
+                    .param("dateFrom", "2026-05-01")
+                    .param("dateTo", "2026-05-31")
+                    .param("apartmentId", otherApartmentId)
+            )
+            .andExpect(status().isForbidden());
+
+        mockMvc
+            .perform(
+                post("/financial-entries")
+                    .header("Authorization", "Bearer " + coHostToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(entryPayload(permittedApartmentId, "revenue", "Hospedagem", 50000))
+            )
+            .andExpect(status().isForbidden());
+    }
+
     private MvcResult createEntry(
         String accessToken,
         String apartmentId,
@@ -372,6 +457,38 @@ class FinanceControllerTest {
                               "apartmentId": "%s",
                               "canView": true,
                               "canUpdateTaskStatus": true,
+                              "canManageIntegrations": false
+                            }
+                          ]
+                        }
+                        """.formatted(email, apartmentId)
+                    )
+            )
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        return readJson(result).get("teamMember").get("membershipId").asText();
+    }
+
+    private String createCoHostMember(String accessToken, String apartmentId, String email)
+        throws Exception {
+        MvcResult result = mockMvc
+            .perform(
+                post("/team-members")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "%s",
+                          "fullName": "Apartment Owner",
+                          "password": "secure-password",
+                          "role": "co_host",
+                          "apartmentPermissions": [
+                            {
+                              "apartmentId": "%s",
+                              "canView": true,
+                              "canUpdateTaskStatus": false,
                               "canManageIntegrations": false
                             }
                           ]

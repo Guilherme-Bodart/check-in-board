@@ -144,6 +144,105 @@ class RentalStayControllerTest {
             .andExpect(jsonPath("$.error.message").value("checkOut must be after checkIn."));
     }
 
+    @Test
+    void allowsCoHostToListOnlyPermittedApartmentRentalStays() throws Exception {
+        String hostToken = signUpHost("host@example.com", "Host Ops");
+        String permittedApartmentId = createApartment(hostToken, "Apto 101");
+        String otherApartmentId = createApartment(hostToken, "Apto 202");
+
+        mockMvc
+            .perform(
+                post("/rental-stays")
+                    .header("Authorization", "Bearer " + hostToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(rentalStayPayload(permittedApartmentId, "Maria", 120000))
+            )
+            .andExpect(status().isCreated());
+
+        mockMvc
+            .perform(
+                post("/rental-stays")
+                    .header("Authorization", "Bearer " + hostToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(rentalStayPayload(otherApartmentId, "Carlos", 200000))
+            )
+            .andExpect(status().isCreated());
+
+        mockMvc
+            .perform(
+                post("/team-members")
+                    .header("Authorization", "Bearer " + hostToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "cohost@example.com",
+                          "fullName": "Apartment Owner",
+                          "password": "secure-password",
+                          "role": "co_host",
+                          "apartmentPermissions": [
+                            {
+                              "apartmentId": "%s",
+                              "canView": true,
+                              "canUpdateTaskStatus": false,
+                              "canManageIntegrations": false
+                            }
+                          ]
+                        }
+                        """.formatted(permittedApartmentId)
+                    )
+            )
+            .andExpect(status().isCreated());
+
+        MvcResult signInResult = mockMvc
+            .perform(
+                post("/auth/sign-in")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "cohost@example.com",
+                          "password": "secure-password"
+                        }
+                        """
+                    )
+            )
+            .andExpect(status().isOk())
+            .andReturn();
+        String coHostToken = readJson(signInResult).get("accessToken").asText();
+
+        mockMvc
+            .perform(
+                get("/rental-stays")
+                    .header("Authorization", "Bearer " + coHostToken)
+                    .param("dateFrom", "2026-06-01")
+                    .param("dateTo", "2026-06-30")
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.rentalStays", hasSize(1)))
+            .andExpect(jsonPath("$.rentalStays[0].apartmentId").value(permittedApartmentId))
+            .andExpect(jsonPath("$.rentalStays[0].guestName").value("Maria"));
+
+        mockMvc
+            .perform(
+                get("/rental-stays")
+                    .header("Authorization", "Bearer " + coHostToken)
+                    .param("dateFrom", "2026-06-01")
+                    .param("dateTo", "2026-06-30")
+                    .param("apartmentId", otherApartmentId)
+            )
+            .andExpect(status().isForbidden());
+
+        mockMvc
+            .perform(
+                post("/rental-stays")
+                    .header("Authorization", "Bearer " + coHostToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(rentalStayPayload(permittedApartmentId, "Invalido", 100000))
+            )
+            .andExpect(status().isForbidden());
+    }
+
     private String rentalStayPayload(
         String apartmentId,
         String guestName,

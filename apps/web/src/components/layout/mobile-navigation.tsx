@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
+  Bell,
   Building2,
   CalendarDays,
   CircleDollarSign,
@@ -12,11 +13,11 @@ import {
   Menu,
   Settings,
   ShieldCheck,
-  User,
   UsersRound,
   X,
 } from "lucide-react";
 
+import type { AuthRole } from "../../api";
 import { messages } from "../../i18n";
 import { cn } from "../../lib/utils";
 
@@ -30,6 +31,7 @@ const mainTabs = [
 const secondaryNavItems = [
   { href: "/clientes", icon: UsersRound, label: "Clientes / Proprietários" },
   { href: "/reservas", icon: ClipboardList, label: "Todas as Reservas" },
+  { href: "/notificacoes", icon: Bell, label: messages.shell.routes.notifications.navLabel },
   { href: "/configuracoes", icon: Settings, label: "Configurações da Conta" },
   { href: "/configuracoes/seguranca", icon: ShieldCheck, label: "Segurança & Acessos" },
 ];
@@ -37,13 +39,18 @@ const secondaryNavItems = [
 export function MobileNavigation({
   currentPath,
   userEmail,
+  userRole,
   onSignOut,
 }: {
   currentPath: string;
   userEmail: string;
+  userRole?: AuthRole | null;
   onSignOut: () => void;
 }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const visibleSecondaryNavItems = secondaryNavItems.filter(
+    (item) => item.href !== "/clientes" || userRole === "host_admin",
+  );
 
   return (
     <>
@@ -176,7 +183,7 @@ export function MobileNavigation({
                 Gerenciamento & Ajustes
               </p>
 
-              {secondaryNavItems.map((item) => {
+              {visibleSecondaryNavItems.map((item) => {
                 const isActive =
                   currentPath === item.href || currentPath.startsWith(`${item.href}/`);
 

@@ -27,6 +27,7 @@ export const ptBR = {
       settings: { eyebrow: "Conta", title: "Configurações", navLabel: "Configurações" },
       dashboard: { eyebrow: "Operação", title: "Dashboard", navLabel: "Dashboard" },
       finance: { eyebrow: "Gestão", title: "Financeiro", navLabel: "Financeiro" },
+      notifications: { eyebrow: "Sincronização e alertas", title: "Notificações", navLabel: "Notificações" },
       reservations: { eyebrow: "Operação", title: "Reservas", navLabel: "Reservas" },
     },
   },

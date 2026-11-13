@@ -55,7 +55,9 @@ export function DashboardContent({
       ) : null}
 
       <OperationsMetrics totals={snapshot.totals} />
-      <ReservationVolumeChart sections={snapshot.boardSections} />
+      <div className="hidden md:block">
+        <ReservationVolumeChart sections={snapshot.boardSections} />
+      </div>
 
       <section className="grid gap-6">
         <OperationsBoardPanel

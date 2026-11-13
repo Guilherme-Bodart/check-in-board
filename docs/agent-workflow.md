@@ -72,7 +72,8 @@ flowchart LR
 1. O Orquestrador lê a tarefa e identifica quais camadas são afetadas (`backend-spring`, `web`, `finance-mvp`, `mobile`).
 2. Se a tarefa envolver Backend e Web ao mesmo tempo, o Orquestrador **define o contrato exato (rota HTTP, payload de request e JSON de response) no próprio brief** antes de disparar os agentes. Assim, `backend` e `web` trabalham **em paralelo** sem bloqueio.
 
-### Etapa 2: Despacho com o Modelo Ideal (`swarm` ou `invoke_subagent`)
+### Etapa 2: Despacho em Escopos Micro e Diretos (`swarm` ou `invoke_subagent`)
+**Regra Anti-Alucinação:** Nunca mande um escopo gigante para um único agente. Fatie a entrega em **tarefas pequenas e diretas (1 a 3 arquivos principais por worker)** para que o agente vá direto ao ponto sem se perder.
 O Orquestrador cria cada worker especificando claramente:
 - **O que ele é dono** (lista exata de pastas/arquivos que pode editar);
 - **O que ele NÃO pode tocar** (para evitar colisão no git);

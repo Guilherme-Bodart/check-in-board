@@ -14,12 +14,13 @@ Não crie arquivos `.md` avulsos ou duplicados de arquitetura/planejamento. Toda
 3. `docs/agent-workflow.md` — Protocolo do Orquestrador, fronteiras de arquivos e seleção de modelos.
 4. `docs/DESIGN.md` — Especificação visual *Carbon Enterprise* e regras de componentes.
 
-## 3. Seleção de Modelos na Orquestração (Swarm / Subagentes)
-Ao delegar tarefas no Swarm ou via subagentes, respeite a relação entre capacidade e cota:
-- **`Orchestrator (Argon)`:** Exclusivo para o Coordenador/Líder Técnico (planejamento, definição de contratos e revisão final). Não use para codificar features repetitivas.
-- **`Gemini 4 Hydrogen` (`Medium` / `High` / `XHigh`):** Modelo padrão do **dia a dia** (cota renova diariamente). Use para ~80% das tarefas: telas Next.js, rotas/CRUDs Spring Boot, formulários, filtros e modais.
-- **`Gemini 4 Argon` (`Medium` / `High`):** Modelo **topo de linha / pesado** (cota semanal compartilhada). Reserve para algoritmos críticos (reconciliação iCal, fusos horários, cálculos financeiros em centavos, concorrência e segurança/RBAC).
-- **`Gemini 3.8 Flash`:** Use para tarefas mecânicas rápidas (`typecheck`, `lint`, dicionário `i18n`) e para o subagente `browser`.
+## 3. Seleção de Modelos e Escopos Pequenos na Orquestração (Swarm / Subagentes)
+- **Regra do Escopo Micro e Direto (1 a 3 arquivos por Worker):** Nunca despeje um escopo gigante em um único agente para ele não viajar ou errar. Divida o trabalho em tarefas pequenas, cirúrgicas e diretas (ex: 1 worker focado só no endpoint de sync, 1 worker focado só na permissão financeira, 1 worker focado só na tela de notificações, 1 worker focado só no enxugamento mobile).
+- **Capacidade vs. Cota:**
+  - **`Orchestrator (Argon)`:** Exclusivo para o Coordenador/Líder Técnico (planejamento, definição de contratos e revisão final). Não use para codificar features repetitivas.
+  - **`Gemini 4 Hydrogen` (`Medium` / `High` / `XHigh`):** Modelo padrão do **dia a dia** (cota renova diariamente). Use para ~80% das tarefas: telas Next.js, rotas/CRUDs Spring Boot, formulários, filtros e modais.
+  - **`Gemini 4 Argon` (`Medium` / `High`):** Modelo **topo de linha / pesado** (cota semanal compartilhada). Reserve para algoritmos críticos (reconciliação iCal, fusos horários, cálculos financeiros em centavos, concorrência e segurança/RBAC).
+  - **`Gemini 3.8 Flash`:** Use para tarefas mecânicas rápidas (`typecheck`, `lint`, dicionário `i18n`, verificação de build) e para o subagente `browser`.
 
 ## 4. Regras de UI e Componentes Reutilizáveis (`apps/web`)
 - **Zero Controles Improvisados 1 a 1:** Em `apps/web/src/features/**`, é proibido usar `<select>` HTML nativo do navegador. Use sempre `<Select>` de `src/components/ui/form-controls.tsx` ou as primitivas Radix de `src/components/ui/select.tsx`.

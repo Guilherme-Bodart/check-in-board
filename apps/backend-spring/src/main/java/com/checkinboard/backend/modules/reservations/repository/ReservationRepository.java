@@ -12,6 +12,9 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
     List<ReservationEntity> findByApartment_IdOrderByStartsAtAsc(String apartmentId);
 
     @EntityGraph(attributePaths = { "apartment", "icalSource" })
+    List<ReservationEntity> findByIcalSource_IdOrderByStartsAtAsc(String icalSourceId);
+
+    @EntityGraph(attributePaths = { "apartment", "icalSource" })
     Optional<ReservationEntity> findByIcalSource_IdAndExternalEventKey(
         String icalSourceId,
         String externalEventKey

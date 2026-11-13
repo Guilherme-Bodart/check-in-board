@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import Link from "next/link";
 
-import type { Apartment, RentalStay, FinancialEntry } from "../../api";
+import type { Apartment, AuthRole, RentalStay, FinancialEntry } from "../../api";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { PageHeader } from "../../components/ui/page-header";
 import { Panel } from "../../components/ui/panel";
 import { readStoredSession } from "../../lib/session-storage";
+import { fetchMe } from "../auth/auth-api";
 import { fetchApartment } from "../dashboard/dashboard-api";
 import { fetchReservations } from "../reservations/reservations-api";
 import { attachApartmentDetails, reservationLocalDate, type ReservationListItem } from "../reservations/reservation-view-model";
@@ -17,6 +20,7 @@ import { BillingModal, type BillingData } from "./components/billing-modal";
 import { messages } from "../../i18n";
 
 export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
+  const [userRole, setUserRole] = useState<AuthRole | null>(null);
   const [apartment, setApartment] = useState<Apartment | null>(null);
   const [reservations, setReservations] = useState<ReservationListItem[]>([]);
   const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
@@ -27,6 +31,8 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
   const [activeTab, setActiveTab] = useState<"statement" | "pending">("statement");
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
+
+  const isHostAdmin = userRole === "host_admin";
 
   useEffect(() => {
     setMonth(new Date().toISOString().slice(0, 7));
@@ -45,6 +51,13 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
     setMessage("");
 
     try {
+      let resolvedRole = userRole;
+      if (!resolvedRole) {
+        const me = await fetchMe(session.token);
+        resolvedRole = me.memberships.find((m) => m.isActive)?.role ?? null;
+        setUserRole(resolvedRole);
+      }
+
       const apt = await fetchApartment(session.token, apartmentId);
       setApartment(apt);
 
@@ -150,25 +163,37 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-center gap-4">
         <Link
-          className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary"
           href={`/apartamentos/${apartmentId}`}
         >
           <ChevronLeft aria-hidden className="h-5 w-5" />
         </Link>
-        <PageHeader
-          description={`Gestão financeira do ${apartment?.name ?? "Apartamento"}`}
-          eyebrow="Financeiro"
-          title="Financeiro"
-        />
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            description={`Gestão financeira do ${apartment?.name ?? "Apartamento"}`}
+            eyebrow="Financeiro"
+            title="Financeiro"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-xs text-text-secondary shadow-2xs">
+        <Badge tone="info">Demonstrativo Gerencial</Badge>
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <Info aria-hidden className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+          <span>
+            Valores demonstrativos para conferência de resultados — nenhum processamento financeiro ou pagamento ocorre pela plataforma.
+          </span>
+        </span>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex rounded-xl bg-surface-muted p-1">
           <button
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              activeTab === "statement"
+            className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              activeTab === "statement" || !isHostAdmin
                 ? "bg-surface text-primary shadow-sm"
                 : "text-text-secondary hover:text-text-primary"
             }`}
@@ -177,22 +202,24 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
           >
             Demonstrativo Mensal
           </button>
-          <button
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              activeTab === "pending"
-                ? "bg-surface text-primary shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-            onClick={() => setActiveTab("pending")}
-            type="button"
-          >
-            Reservas a Faturar
-            {pendingReservations.length > 0 && (
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-danger text-[10px] text-white">
-                {pendingReservations.length}
-              </span>
-            )}
-          </button>
+          {isHostAdmin ? (
+            <button
+              className={`flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                activeTab === "pending"
+                  ? "bg-surface text-primary shadow-sm"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+              onClick={() => setActiveTab("pending")}
+              type="button"
+            >
+              Reservas a Faturar
+              {pendingReservations.length > 0 && (
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-danger text-[10px] text-white">
+                  {pendingReservations.length}
+                </span>
+              )}
+            </button>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2">
@@ -227,7 +254,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
           <p className="text-sm text-text-secondary p-4">Carregando...</p>
         ) : message ? (
           <p className="text-sm text-danger p-4">{message}</p>
-        ) : activeTab === "pending" ? (
+        ) : activeTab === "pending" && isHostAdmin ? (
           <div className="grid gap-4">
             {pendingReservations.length === 0 ? (
               <div className="py-12 text-center">
@@ -243,8 +270,8 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
                   className="grid gap-3 rounded-2xl border border-border bg-surface-muted p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
                   key={reservation.id}
                 >
-                  <div>
-                    <strong className="text-sm font-semibold text-text-primary">
+                  <div className="min-w-0">
+                    <strong className="block truncate text-sm font-semibold text-text-primary">
                       {reservation.rawSummary ?? messages.calendar.reservationFallback}
                     </strong>
                     <p className="mt-1 text-sm text-text-secondary">
@@ -252,11 +279,8 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-secondary">
-                      {reservation.provider}
-                    </span>
-                    <button
-                      className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+                    <Badge tone="neutral">{reservation.provider}</Badge>
+                    <Button
                       onClick={() =>
                         setBillingData({
                           id: reservation.id,
@@ -267,10 +291,10 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
                           checkOut: reservation.endsAt,
                         })
                       }
-                      type="button"
+                      size="sm"
                     >
                       Faturar
-                    </button>
+                    </Button>
                   </div>
                 </article>
               ))
@@ -398,15 +422,17 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
         )}
       </Panel>
 
-      <BillingModal
-        data={billingData}
-        isOpen={billingData !== null}
-        onClose={() => setBillingData(null)}
-        onSuccess={() => {
-          setBillingData(null);
-          void loadData();
-        }}
-      />
+      {isHostAdmin ? (
+        <BillingModal
+          data={billingData}
+          isOpen={billingData !== null}
+          onClose={() => setBillingData(null)}
+          onSuccess={() => {
+            setBillingData(null);
+            void loadData();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 package com.checkinboard.backend.modules.finance.service;
 
 import com.checkinboard.backend.modules.apartments.model.ApartmentEntity;
+import com.checkinboard.backend.modules.apartments.repository.ApartmentMembershipRepository;
 import com.checkinboard.backend.modules.apartments.repository.ApartmentRepository;
 import com.checkinboard.backend.modules.auth.model.AuthRole;
 import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
@@ -29,7 +30,9 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +44,7 @@ public class FinanceMvpService {
     private final FinancialEntryRepository financialEntryRepository;
     private final SettlementPeriodRepository settlementPeriodRepository;
     private final ApartmentRepository apartmentRepository;
+    private final ApartmentMembershipRepository apartmentMembershipRepository;
     private final OwnerRepository ownerRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
 
@@ -49,6 +53,7 @@ public class FinanceMvpService {
         FinancialEntryRepository financialEntryRepository,
         SettlementPeriodRepository settlementPeriodRepository,
         ApartmentRepository apartmentRepository,
+        ApartmentMembershipRepository apartmentMembershipRepository,
         OwnerRepository ownerRepository,
         OrganizationMembershipRepository organizationMembershipRepository
     ) {
@@ -56,6 +61,7 @@ public class FinanceMvpService {
         this.financialEntryRepository = financialEntryRepository;
         this.settlementPeriodRepository = settlementPeriodRepository;
         this.apartmentRepository = apartmentRepository;
+        this.apartmentMembershipRepository = apartmentMembershipRepository;
         this.ownerRepository = ownerRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
     }
@@ -67,25 +73,45 @@ public class FinanceMvpService {
         String apartmentId,
         String ownerId
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = getReadMembership(userId);
         Period period = normalizeMonth(month);
         String normalizedApartmentId = normalizeOptional(apartmentId);
         String normalizedOwnerId = normalizeOptional(ownerId);
         String organizationId = membership.getOrganization().getId();
-        List<RentalStayEntity> stays = rentalStayRepository.findByFilters(
-            organizationId,
-            period.start(),
-            period.end(),
-            normalizedApartmentId,
-            normalizedOwnerId
-        );
-        List<FinancialEntryEntity> entries = financialEntryRepository.findByFilters(
-            organizationId,
-            period.start(),
-            period.end(),
-            normalizedApartmentId,
-            normalizedOwnerId
-        );
+        Set<String> allowedApartments = membership.getRole() == AuthRole.co_host
+            ? allowedApartmentIdsForCoHost(userId, organizationId)
+            : null;
+
+        if (
+            allowedApartments != null &&
+            normalizedApartmentId != null &&
+            !allowedApartments.contains(normalizedApartmentId)
+        ) {
+            throw forbidden();
+        }
+
+        List<RentalStayEntity> stays = rentalStayRepository
+            .findByFilters(
+                organizationId,
+                period.start(),
+                period.end(),
+                normalizedApartmentId,
+                normalizedOwnerId
+            )
+            .stream()
+            .filter(stay -> allowedApartments == null || allowedApartments.contains(stay.getApartment().getId()))
+            .toList();
+        List<FinancialEntryEntity> entries = financialEntryRepository
+            .findByFilters(
+                organizationId,
+                period.start(),
+                period.end(),
+                normalizedApartmentId,
+                normalizedOwnerId
+            )
+            .stream()
+            .filter(entry -> allowedApartments == null || allowedApartments.contains(entry.getApartment().getId()))
+            .toList();
         Map<String, SettlementPeriodEntity> settlements = settlementsByApartmentOwner(
             organizationId,
             period.month()
@@ -135,16 +161,22 @@ public class FinanceMvpService {
 
     @Transactional(readOnly = true)
     public SettlementsResponse settlements(String userId, String month) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = getReadMembership(userId);
         Period period = normalizeMonth(month);
+        String organizationId = membership.getOrganization().getId();
+        Set<String> allowedApartments = membership.getRole() == AuthRole.co_host
+            ? allowedApartmentIdsForCoHost(userId, organizationId)
+            : null;
 
         return new SettlementsResponse(
             settlementPeriodRepository
-                .findByOrganization_IdAndPeriodMonth(
-                    membership.getOrganization().getId(),
-                    period.month()
-                )
+                .findByOrganization_IdAndPeriodMonth(organizationId, period.month())
                 .stream()
+                .filter(
+                    settlement ->
+                        allowedApartments == null ||
+                        allowedApartments.contains(settlement.getApartment().getId())
+                )
                 .map(this::toSettlementResponse)
                 .toList()
         );
@@ -175,10 +207,14 @@ public class FinanceMvpService {
         String apartmentId,
         String ownerId
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = getReadMembership(userId);
         Period period = normalizeMonth(month);
         String normalizedApartmentId = normalizeOptional(apartmentId);
         String normalizedOwnerId = normalizeOptional(ownerId);
+        String organizationId = membership.getOrganization().getId();
+        Set<String> allowedApartments = membership.getRole() == AuthRole.co_host
+            ? allowedApartmentIdsForCoHost(userId, organizationId)
+            : null;
         FinanceMvpSummaryResponse response = summary(userId, month, apartmentId, ownerId);
         StringBuilder csv = new StringBuilder(
             "tipo,nome,cliente,apartamento,alugueis,receitas_extras,despesas,liquido,comissao,repasse,status\n"
@@ -196,13 +232,17 @@ public class FinanceMvpService {
         csv.append("tipo,data,categoria,descricao,cliente,apartamento,valor\n");
 
         for (FinancialEntryEntity entry : financialEntryRepository.findByFilters(
-            membership.getOrganization().getId(),
+            organizationId,
             period.start(),
             period.end(),
             normalizedApartmentId,
             normalizedOwnerId
         )) {
-            if (entry.getType() == FinancialEntryType.expense) {
+            if (
+                entry.getType() == FinancialEntryType.expense &&
+                (allowedApartments == null ||
+                    allowedApartments.contains(entry.getApartment().getId()))
+            ) {
                 appendExpenseCsvRow(csv, entry);
             }
         }
@@ -396,6 +436,31 @@ public class FinanceMvpService {
             settlement.getPaidAt(),
             settlement.getNotes()
         );
+    }
+
+    private Set<String> allowedApartmentIdsForCoHost(String userId, String organizationId) {
+        return apartmentMembershipRepository
+            .findByUserIdAndOrganizationId(userId, organizationId)
+            .stream()
+            .filter(m -> m.canView() && m.getApartment().getDeletedAt() == null)
+            .map(m -> m.getApartment().getId())
+            .collect(Collectors.toSet());
+    }
+
+    private OrganizationMembershipEntity getReadMembership(String userId) {
+        OrganizationMembershipEntity membership =
+            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
+
+        if (
+            membership == null ||
+            !membership.isActive() ||
+            (membership.getRole() != AuthRole.host_admin &&
+                membership.getRole() != AuthRole.co_host)
+        ) {
+            throw forbidden();
+        }
+
+        return membership;
     }
 
     private OrganizationMembershipEntity getHostAdminMembership(String userId) {

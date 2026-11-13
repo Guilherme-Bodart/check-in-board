@@ -284,16 +284,18 @@ export function CalendarPage() {
 
   return (
     <div className="grid gap-4">
-      {/* Compact Horizontal Snap KPI Strip on Mobile / 4-Col Grid on Desktop */}
-      <CalendarStats
-        apartments={apartments}
-        isPendingFilterActive={isPendingFilterActive}
-        month={month}
-        onTogglePendingFilter={() => setIsPendingFilterActive((prev) => !prev)}
-        rentalStays={rentalStays}
-        reservations={monthReservations}
-        selectedApartmentId={selectedApartmentId}
-      />
+      {/* 4-Col KPI Strip on Desktop Only (Hidden on Mobile for Immediate Schedule View) */}
+      <div className="hidden md:block">
+        <CalendarStats
+          apartments={apartments}
+          isPendingFilterActive={isPendingFilterActive}
+          month={month}
+          onTogglePendingFilter={() => setIsPendingFilterActive((prev) => !prev)}
+          rentalStays={rentalStays}
+          reservations={monthReservations}
+          selectedApartmentId={selectedApartmentId}
+        />
+      </div>
 
       {/* Main Calendar Card (Mobile-First matching Stitch reference) */}
       <section className="rounded-xl border border-border bg-surface p-3.5 sm:p-5 shadow-2xs">
@@ -342,13 +344,13 @@ export function CalendarPage() {
               </button>
 
               <button
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary"
+                className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary"
                 onClick={() => setIsReportsModalOpen(true)}
                 title="Gerar Demonstrativo do Proprietário, Escala de Limpeza ou Portaria"
                 type="button"
               >
                 <FileText className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Relatórios</span>
+                <span>Relatórios</span>
               </button>
 
               <button
@@ -655,6 +657,10 @@ export function CalendarPage() {
           )}
         </div>
       </section>
+
+      <p className="md:hidden text-[11px] text-text-muted text-center py-1">
+        Dica: Acesse pelo computador para gerar relatórios A4 e ver indicadores detalhados do mês.
+      </p>
 
       {/* Unified Edit & Create Modal with Overbooking and Cleaning Task */}
       <ReservationUnifiedModal

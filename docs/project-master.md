@@ -54,7 +54,7 @@ check-in-board/
 ## 3. O Que Já Está Implementado e Funcionando
 
 ### 3.1 Backend Oficial (`apps/backend-spring`)
-Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-feature`) e versionado com **13 migrações Flyway (`V1` a `V13`)**:
+Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-feature`) e versionado com **14 migrações Flyway (`V1` a `V14`)**:
 
 1. **Autenticação & Segurança (`modules/auth`, `V1`, `V2`):**
    - `POST /auth/sign-up`, `POST /auth/sign-in`, `GET /auth/me`.
@@ -73,19 +73,22 @@ Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-
    - URLs iCal criptografadas em repouso com **AES-GCM** (`SecretEncryptionService`).
    - Política de segurança de URL (`IcalUrlPolicy`): bloqueia hosts locais, IPs privados e protocolos inseguros (anti-SSRF).
    - Suporte a pausar/reativar sincronização (`syncEnabled`) por fonte.
-5. **Reservas, Sync iCal, Reservas Manuais & Operations Board (`modules/reservations`, `V5`, `V13`):**
+5. **Reservas, Sync iCal com Diff, Auto-Sync 1h, Notificações & Operations Board (`modules/reservations`, `V5`, `V13`, `V14`):**
    - `POST /ical-sources/{icalSourceId}/sync` (via URL salva ou payload ICS direto) e `GET /ical-sources/{icalSourceId}/sync-runs`.
-   - Parser `iCal4j` com tratamento correto de eventos `VALUE=DATE` (all-day) no fuso horário do apartamento e upsert idempotente (`ical_source_id + external_event_key`).
+   - `POST /ical-sources/auto-sync`: dispara sincronização automática das fontes ativas com **trava mínima de 1 hora (cooldown)** por fonte e retorna apenas as execuções relevantes (*Regra do Silêncio*: novas reservas, cancelamentos ou falhas).
+   - `GET /notifications/sync`: lista as notificações de sincronização com detalhamento completo do que mudou (`reservationsCreated`, `reservationsCancelled`, lista de `changes` em `diff_details_json` ou `errorMessage`).
+   - Parser `iCal4j` com tratamento correto de eventos `VALUE=DATE` (all-day) no fuso horário do apartamento, detecção de `STATUS:CANCELLED` e upsert idempotente (`ical_source_id + external_event_key`).
    - CRUD de **Reservas Manuais/Diretas** e enriquecimento de reservas (hóspede, quantidade de hóspedes `guest_count`, telefone, notas, valores financeiros e horários customizados).
    - `GET /apartments/{apartmentId}/operations-board?date=YYYY-MM-DD&days=7`: classifica reservas em `checkIns`, `checkOuts`, `inHouse` e `upcoming` respeitando o timezone local do imóvel.
 6. **Tarefas Operacionais (`modules/tasks`, `V6`):**
    - `GET /apartments/{apartmentId}/tasks`, `POST /apartments/{apartmentId}/tasks`, `PATCH /tasks/{taskId}/status`, `GET /tasks/today`.
    - Ciclo de vida `pending`, `done`, `not_done` (exige justificativa em `statusNote`) e `cancelled`, com vínculo opcional a uma reserva.
-7. **Equipe & Controle de Acesso (`modules/team`):**
+7. **Administradores e Proprietários Convidados (`modules/team`):**
    - `GET /team-members`, `POST /team-members`, `PUT /team-members/{membershipId}`, `DELETE /team-members/{membershipId}`.
-   - Papéis `host_admin`, `co_host` e `team`, com permissões granulares por apartamento (`canView`, `canUpdateTaskStatus`, `canManageIntegrations`).
-8. **Financeiro Completo, Estadias e Repasses (`modules/finance`, `V8`, `V9`, `V10`, `V11`, `V12`):**
+   - Foco nos perfis `host_admin` (*Admin Geral*) e `co_host` (*Admin-Proprietário*), com vínculo explícito de acesso aos apartamentos do proprietário (`canView`).
+8. **Financeiro Completo, Estadias e Repasses com Escopo por Proprietário (`modules/finance`, `V8`, `V9`, `V10`, `V11`, `V12`):**
    - **Lançamentos e Resumo Global (`FinanceController`):** `GET/POST/PUT/DELETE /financial-entries` e `GET /financial-summary` (receitas, despesas e lucro por proprietário e por apartamento).
+   - **Visibilidade Financeira do `Admin-Proprietário` (`co_host`):** Leitura liberada em `/financial-entries`, `/financial-summary`, `/rental-stays` e `/finance-mvp/*` estritamente filtrada pelos apartamentos vinculados ao proprietário convidado (`canView = true`), mantendo criação/edição/exclusão exclusivas para `host_admin`.
    - **Estadias e Fechamento por Imóvel (`RentalStayController`):** gestão de estadias (`rental_stays`), vínculo com despesas e controle de períodos de repasse mensal (`settlement_periods` com status `pending` / `paid`).
    - **Endpoints dedicados ao Finance MVP (`FinanceMvpController`).**
 
@@ -112,8 +115,11 @@ Construída em **Next.js App Router + TypeScript + Tailwind CSS v4 + Radix UI / 
     - Listagem (`/clientes`), criação (`/clientes/novo`) e edição (`/clientes/[ownerId]/editar`), diferenciando carteira própria (`internal`) e clientes (`client`).
   - `/financeiro` (**Financeiro Consolidado**):
     - Resumo de receitas, despesas e resultado líquido no período, quebras por proprietário e apartamento, e rotas dedicadas para novo lançamento (`/financeiro/lancamentos/novo`) e edição (`/editar`).
-  - `/configuracoes` (**Conta, Equipe e Segurança**):
-    - Dados da conta e organização (`/configuracoes`), gestão de equipe e permissões por imóvel (`/configuracoes/equipe`, `/novo`, `/[membershipId]/editar`) e alteração de senha (`/configuracoes/seguranca`).
+  - `/configuracoes` (**Conta, Proprietários Convidados e Segurança**):
+    - Dados da conta e organização (`/configuracoes`), gestão de administradores e proprietários convidados por imóvel (`/configuracoes/equipe`, `/novo`, `/[membershipId]/editar`) e alteração de senha (`/configuracoes/seguranca`).
+  - `/notificacoes` (**Central de Notificações Inteligente**):
+    - Sincronização automática de iCal ao entrar no sistema (trava mínima de 1h) com sininho e badge no topo/menu.
+    - Exibe apenas notificações com mudanças reais (novas reservas ou cancelamentos) ou falhas de sincronização, expandindo os detalhes exatos ao clicar.
 - **Internacionalização (`src/i18n/pt-br.ts`):**
   - Textos compartilhados centralizados em português do Brasil (`pt-BR`) com acentuação UTF-8 correta.
 
