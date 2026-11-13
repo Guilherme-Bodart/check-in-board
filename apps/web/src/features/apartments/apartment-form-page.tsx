@@ -16,7 +16,12 @@ import {
   syncIcalSource,
   updateApartment,
 } from "../dashboard/dashboard-api";
-import { fetchOwners } from "../owners/owners-api";
+import {
+  COMMISSION_PRESET_PERCENTS,
+  fetchOwners,
+  formatCommissionPercent,
+  parseCommissionBps,
+} from "../owners/owners-api";
 
 type ApartmentFormState = {
   name: string;
@@ -42,6 +47,7 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
   const router = useRouter();
   const [owners, setOwners] = useState<Owner[]>([]);
   const [form, setForm] = useState<ApartmentFormState>(emptyApartmentForm);
+  const [hasManuallyEditedCommission, setHasManuallyEditedCommission] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -74,17 +80,23 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
             name: apartment.name,
             timezone: apartment.timezone,
             ownerId: apartment.owner?.id ?? nextOwners[0]?.id ?? "",
-            managementCommissionPercent: String(
-              (apartment.managementCommissionBps ?? 0) / 100,
-            ).replace(".", ","),
+            managementCommissionPercent: formatCommissionPercent(
+              apartment.managementCommissionBps,
+            ),
             icalUrl: "",
             icalProvider: "airbnb",
           });
+          setHasManuallyEditedCommission(false);
         } else {
+          const defaultOwner = nextOwners[0];
           setForm({
             ...emptyApartmentForm,
-            ownerId: nextOwners[0]?.id ?? "",
+            ownerId: defaultOwner?.id ?? "",
+            managementCommissionPercent: formatCommissionPercent(
+              defaultOwner?.defaultCommissionBps,
+            ),
           });
+          setHasManuallyEditedCommission(false);
         }
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Falha ao carregar dados.");
@@ -96,6 +108,37 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
     void loadFormData();
   }, [apartmentId]);
 
+  const selectedOwner = owners.find((owner) => owner.id === form.ownerId);
+  const currentCommissionBps = parseCommissionBps(form.managementCommissionPercent);
+
+  function handleOwnerChange(nextOwnerId: string) {
+    const nextOwner = owners.find((owner) => owner.id === nextOwnerId);
+
+    setForm((current) => {
+      const shouldAutofill =
+        !isEditing &&
+        (!hasManuallyEditedCommission ||
+          current.managementCommissionPercent.trim() === "" ||
+          current.managementCommissionPercent.trim() === "0");
+
+      return {
+        ...current,
+        ownerId: nextOwnerId,
+        managementCommissionPercent: shouldAutofill
+          ? formatCommissionPercent(nextOwner?.defaultCommissionBps)
+          : current.managementCommissionPercent,
+      };
+    });
+  }
+
+  function applyOwnerDefaultCommission(defaultCommissionBps: number) {
+    setHasManuallyEditedCommission(false);
+    setForm((current) => ({
+      ...current,
+      managementCommissionPercent: formatCommissionPercent(defaultCommissionBps),
+    }));
+  }
+
   async function submitApartment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const session = readStoredSession();
@@ -104,6 +147,13 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
     );
 
     if (!session || !form.name.trim()) {
+      return;
+    }
+
+    const rawPercentText = form.managementCommissionPercent.trim();
+    const rawPercent = rawPercentText === "" ? 0 : Number(rawPercentText.replace(",", "."));
+    if (!Number.isFinite(rawPercent) || rawPercent < 0 || rawPercent > 100) {
+      setMessage("A comissão de gestão deve estar entre 0% e 100%.");
       return;
     }
 
@@ -174,7 +224,7 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
           <Field label="Proprietário">
             <Select
               disabled={owners.length === 0}
-              onChange={(event) => setForm({ ...form, ownerId: event.target.value })}
+              onChange={(event) => handleOwnerChange(event.target.value)}
               required
               value={form.ownerId}
             >
@@ -187,7 +237,7 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Timezone">
+            <Field className="min-w-0" label="Timezone">
               <Select
                 onChange={(event) => setForm({ ...form, timezone: event.target.value })}
                 value={form.timezone}
@@ -200,19 +250,66 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
               </Select>
             </Field>
 
-            <Field label="Comissão de gestão (%)">
-              <Input
-                inputMode="decimal"
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    managementCommissionPercent: event.target.value,
-                  })
-                }
-                placeholder="20"
-                value={form.managementCommissionPercent}
-              />
-            </Field>
+            <div className="grid min-w-0 gap-2">
+              <Field label="Comissão de gestão (%)">
+                <Input
+                  inputMode="decimal"
+                  onChange={(event) => {
+                    setHasManuallyEditedCommission(true);
+                    setForm({
+                      ...form,
+                      managementCommissionPercent: event.target.value,
+                    });
+                  }}
+                  placeholder="20"
+                  value={form.managementCommissionPercent}
+                />
+              </Field>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {COMMISSION_PRESET_PERCENTS.map((preset) => {
+                  const isActive = currentCommissionBps === preset * 100;
+                  return (
+                    <Button
+                      className="rounded-full"
+                      key={preset}
+                      onClick={() => {
+                        setHasManuallyEditedCommission(true);
+                        setForm({
+                          ...form,
+                          managementCommissionPercent: String(preset),
+                        });
+                      }}
+                      size="xs"
+                      type="button"
+                      variant={isActive ? "subtle" : "outline"}
+                    >
+                      {preset}%
+                    </Button>
+                  );
+                })}
+              </div>
+              {selectedOwner && typeof selectedOwner.defaultCommissionBps === "number" ? (
+                currentCommissionBps !== selectedOwner.defaultCommissionBps ? (
+                  <Button
+                    className="w-fit max-w-full whitespace-normal text-left"
+                    onClick={() =>
+                      applyOwnerDefaultCommission(selectedOwner.defaultCommissionBps ?? 0)
+                    }
+                    size="xs"
+                    type="button"
+                    variant="subtle"
+                  >
+                    Aplicar padrão do proprietário (
+                    {formatCommissionPercent(selectedOwner.defaultCommissionBps)}%)
+                  </Button>
+                ) : (
+                  <p className="text-xs text-text-muted">
+                    Padrão do proprietário:{" "}
+                    {formatCommissionPercent(selectedOwner.defaultCommissionBps)}%
+                  </p>
+                )
+              ) : null}
+            </div>
           </div>
 
           {isEditing ? null : (
@@ -256,14 +353,4 @@ export function ApartmentFormPage({ apartmentId }: { apartmentId?: string }) {
       )}
     </FormPageLayout>
   );
-}
-
-function parseCommissionBps(value: string) {
-  const normalized = Number(value.replace(",", "."));
-
-  if (!Number.isFinite(normalized) || normalized < 0) {
-    return 0;
-  }
-
-  return Math.round(normalized * 100);
 }

@@ -63,7 +63,8 @@ class OwnerControllerTest {
             .andExpect(jsonPath("$.owners", hasSize(1)))
             .andExpect(jsonPath("$.owners[0].name").value("Host Ops - Imoveis proprios"))
             .andExpect(jsonPath("$.owners[0].type").value("internal"))
-            .andExpect(jsonPath("$.owners[0].apartmentCount").value(0));
+            .andExpect(jsonPath("$.owners[0].apartmentCount").value(0))
+            .andExpect(jsonPath("$.owners[0].defaultCommissionBps").value(0));
     }
 
     @Test
@@ -83,7 +84,8 @@ class OwnerControllerTest {
                           "contactName": "Joao Silva",
                           "email": "joao@example.com",
                           "phone": "+55 11 99999-0000",
-                          "notes": "Cliente com dois apartamentos"
+                          "notes": "Cliente com dois apartamentos",
+                          "defaultCommissionBps": 1500
                         }
                         """
                     )
@@ -93,6 +95,7 @@ class OwnerControllerTest {
             .andExpect(jsonPath("$.owner.name").value("Cliente Joao"))
             .andExpect(jsonPath("$.owner.type").value("client"))
             .andExpect(jsonPath("$.owner.contactName").value("Joao Silva"))
+            .andExpect(jsonPath("$.owner.defaultCommissionBps").value(1500))
             .andReturn();
 
         String ownerId = readJson(result).get("owner").get("id").asText();
@@ -110,14 +113,16 @@ class OwnerControllerTest {
                           "contactName": "Joao Silva",
                           "email": "joao.updated@example.com",
                           "phone": "+55 11 98888-0000",
-                          "notes": "Atualizado"
+                          "notes": "Atualizado",
+                          "defaultCommissionBps": 2000
                         }
                         """
                     )
             )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.owner.name").value("Cliente Joao Atualizado"))
-            .andExpect(jsonPath("$.owner.email").value("joao.updated@example.com"));
+            .andExpect(jsonPath("$.owner.email").value("joao.updated@example.com"))
+            .andExpect(jsonPath("$.owner.defaultCommissionBps").value(2000));
 
         mockMvc
             .perform(

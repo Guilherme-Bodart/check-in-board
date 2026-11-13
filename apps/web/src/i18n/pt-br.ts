@@ -183,4 +183,87 @@ export const ptBR = {
     saving: "Salvando...",
     searchPlaceholder: "Buscar por imóvel ou proprietário",
   },
+  notifications: {
+    eyebrow: "Sincronização e alertas",
+    title: "Notificações do Sistema",
+    description:
+      "O sistema sincroniza seus calendários iCal automaticamente ao entrar (a cada 1h) e só notifica quando há novas reservas, cancelamentos ou falhas.",
+    lastAutoSync: (formattedDate: string) =>
+      `Última verificação automática: ${formattedDate}`,
+    loading: "Carregando notificações...",
+    actions: {
+      refresh: "Atualizar",
+      syncNow: "Sincronizar agora",
+      verifySyncNow: "Verificar sincronização agora",
+      verifying: "Verificando...",
+      markAllAsRead: "Marcar todas como lidas",
+      viewAll: "Ver todas as notificações",
+      fixIcal: "Corrigir integração iCal",
+      viewApartment: "Ver apartamento",
+      openCalendar: "Abrir Calendário",
+    },
+    filters: {
+      all: "Todas",
+      unread: "Não lidas",
+      changes: "Novas Reservas / Cancelamentos",
+      failed: "Falhas",
+    },
+    badges: {
+      syncFailed: "Falha de Sync",
+      successWithChanges: "Sucesso com Novidades",
+      unread: "Não lida",
+      read: "Lida",
+      newReservation: "Nova Reserva",
+      cancelled: "Cancelada",
+    },
+    details: {
+      detectedChanges: (count: number) => `Alterações detectadas (${count})`,
+      reportedError: "Erro reportado na sincronização",
+      defaultErrorMessage:
+        "Não foi possível acessar ou interpretar o arquivo iCal desta fonte.",
+      fallbackReservationTitle: "Reserva iCal",
+      summaryStats: (eventsSeen: number, created: number, cancelled: number) =>
+        `${eventsSeen} eventos verificados · ${created} nova(s) · ${cancelled} cancelada(s).`,
+      createdCount: (count: number) =>
+        count === 1 ? "1 nova reserva" : `${count} novas reservas`,
+      updatedCount: (count: number) =>
+        count === 1 ? "1 atualização" : `${count} atualizações`,
+      cancelledCount: (count: number) =>
+        count === 1 ? "1 cancelamento" : `${count} cancelamentos`,
+      deletedCount: (count: number) =>
+        count === 1 ? "1 remoção" : `${count} remoções`,
+    },
+    empty: {
+      title: "Tudo em silêncio e sincronizado",
+      description:
+        "Tudo está sincronizado. Seguindo a Regra de Silêncio, notificações aparecem somente quando novas reservas entram, reservas são canceladas ou ocorre uma falha de leitura do calendário iCal.",
+    },
+    emptyFilter: {
+      title: "Nenhuma notificação neste filtro",
+      description: "Não existem alertas para o filtro selecionado no momento.",
+    },
+    errors: {
+      loadFailed: "Falha ao carregar notificações de sincronização.",
+      verifyFailed: "Falha ao verificar sincronização iCal.",
+    },
+    feedback: {
+      noActiveSources: "Nenhuma fonte iCal ativa encontrada para verificar.",
+      allRecent: (sourcesChecked: number) =>
+        `${sourcesChecked} fonte(s) verificada(s). Todas já haviam sido sincronizadas há menos de 1 hora.`,
+      syncedNoChanges: (sourcesSynced: number) =>
+        `${sourcesSynced} fonte(s) sincronizada(s) com sucesso e sem novas alterações.`,
+      syncedWithAlerts: (sourcesSynced: number, alertCount: number) =>
+        `${sourcesSynced} fonte(s) sincronizada(s) com ${alertCount} alerta(s) relevante(s).`,
+    },
+    headline: {
+      syncFailed: "Falha ao sincronizar calendário iCal",
+      syncUpdate: "Atualização de sincronização iCal",
+    },
+    providers: {
+      airbnb: "Airbnb",
+      booking: "Booking.com",
+      manual: "Manual",
+      other: "iCal",
+    },
+  },
 } as const;

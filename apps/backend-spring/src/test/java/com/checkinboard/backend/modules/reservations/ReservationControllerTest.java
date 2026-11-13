@@ -269,6 +269,151 @@ class ReservationControllerTest {
             )
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+
+        mockMvc
+            .perform(
+                get("/operations-board")
+                    .queryParam("date", "2026-06-01")
+                    .queryParam("days", "45")
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void aggregatesOperationsBoardAcrossVisibleApartmentsAndRespectsCoHostVisibility()
+        throws Exception {
+        String hostAccessToken = signUpHost("host@example.com", "Host Ops");
+        String apartment1Id = createApartment(hostAccessToken, "Apto 101");
+        String apartment2Id = createApartment(hostAccessToken, "Apto 202");
+        String apartment3Id = createApartment(hostAccessToken, "Apto 303");
+
+        String source1Id = createIcalSource(hostAccessToken, apartment1Id);
+        String source2Id = createIcalSource(hostAccessToken, apartment2Id);
+        String source3Id = createIcalSource(hostAccessToken, apartment3Id);
+
+        syncIcalSource(
+            hostAccessToken,
+            source1Id,
+            """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:apt1-checkin
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260601T160000Z
+            DTEND:20260603T110000Z
+            SUMMARY:Guest Alice
+            END:VEVENT
+            BEGIN:VEVENT
+            UID:apt1-upcoming
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260604T150000Z
+            DTEND:20260606T110000Z
+            SUMMARY:Guest Bob
+            END:VEVENT
+            END:VCALENDAR
+            """
+        );
+
+        syncIcalSource(
+            hostAccessToken,
+            source2Id,
+            """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:apt2-checkin-earlier
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260601T140000Z
+            DTEND:20260602T110000Z
+            SUMMARY:Guest Carol
+            END:VEVENT
+            BEGIN:VEVENT
+            UID:apt2-checkout
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260529T150000Z
+            DTEND:20260601T110000Z
+            SUMMARY:Guest Dave
+            END:VEVENT
+            END:VCALENDAR
+            """
+        );
+
+        syncIcalSource(
+            hostAccessToken,
+            source3Id,
+            """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:apt3-hidden
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260601T150000Z
+            DTEND:20260603T110000Z
+            SUMMARY:Guest Eve
+            END:VEVENT
+            END:VCALENDAR
+            """
+        );
+
+        // host_admin sees all 3 apartments aggregated and sorted by startsAt
+        mockMvc
+            .perform(
+                get("/operations-board")
+                    .queryParam("date", "2026-06-01")
+                    .queryParam("days", "7")
+                    .header("Authorization", "Bearer " + hostAccessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apartmentId").value("all"))
+            .andExpect(jsonPath("$.date").value("2026-06-01"))
+            .andExpect(jsonPath("$.days").value(7))
+            .andExpect(jsonPath("$.timezone").value("America/Sao_Paulo"))
+            .andExpect(jsonPath("$.checkIns.count").value(3))
+            .andExpect(jsonPath("$.checkIns.reservations[0].rawSummary").value("Guest Carol"))
+            .andExpect(jsonPath("$.checkIns.reservations[1].rawSummary").value("Guest Eve"))
+            .andExpect(jsonPath("$.checkIns.reservations[2].rawSummary").value("Guest Alice"))
+            .andExpect(jsonPath("$.checkOuts.count").value(1))
+            .andExpect(jsonPath("$.checkOuts.reservations[0].rawSummary").value("Guest Dave"))
+            .andExpect(jsonPath("$.inHouse.count").value(4))
+            .andExpect(jsonPath("$.upcoming.count").value(1))
+            .andExpect(jsonPath("$.upcoming.reservations[0].rawSummary").value("Guest Bob"))
+            .andExpect(jsonPath("$.totals.checkIns").value(3))
+            .andExpect(jsonPath("$.totals.checkOuts").value(1))
+            .andExpect(jsonPath("$.totals.inHouse").value(4))
+            .andExpect(jsonPath("$.totals.upcoming").value(1));
+
+        // co_host with view access only to apartment1 and apartment2 excludes apartment3
+        createCoHostMember(
+            hostAccessToken,
+            "cohost@example.com",
+            apartment1Id,
+            apartment2Id,
+            apartment3Id
+        );
+        String coHostAccessToken = signIn("cohost@example.com", "secure-password");
+
+        mockMvc
+            .perform(
+                get("/operations-board")
+                    .queryParam("date", "2026-06-01")
+                    .queryParam("days", "7")
+                    .header("Authorization", "Bearer " + coHostAccessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apartmentId").value("all"))
+            .andExpect(jsonPath("$.checkIns.count").value(2))
+            .andExpect(jsonPath("$.checkIns.reservations[0].rawSummary").value("Guest Carol"))
+            .andExpect(jsonPath("$.checkIns.reservations[1].rawSummary").value("Guest Alice"))
+            .andExpect(jsonPath("$.checkOuts.count").value(1))
+            .andExpect(jsonPath("$.inHouse.count").value(3))
+            .andExpect(jsonPath("$.upcoming.count").value(1))
+            .andExpect(jsonPath("$.totals.checkIns").value(2))
+            .andExpect(jsonPath("$.totals.checkOuts").value(1))
+            .andExpect(jsonPath("$.totals.inHouse").value(3))
+            .andExpect(jsonPath("$.totals.upcoming").value(1));
     }
 
     @Test
@@ -518,6 +663,72 @@ class ReservationControllerTest {
             .andReturn();
 
         return readJson(result).get("accessToken").asText();
+    }
+
+    private String signIn(String email, String password) throws Exception {
+        MvcResult result = mockMvc
+            .perform(
+                post("/auth/sign-in")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "%s",
+                          "password": "%s"
+                        }
+                        """.formatted(email, password)
+                    )
+            )
+            .andExpect(status().isOk())
+            .andReturn();
+
+        return readJson(result).get("accessToken").asText();
+    }
+
+    private void createCoHostMember(
+        String accessToken,
+        String email,
+        String apartment1Id,
+        String apartment2Id,
+        String hiddenApartmentId
+    ) throws Exception {
+        mockMvc
+            .perform(
+                post("/team-members")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "%s",
+                          "fullName": "Co Host",
+                          "password": "secure-password",
+                          "role": "co_host",
+                          "apartmentPermissions": [
+                            {
+                              "apartmentId": "%s",
+                              "canView": true,
+                              "canUpdateTaskStatus": false,
+                              "canManageIntegrations": false
+                            },
+                            {
+                              "apartmentId": "%s",
+                              "canView": true,
+                              "canUpdateTaskStatus": false,
+                              "canManageIntegrations": false
+                            },
+                            {
+                              "apartmentId": "%s",
+                              "canView": false,
+                              "canUpdateTaskStatus": false,
+                              "canManageIntegrations": false
+                            }
+                          ]
+                        }
+                        """.formatted(email, apartment1Id, apartment2Id, hiddenApartmentId)
+                    )
+            )
+            .andExpect(status().isCreated());
     }
 
     private String createApartment(String accessToken, String apartmentName) throws Exception {

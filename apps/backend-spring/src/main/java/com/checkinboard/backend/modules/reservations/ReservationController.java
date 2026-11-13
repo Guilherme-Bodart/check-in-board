@@ -60,6 +60,19 @@ public class ReservationController {
         return reservationService.updateReservation(principal.userId(), apartmentId, reservationId, request);
     }
 
+    @GetMapping("/operations-board")
+    OperationsBoardResponse operationsBoardAll(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+        @RequestParam(defaultValue = "7") int days
+    ) {
+        return reservationService.operationsBoardAll(
+            principal.userId(),
+            date,
+            days
+        );
+    }
+
     @GetMapping("/apartments/{apartmentId}/operations-board")
     OperationsBoardResponse operationsBoard(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,

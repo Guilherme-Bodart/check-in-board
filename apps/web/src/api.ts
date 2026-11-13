@@ -122,6 +122,7 @@ export type Owner = {
   phone: string | null;
   notes: string | null;
   apartmentCount: number;
+  defaultCommissionBps?: number;
 };
 
 export type Apartment = {

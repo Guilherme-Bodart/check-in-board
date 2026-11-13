@@ -9,6 +9,7 @@ import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
 import com.checkinboard.backend.modules.auth.model.UserEntity;
 import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRepository;
 import com.checkinboard.backend.modules.auth.repository.UserRepository;
+import com.checkinboard.backend.modules.notifications.service.TransactionalEmailService;
 import com.checkinboard.backend.modules.team.dto.TeamDtos.ApartmentPermissionRequest;
 import com.checkinboard.backend.modules.team.dto.TeamDtos.CreateTeamMemberRequest;
 import com.checkinboard.backend.modules.team.dto.TeamDtos.TeamApartmentPermissionResponse;
@@ -36,19 +37,22 @@ public class TeamService {
     private final ApartmentRepository apartmentRepository;
     private final ApartmentMembershipRepository apartmentMembershipRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TransactionalEmailService transactionalEmailService;
 
     public TeamService(
         UserRepository userRepository,
         OrganizationMembershipRepository organizationMembershipRepository,
         ApartmentRepository apartmentRepository,
         ApartmentMembershipRepository apartmentMembershipRepository,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        TransactionalEmailService transactionalEmailService
     ) {
         this.userRepository = userRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
         this.apartmentRepository = apartmentRepository;
         this.apartmentMembershipRepository = apartmentMembershipRepository;
         this.passwordEncoder = passwordEncoder;
+        this.transactionalEmailService = transactionalEmailService;
     }
 
     @Transactional(readOnly = true)
@@ -117,6 +121,12 @@ public class TeamService {
             organizationId,
             request.role(),
             request.apartmentPermissions()
+        );
+        transactionalEmailService.sendTeamInviteEmail(
+            user.getEmail(),
+            user.getFullName(),
+            currentMembership.getOrganization().getName(),
+            request.role().name()
         );
 
         return new TeamMemberEnvelope(toResponse(membership, organizationId));

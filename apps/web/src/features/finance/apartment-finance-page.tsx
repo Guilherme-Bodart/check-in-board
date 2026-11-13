@@ -1,12 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import React, { type FormEvent, useEffect, useState } from "react";
+import { CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Info, Plus, Repeat, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import type { Apartment, AuthRole, RentalStay, FinancialEntry } from "../../api";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { DataTable } from "../../components/ui/data-table";
+import { Field, Input, Select } from "../../components/ui/form-controls";
+import { IconButton } from "../../components/ui/icon-button";
+import { MessageBanner } from "../../components/ui/message-banner";
 import { PageHeader } from "../../components/ui/page-header";
 import { Panel } from "../../components/ui/panel";
 import { readStoredSession } from "../../lib/session-storage";
@@ -16,8 +21,45 @@ import { fetchReservations } from "../reservations/reservations-api";
 import { attachApartmentDetails, reservationLocalDate, type ReservationListItem } from "../reservations/reservation-view-model";
 import { fetchRentalStays } from "./rental-stay-api";
 import { fetchFinancialEntries } from "./finance-api";
+import { parseMoneyToCents } from "./money";
+import {
+  applyRecurringExpensesForMonth,
+  createRecurringExpense,
+  deleteRecurringExpense,
+  fetchRecurringExpenses,
+  type RecurringExpenseItem,
+} from "./recurring-expenses-api";
 import { BillingModal, type BillingData } from "./components/billing-modal";
 import { messages } from "../../i18n";
+
+const recurringCategoryOptions = [
+  { value: "condominio", label: "Condomínio" },
+  { value: "contas", label: "Contas / Energia / Internet" },
+  { value: "taxas", label: "Taxas / IPTU" },
+  { value: "limpeza", label: "Limpeza" },
+  { value: "manutencao", label: "Manutenção" },
+  { value: "outros", label: "Outros" },
+] as const;
+
+const recurringCategoryLabels: Record<string, string> = {
+  condominio: "Condomínio",
+  contas: "Contas",
+  taxas: "Taxas",
+  limpeza: "Limpeza",
+  manutencao: "Manutenção",
+  outros: "Outros",
+};
+
+const recurringTitleSuggestions = [
+  { title: "Condomínio", category: "condominio" },
+  { title: "Internet", category: "contas" },
+  { title: "Energia", category: "contas" },
+  { title: "IPTU", category: "taxas" },
+] as const;
+
+function formatRecurringCategory(category: string): string {
+  return recurringCategoryLabels[category.trim().toLowerCase()] ?? category;
+}
 
 export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
   const [userRole, setUserRole] = useState<AuthRole | null>(null);
@@ -25,12 +67,27 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
   const [reservations, setReservations] = useState<ReservationListItem[]>([]);
   const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
   const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpenseItem[]>([]);
   const [billingData, setBillingData] = useState<BillingData | null>(null);
-  
+
   const [month, setMonth] = useState("");
   const [activeTab, setActiveTab] = useState<"statement" | "pending">("statement");
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
+
+  const [recurringTitle, setRecurringTitle] = useState("");
+  const [recurringCategory, setRecurringCategory] = useState("condominio");
+  const [recurringAmount, setRecurringAmount] = useState("");
+  const [recurringDayOfMonth, setRecurringDayOfMonth] = useState("5");
+  const [recurringNotes, setRecurringNotes] = useState("");
+  const [isSavingRecurring, setIsSavingRecurring] = useState(false);
+  const [isApplyingRecurring, setIsApplyingRecurring] = useState(false);
+  const [isDeletingRecurring, setIsDeletingRecurring] = useState(false);
+  const [recurringToDelete, setRecurringToDelete] = useState<RecurringExpenseItem | null>(null);
+  const [recurringBanner, setRecurringBanner] = useState<{
+    isError: boolean;
+    message: string;
+  } | null>(null);
 
   const isHostAdmin = userRole === "host_admin";
 
@@ -40,6 +97,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
 
   useEffect(() => {
     if (!month) return;
+    setRecurringBanner(null);
     void loadData();
   }, [apartmentId, month]);
 
@@ -67,32 +125,159 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
       const dateTo = new Date(`${month}-01T12:00:00`);
       dateTo.setMonth(dateTo.getMonth() + 2);
 
-      const reservationGroups = await fetchReservations(session.token, apartmentId);
-      const stays = await fetchRentalStays(session.token, {
-        dateFrom: dateFrom.toISOString().slice(0, 10),
-        dateTo: dateTo.toISOString().slice(0, 10),
-        apartmentId,
-      });
-
-      // Fetch exact month entries for the statement
       const monthStart = `${month}-01`;
       const [yearValue, monthValue] = month.split("-").map(Number);
       const endOfMonthDate = new Date(yearValue, monthValue, 0); // Last day of month
       const monthEnd = endOfMonthDate.toISOString().slice(0, 10);
 
-      const entries = await fetchFinancialEntries(session.token, {
-        dateFrom: monthStart,
-        dateTo: monthEnd,
-        apartmentId,
-      });
+      const [reservationGroups, stays, entries, recurringItems] = await Promise.all([
+        fetchReservations(session.token, apartmentId),
+        fetchRentalStays(session.token, {
+          dateFrom: dateFrom.toISOString().slice(0, 10),
+          dateTo: dateTo.toISOString().slice(0, 10),
+          apartmentId,
+        }),
+        fetchFinancialEntries(session.token, {
+          dateFrom: monthStart,
+          dateTo: monthEnd,
+          apartmentId,
+        }),
+        fetchRecurringExpenses(session.token, apartmentId),
+      ]);
 
       setFinancialEntries(entries);
       setRentalStays(stays);
       setReservations(attachApartmentDetails(reservationGroups, [apt]));
+      setRecurringExpenses(recurringItems);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao carregar dados financeiros.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleCreateRecurringExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const session = readStoredSession();
+    if (!session || !isHostAdmin) return;
+
+    const trimmedTitle = recurringTitle.trim();
+    if (!trimmedTitle) {
+      setRecurringBanner({
+        isError: true,
+        message: "Informe o título da despesa fixa.",
+      });
+      return;
+    }
+
+    const amountCents = parseMoneyToCents(recurringAmount);
+    if (amountCents <= 0) {
+      setRecurringBanner({
+        isError: true,
+        message: "Informe um valor válido maior que zero.",
+      });
+      return;
+    }
+
+    const dayOfMonth = Number(recurringDayOfMonth);
+    if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 28) {
+      setRecurringBanner({
+        isError: true,
+        message: "O dia do vencimento deve ser entre 1 e 28.",
+      });
+      return;
+    }
+
+    setIsSavingRecurring(true);
+    setRecurringBanner(null);
+
+    try {
+      const created = await createRecurringExpense(session.token, apartmentId, {
+        title: trimmedTitle,
+        category: recurringCategory,
+        amountCents,
+        dayOfMonth,
+        notes: recurringNotes,
+        active: true,
+      });
+
+      setRecurringExpenses((prev) => [...prev, created]);
+      setRecurringTitle("");
+      setRecurringAmount("");
+      setRecurringNotes("");
+      setRecurringDayOfMonth("5");
+      setRecurringBanner({
+        isError: false,
+        message: `Despesa fixa "${created.title}" adicionada.`,
+      });
+    } catch (error) {
+      setRecurringBanner({
+        isError: true,
+        message:
+          error instanceof Error ? error.message : "Falha ao adicionar despesa fixa.",
+      });
+    } finally {
+      setIsSavingRecurring(false);
+    }
+  }
+
+  async function handleDeleteRecurringExpense() {
+    const session = readStoredSession();
+    if (!session || !isHostAdmin || !recurringToDelete) return;
+
+    setIsDeletingRecurring(true);
+    setRecurringBanner(null);
+
+    try {
+      await deleteRecurringExpense(session.token, recurringToDelete.id);
+      const removedTitle = recurringToDelete.title;
+      setRecurringExpenses((prev) =>
+        prev.filter((item) => item.id !== recurringToDelete.id),
+      );
+      setRecurringToDelete(null);
+      setRecurringBanner({
+        isError: false,
+        message: `Despesa fixa "${removedTitle}" removida.`,
+      });
+    } catch (error) {
+      setRecurringBanner({
+        isError: true,
+        message:
+          error instanceof Error ? error.message : "Falha ao remover despesa fixa.",
+      });
+    } finally {
+      setIsDeletingRecurring(false);
+    }
+  }
+
+  async function handleApplyRecurringExpenses() {
+    const session = readStoredSession();
+    if (!session || !isHostAdmin || !month) return;
+
+    setIsApplyingRecurring(true);
+    setRecurringBanner(null);
+
+    try {
+      const result = await applyRecurringExpensesForMonth(
+        session.token,
+        apartmentId,
+        month,
+      );
+      await loadData();
+      setRecurringBanner({
+        isError: false,
+        message: `${result.createdCount} ${result.createdCount === 1 ? "lançada" : "lançadas"}, ${result.skippedCount} já ${result.skippedCount === 1 ? "aplicada" : "aplicadas"} neste mês (${result.month}).`,
+      });
+    } catch (error) {
+      setRecurringBanner({
+        isError: true,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Falha ao lançar despesas fixas do mês.",
+      });
+    } finally {
+      setIsApplyingRecurring(false);
     }
   }
 
@@ -422,16 +607,290 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
         )}
       </Panel>
 
-      {isHostAdmin ? (
-        <BillingModal
-          data={billingData}
-          isOpen={billingData !== null}
-          onClose={() => setBillingData(null)}
-          onSuccess={() => {
-            setBillingData(null);
-            void loadData();
-          }}
+      <Panel className="grid gap-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+              <Repeat aria-hidden className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-bold tracking-tight text-text-primary">
+                  Despesas Fixas Mensais
+                </h2>
+                <Badge tone="neutral">
+                  {recurringExpenses.filter((item) => item.active).length}{" "}
+                  {recurringExpenses.filter((item) => item.active).length === 1
+                    ? "ativa"
+                    : "ativas"}
+                </Badge>
+              </div>
+              <p className="mt-1 text-sm text-text-secondary">
+                Custos recorrentes do imóvel.{" "}
+                {isHostAdmin
+                  ? "Lance todas as despesas ativas no mês selecionado com 1 clique."
+                  : "Visualização das despesas fixas configuradas para este apartamento."}
+              </p>
+            </div>
+          </div>
+
+          {isHostAdmin ? (
+            <Button
+              className="shrink-0"
+              disabled={
+                isApplyingRecurring ||
+                isLoading ||
+                !month ||
+                recurringExpenses.every((item) => !item.active)
+              }
+              onClick={() => void handleApplyRecurringExpenses()}
+              size="md"
+              variant="primary"
+            >
+              <CalendarCheck2 aria-hidden className="h-4 w-4" />
+              {isApplyingRecurring ? "Lançando..." : "Lançar Fixas do Mês"}
+            </Button>
+          ) : null}
+        </div>
+
+        <MessageBanner
+          isError={recurringBanner?.isError ?? false}
+          message={recurringBanner?.message ?? ""}
         />
+
+        {isHostAdmin ? (
+          <form
+            className="grid gap-4 rounded-xl border border-border bg-surface-muted/40 p-4"
+            onSubmit={handleCreateRecurringExpense}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-text-muted">
+                Sugestões rápidas:
+              </span>
+              {recurringTitleSuggestions.map((suggestion) => {
+                const isSelected =
+                  recurringTitle.trim().toLowerCase() ===
+                  suggestion.title.toLowerCase();
+                return (
+                  <Button
+                    key={suggestion.title}
+                    onClick={() => {
+                      setRecurringTitle(suggestion.title);
+                      setRecurringCategory(suggestion.category);
+                    }}
+                    size="xs"
+                    type="button"
+                    variant={isSelected ? "primary" : "secondary"}
+                  >
+                    {suggestion.title}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,0.6fr)]">
+              <Field className="min-w-0" label="Título">
+                <Input
+                  maxLength={160}
+                  onChange={(event) => setRecurringTitle(event.target.value)}
+                  placeholder="Ex: Condomínio"
+                  required
+                  value={recurringTitle}
+                />
+              </Field>
+
+              <Field className="min-w-0" label="Categoria">
+                <Select
+                  aria-label="Categoria da despesa fixa"
+                  onValueChange={setRecurringCategory}
+                  value={recurringCategory}
+                >
+                  {recurringCategoryOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field className="min-w-0" label="Valor (R$)">
+                <Input
+                  inputMode="decimal"
+                  onChange={(event) => setRecurringAmount(event.target.value)}
+                  placeholder="650,00"
+                  required
+                  value={recurringAmount}
+                />
+              </Field>
+
+              <Field className="min-w-0" label="Dia (1–28)">
+                <Input
+                  max={28}
+                  min={1}
+                  onChange={(event) => setRecurringDayOfMonth(event.target.value)}
+                  required
+                  type="number"
+                  value={recurringDayOfMonth}
+                />
+              </Field>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <Field className="min-w-0 flex-1" label="Observações (opcional)">
+                <Input
+                  maxLength={500}
+                  onChange={(event) => setRecurringNotes(event.target.value)}
+                  placeholder="Ex: Boleto mensal com vencimento fixo"
+                  value={recurringNotes}
+                />
+              </Field>
+
+              <Button
+                className="shrink-0"
+                disabled={isSavingRecurring}
+                size="md"
+                type="submit"
+                variant="secondary"
+              >
+                <Plus aria-hidden className="h-4 w-4" />
+                {isSavingRecurring ? "Adicionando..." : "Adicionar Despesa Fixa"}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+
+        {recurringExpenses.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-surface-muted/30 px-4 py-8 text-center text-sm text-text-secondary">
+            Nenhuma despesa fixa mensal cadastrada para este apartamento.
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-3 md:hidden">
+              {recurringExpenses.map((item) => (
+                <article
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-surface-muted/40 p-3.5"
+                  key={item.id}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge tone="neutral">
+                          {formatRecurringCategory(item.category)}
+                        </Badge>
+                        <Badge tone={item.active ? "info" : "warning"}>
+                          {item.active ? `Dia ${item.dayOfMonth}` : "Inativa"}
+                        </Badge>
+                      </div>
+                      <strong className="mt-1.5 block truncate text-sm font-bold text-text-primary">
+                        {item.title}
+                      </strong>
+                      {item.notes ? (
+                        <p className="mt-0.5 truncate text-xs text-text-muted">
+                          {item.notes}
+                        </p>
+                      ) : null}
+                    </div>
+                    <strong className="shrink-0 text-sm font-bold text-danger">
+                      {formatMoney(item.amountCents)}
+                    </strong>
+                  </div>
+
+                  {isHostAdmin ? (
+                    <div className="flex justify-end border-t border-border/60 pt-2">
+                      <IconButton
+                        aria-label={`Remover ${item.title}`}
+                        icon={Trash2}
+                        onClick={() => setRecurringToDelete(item)}
+                        variant="danger"
+                      />
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+
+            <div className="hidden md:block">
+              <DataTable>
+                <thead className="bg-surface-muted text-xs uppercase tracking-wider text-text-muted">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Despesa</th>
+                    <th className="px-4 py-3 font-semibold">Categoria</th>
+                    <th className="px-4 py-3 font-semibold">Vencimento</th>
+                    <th className="px-4 py-3 text-right font-semibold">Valor</th>
+                    {isHostAdmin ? (
+                      <th className="px-4 py-3 text-right font-semibold">Ações</th>
+                    ) : null}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border bg-surface">
+                  {recurringExpenses.map((item) => (
+                    <tr className="transition hover:bg-surface-muted/40" key={item.id}>
+                      <td className="px-4 py-3">
+                        <strong className="block font-semibold text-text-primary">
+                          {item.title}
+                        </strong>
+                        {item.notes ? (
+                          <span className="block text-xs text-text-muted">
+                            {item.notes}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge tone="neutral">
+                          {formatRecurringCategory(item.category)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge tone={item.active ? "info" : "warning"}>
+                          {item.active ? `Todo dia ${item.dayOfMonth}` : "Inativa"}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-danger">
+                        {formatMoney(item.amountCents)}
+                      </td>
+                      {isHostAdmin ? (
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end">
+                            <IconButton
+                              aria-label={`Remover ${item.title}`}
+                              icon={Trash2}
+                              onClick={() => setRecurringToDelete(item)}
+                              variant="danger"
+                            />
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            </div>
+          </>
+        )}
+      </Panel>
+
+      {isHostAdmin ? (
+        <>
+          <BillingModal
+            data={billingData}
+            isOpen={billingData !== null}
+            onClose={() => setBillingData(null)}
+            onSuccess={() => {
+              setBillingData(null);
+              void loadData();
+            }}
+          />
+
+          <ConfirmDialog
+            confirmLabel="Remover"
+            description={`A despesa fixa "${recurringToDelete?.title ?? ""}" será removida deste apartamento. Lançamentos já aplicados em meses anteriores serão mantidos.`}
+            isOpen={Boolean(recurringToDelete)}
+            isWorking={isDeletingRecurring}
+            onCancel={() => setRecurringToDelete(null)}
+            onConfirm={() => void handleDeleteRecurringExpense()}
+            title="Remover despesa fixa?"
+          />
+        </>
       ) : null}
     </div>
   );

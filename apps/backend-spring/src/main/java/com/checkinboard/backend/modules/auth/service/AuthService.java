@@ -22,6 +22,7 @@ import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRe
 import com.checkinboard.backend.modules.auth.repository.OrganizationRepository;
 import com.checkinboard.backend.modules.auth.repository.PasswordResetTokenRepository;
 import com.checkinboard.backend.modules.auth.repository.UserRepository;
+import com.checkinboard.backend.modules.notifications.service.TransactionalEmailService;
 import com.checkinboard.backend.modules.owners.model.OwnerEntity;
 import com.checkinboard.backend.modules.owners.model.OwnerType;
 import com.checkinboard.backend.modules.owners.repository.OwnerRepository;
@@ -52,6 +53,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AppProperties appProperties;
     private final OwnerRepository ownerRepository;
+    private final TransactionalEmailService transactionalEmailService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthService(
@@ -62,7 +64,8 @@ public class AuthService {
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
         AppProperties appProperties,
-        OwnerRepository ownerRepository
+        OwnerRepository ownerRepository,
+        TransactionalEmailService transactionalEmailService
     ) {
         this.userRepository = userRepository;
         this.organizationRepository = organizationRepository;
@@ -72,6 +75,7 @@ public class AuthService {
         this.jwtService = jwtService;
         this.appProperties = appProperties;
         this.ownerRepository = ownerRepository;
+        this.transactionalEmailService = transactionalEmailService;
     }
 
     @Transactional
@@ -230,6 +234,11 @@ public class AuthService {
                 hashResetToken(resetToken),
                 Instant.now().plusSeconds(30 * 60)
             )
+        );
+        transactionalEmailService.sendPasswordResetEmail(
+            user.getEmail(),
+            user.getFullName(),
+            resetToken
         );
 
         return new PasswordResetRequestedResponse(

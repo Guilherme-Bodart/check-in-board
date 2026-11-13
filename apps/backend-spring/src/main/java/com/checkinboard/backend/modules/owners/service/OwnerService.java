@@ -52,6 +52,9 @@ public class OwnerService {
     @Transactional
     public OwnerEnvelope create(String userId, CreateOwnerRequest request) {
         OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        int defaultCommissionBps = request.defaultCommissionBps() != null
+            ? normalizeCommissionBps(request.defaultCommissionBps())
+            : 0;
         OwnerEntity owner = ownerRepository.save(
             new OwnerEntity(
                 newId(),
@@ -61,7 +64,8 @@ public class OwnerService {
                 normalizeOptional(request.contactName()),
                 normalizeOptional(request.email()),
                 normalizeOptional(request.phone()),
-                normalizeOptional(request.notes())
+                normalizeOptional(request.notes()),
+                defaultCommissionBps
             )
         );
 
@@ -80,13 +84,17 @@ public class OwnerService {
     public OwnerEnvelope update(String userId, String ownerId, UpdateOwnerRequest request) {
         OwnerEntity owner = findOwner(ownerId);
         assertCanManage(userId, owner);
+        int defaultCommissionBps = request.defaultCommissionBps() != null
+            ? normalizeCommissionBps(request.defaultCommissionBps())
+            : owner.getDefaultCommissionBps();
         owner.updateDetails(
             normalizeRequired(request.name()),
             request.type(),
             normalizeOptional(request.contactName()),
             normalizeOptional(request.email()),
             normalizeOptional(request.phone()),
-            normalizeOptional(request.notes())
+            normalizeOptional(request.notes()),
+            defaultCommissionBps
         );
 
         return new OwnerEnvelope(toResponse(ownerRepository.save(owner)));
@@ -191,8 +199,21 @@ public class OwnerService {
             owner.getEmail(),
             owner.getPhone(),
             owner.getNotes(),
-            apartmentRepository.countByOwner_IdAndDeletedAtIsNull(owner.getId())
+            apartmentRepository.countByOwner_IdAndDeletedAtIsNull(owner.getId()),
+            owner.getDefaultCommissionBps()
         );
+    }
+
+    private int normalizeCommissionBps(int value) {
+        if (value < 0 || value > 10000) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "BAD_REQUEST",
+                "Default commission must be between 0 and 10000 basis points."
+            );
+        }
+
+        return value;
     }
 
     private String normalizeRequired(String value) {

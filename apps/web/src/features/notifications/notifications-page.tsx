@@ -19,6 +19,7 @@ import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { MessageBanner } from "../../components/ui/message-banner";
 import { Panel } from "../../components/ui/panel";
+import { ptBR } from "../../i18n/pt-br";
 import { readStoredSession } from "../../lib/session-storage";
 import { cn } from "../../lib/utils";
 import {
@@ -33,12 +34,7 @@ import {
 
 type NotificationFilter = "all" | "unread" | "changes" | "failed";
 
-const providerLabels: Record<string, string> = {
-  airbnb: "Airbnb",
-  booking: "Booking.com",
-  manual: "Manual",
-  other: "iCal",
-};
+const providerLabels: Record<string, string> = ptBR.notifications.providers;
 
 export function NotificationsPage() {
   const [notifications, setNotifications] = useState<SyncNotificationItem[]>([]);
@@ -70,7 +66,7 @@ export function NotificationsPage() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Falha ao carregar notificações de sincronização.",
+          : ptBR.notifications.errors.loadFailed,
       );
     } finally {
       setIsLoading(false);
@@ -143,25 +139,28 @@ export function NotificationsPage() {
       setReadIds(getReadSyncNotificationIds());
 
       if (result.sourcesChecked === 0) {
-        setFeedbackMessage("Nenhuma fonte iCal ativa encontrada para verificar.");
+        setFeedbackMessage(ptBR.notifications.feedback.noActiveSources);
       } else if (result.sourcesSynced === 0) {
         setFeedbackMessage(
-          `${result.sourcesChecked} fonte(s) verificada(s). Todas já haviam sido sincronizadas há menos de 1 hora.`,
+          ptBR.notifications.feedback.allRecent(result.sourcesChecked),
         );
       } else if (result.notableRuns.length === 0) {
         setFeedbackMessage(
-          `${result.sourcesSynced} fonte(s) sincronizada(s) com sucesso e sem novas alterações.`,
+          ptBR.notifications.feedback.syncedNoChanges(result.sourcesSynced),
         );
       } else {
         setFeedbackMessage(
-          `${result.sourcesSynced} fonte(s) sincronizada(s) com ${result.notableRuns.length} alerta(s) relevante(s).`,
+          ptBR.notifications.feedback.syncedWithAlerts(
+            result.sourcesSynced,
+            result.notableRuns.length,
+          ),
         );
       }
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Falha ao verificar sincronização iCal.",
+          : ptBR.notifications.errors.verifyFailed,
       );
     } finally {
       setIsSyncing(false);
@@ -181,10 +180,10 @@ export function NotificationsPage() {
   }
 
   const filterOptions: Array<{ key: NotificationFilter; label: string; count: number }> = [
-    { key: "all", label: "Todas", count: counts.all },
-    { key: "unread", label: "Não lidas", count: counts.unread },
-    { key: "changes", label: "Novas Reservas / Cancelamentos", count: counts.changes },
-    { key: "failed", label: "Falhas", count: counts.failed },
+    { key: "all", label: ptBR.notifications.filters.all, count: counts.all },
+    { key: "unread", label: ptBR.notifications.filters.unread, count: counts.unread },
+    { key: "changes", label: ptBR.notifications.filters.changes, count: counts.changes },
+    { key: "failed", label: ptBR.notifications.filters.failed, count: counts.failed },
   ];
 
   return (
@@ -192,18 +191,17 @@ export function NotificationsPage() {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-            Sincronização e alertas
+            {ptBR.notifications.eyebrow}
           </p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
-            Notificações do Sistema
+            {ptBR.notifications.title}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
-            O sistema sincroniza seus calendários iCal automaticamente ao entrar (a cada
-            1h) e só notifica quando há novas reservas, cancelamentos ou falhas.
+            {ptBR.notifications.description}
           </p>
           {lastSyncAt ? (
             <p className="mt-1.5 text-xs font-medium text-text-muted">
-              Última verificação automática: {formatDateTime(new Date(lastSyncAt).toISOString())}
+              {ptBR.notifications.lastAutoSync(formatDateTime(new Date(lastSyncAt).toISOString()))}
             </p>
           ) : null}
         </div>
@@ -219,7 +217,7 @@ export function NotificationsPage() {
               aria-hidden
               className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")}
             />
-            {isSyncing ? "Verificando..." : "Verificar sincronização agora"}
+            {isSyncing ? ptBR.notifications.actions.verifying : ptBR.notifications.actions.verifySyncNow}
           </Button>
           <Button
             disabled={counts.unread === 0}
@@ -228,7 +226,7 @@ export function NotificationsPage() {
             variant="outline"
           >
             <CheckCheck aria-hidden className="h-3.5 w-3.5" />
-            Marcar todas como lidas
+            {ptBR.notifications.actions.markAllAsRead}
           </Button>
         </div>
       </header>
@@ -270,22 +268,22 @@ export function NotificationsPage() {
       <Panel>
         {isLoading ? (
           <div className="py-12 text-center text-sm text-text-muted">
-            Carregando notificações...
+            {ptBR.notifications.loading}
           </div>
         ) : notifications.length === 0 ? (
           <EmptyState
-            description="Tudo está sincronizado. Seguindo a Regra de Silêncio, notificações aparecem somente quando novas reservas entram, reservas são canceladas ou ocorre uma falha de leitura do calendário iCal."
+            description={ptBR.notifications.empty.description}
             icon={BellOff}
-            title="Tudo em silêncio e sincronizado"
+            title={ptBR.notifications.empty.title}
           />
         ) : filteredNotifications.length === 0 ? (
           <EmptyState
-            description="Não existem alertas para o filtro selecionado no momento."
+            description={ptBR.notifications.emptyFilter.description}
             icon={CheckCheck}
-            title="Nenhuma notificação neste filtro"
+            title={ptBR.notifications.emptyFilter.title}
           >
             <Button onClick={() => setFilter("all")} size="sm" variant="secondary">
-              Ver todas as notificações
+              {ptBR.notifications.actions.viewAll}
             </Button>
           </EmptyState>
         ) : (
@@ -316,9 +314,9 @@ export function NotificationsPage() {
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={isFailed ? "danger" : "success"}>
-                          {isFailed ? "Falha de Sync" : "Sucesso com Novidades"}
+                          {isFailed ? ptBR.notifications.badges.syncFailed : ptBR.notifications.badges.successWithChanges}
                         </Badge>
-                        {isUnread ? <Badge tone="primary">Não lida</Badge> : null}
+                        {isUnread ? <Badge tone="primary">{ptBR.notifications.badges.unread}</Badge> : null}
                         <span className="text-xs font-medium text-text-muted">
                           {formatDateTime(item.startedAt)}
                         </span>
@@ -359,10 +357,10 @@ export function NotificationsPage() {
                               className="mt-0.5 h-4 w-4 shrink-0"
                             />
                             <div className="min-w-0 space-y-1">
-                              <p className="font-semibold">Erro reportado na sincronização</p>
+                              <p className="font-semibold">{ptBR.notifications.details.reportedError}</p>
                               <p className="break-words text-text-primary">
                                 {item.errorMessage ??
-                                  "Não foi possível acessar ou interpretar o arquivo iCal desta fonte."}
+                                  ptBR.notifications.details.defaultErrorMessage}
                               </p>
                             </div>
                           </div>
@@ -370,14 +368,14 @@ export function NotificationsPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <Button asChild size="xs" variant="secondary">
                               <Link href={`/apartamentos/${item.apartmentId}/ical`}>
-                                Corrigir integração iCal
+                                {ptBR.notifications.actions.fixIcal}
                                 <ArrowRight aria-hidden className="h-3.5 w-3.5" />
                               </Link>
                             </Button>
                             <Button asChild size="xs" variant="outline">
                               <Link href={`/apartamentos/${item.apartmentId}`}>
                                 <Home aria-hidden className="h-3.5 w-3.5" />
-                                Ver apartamento
+                                {ptBR.notifications.actions.viewApartment}
                               </Link>
                             </Button>
                           </div>
@@ -387,7 +385,7 @@ export function NotificationsPage() {
                           {item.changes && item.changes.length > 0 ? (
                             <div className="grid gap-2">
                               <p className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">
-                                Alterações detectadas ({item.changes.length})
+                                {ptBR.notifications.details.detectedChanges(item.changes.length)}
                               </p>
                               <ul className="grid gap-2">
                                 {item.changes.map((change) => {
@@ -399,12 +397,12 @@ export function NotificationsPage() {
                                     >
                                       <div className="flex min-w-0 items-center gap-2">
                                         <Badge tone={isCreated ? "success" : "danger"}>
-                                          {isCreated ? "Nova Reserva" : "Cancelada"}
+                                          {isCreated ? ptBR.notifications.badges.newReservation : ptBR.notifications.badges.cancelled}
                                         </Badge>
                                         <span className="truncate text-sm font-medium text-text-primary">
                                           {change.guestName ||
                                             change.rawSummary ||
-                                            "Reserva iCal"}
+                                            ptBR.notifications.details.fallbackReservationTitle}
                                         </span>
                                       </div>
                                       <span className="shrink-0 text-xs font-medium text-text-secondary">
@@ -418,9 +416,11 @@ export function NotificationsPage() {
                             </div>
                           ) : (
                             <p className="text-xs text-text-secondary">
-                              {item.eventsSeen} eventos verificados ·{" "}
-                              {item.reservationsCreated} nova(s) ·{" "}
-                              {item.reservationsCancelled} cancelada(s).
+                              {ptBR.notifications.details.summaryStats(
+                                item.eventsSeen,
+                                item.reservationsCreated,
+                                item.reservationsCancelled,
+                              )}
                             </p>
                           )}
 
@@ -428,13 +428,13 @@ export function NotificationsPage() {
                             <Button asChild size="xs" variant="secondary">
                               <Link href="/calendario">
                                 <Calendar aria-hidden className="h-3.5 w-3.5" />
-                                Abrir Calendário
+                                {ptBR.notifications.actions.openCalendar}
                               </Link>
                             </Button>
                             <Button asChild size="xs" variant="outline">
                               <Link href={`/apartamentos/${item.apartmentId}`}>
                                 <Home aria-hidden className="h-3.5 w-3.5" />
-                                Ver Apartamento
+                                {ptBR.notifications.actions.viewApartment}
                               </Link>
                             </Button>
                           </div>
@@ -454,32 +454,24 @@ export function NotificationsPage() {
 
 function buildHeadline(item: SyncNotificationItem): string {
   if (item.status === "failed") {
-    return "Falha ao sincronizar calendário iCal";
+    return ptBR.notifications.headline.syncFailed;
   }
 
   const parts: string[] = [];
 
   if (item.reservationsCreated > 0) {
-    parts.push(
-      item.reservationsCreated === 1
-        ? "1 nova reserva"
-        : `${item.reservationsCreated} novas reservas`,
-    );
+    parts.push(ptBR.notifications.details.createdCount(item.reservationsCreated));
   }
 
   if (item.reservationsCancelled > 0) {
-    parts.push(
-      item.reservationsCancelled === 1
-        ? "1 cancelamento"
-        : `${item.reservationsCancelled} cancelamentos`,
-    );
+    parts.push(ptBR.notifications.details.cancelledCount(item.reservationsCancelled));
   }
 
   if (parts.length > 0) {
     return parts.join(", ");
   }
 
-  return "Atualização de sincronização iCal";
+  return ptBR.notifications.headline.syncUpdate;
 }
 
 function formatDateTime(isoString: string): string {

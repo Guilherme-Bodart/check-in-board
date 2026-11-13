@@ -6,6 +6,7 @@ import {
   type SyncResponse,
   type SyncRun,
   type Task,
+  type TaskStatus,
 } from "../../api";
 import type {
   CreateIcalSourceValues,
@@ -29,6 +30,43 @@ export async function fetchApartment(token: string, apartmentId: string) {
   );
 
   return response.apartment;
+}
+
+export type TodayTaskBoardItem = {
+  id: string;
+  kind: string;
+  apartment: string;
+  apartmentId: string;
+  headline: string;
+  notes: string | null;
+  assignee: string;
+  status: string;
+  taskStatus: TaskStatus;
+  actionLabel: string;
+  time: string;
+};
+
+export type TodayTasksResponse = {
+  date: string;
+  boardItems: TodayTaskBoardItem[];
+};
+
+export async function fetchAggregateOperationsBoard(
+  token: string,
+  date: string,
+  days = 7,
+) {
+  return apiRequest<OperationsBoard>(
+    `/operations-board?date=${encodeURIComponent(date)}&days=${days}`,
+    { token },
+  );
+}
+
+export async function fetchTodayTasks(token: string, date: string) {
+  return apiRequest<TodayTasksResponse>(
+    `/tasks/today?date=${encodeURIComponent(date)}`,
+    { token },
+  );
 }
 
 export async function fetchWorkspace(

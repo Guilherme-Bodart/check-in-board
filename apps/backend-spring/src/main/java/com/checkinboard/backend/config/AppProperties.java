@@ -10,5 +10,8 @@ public record AppProperties(
     boolean authPasswordResetExposeToken,
     int icalFetchTimeoutSeconds,
     int icalFetchMaxAttempts,
-    String corsAllowedOrigins
+    String corsAllowedOrigins,
+    String emailFrom,
+    String resendApiKey,
+    String appBaseUrl
 ) {}

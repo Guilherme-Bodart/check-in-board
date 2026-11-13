@@ -41,6 +41,9 @@ public class OwnerEntity {
 
     private String notes;
 
+    @Column(name = "default_commission_bps", nullable = false)
+    private int defaultCommissionBps;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -62,6 +65,20 @@ public class OwnerEntity {
         String phone,
         String notes
     ) {
+        this(id, organization, name, type, contactName, email, phone, notes, 0);
+    }
+
+    public OwnerEntity(
+        String id,
+        OrganizationEntity organization,
+        String name,
+        OwnerType type,
+        String contactName,
+        String email,
+        String phone,
+        String notes,
+        int defaultCommissionBps
+    ) {
         this.id = id;
         this.organization = organization;
         this.name = name;
@@ -70,6 +87,7 @@ public class OwnerEntity {
         this.email = email;
         this.phone = phone;
         this.notes = notes;
+        this.defaultCommissionBps = defaultCommissionBps;
     }
 
     @PrePersist
@@ -116,6 +134,14 @@ public class OwnerEntity {
         return notes;
     }
 
+    public int getDefaultCommissionBps() {
+        return defaultCommissionBps;
+    }
+
+    public void setDefaultCommissionBps(int defaultCommissionBps) {
+        this.defaultCommissionBps = defaultCommissionBps;
+    }
+
     public Instant getDeletedAt() {
         return deletedAt;
     }
@@ -136,12 +162,25 @@ public class OwnerEntity {
         String phone,
         String notes
     ) {
+        updateDetails(name, type, contactName, email, phone, notes, this.defaultCommissionBps);
+    }
+
+    public void updateDetails(
+        String name,
+        OwnerType type,
+        String contactName,
+        String email,
+        String phone,
+        String notes,
+        int defaultCommissionBps
+    ) {
         this.name = name;
         this.type = type;
         this.contactName = contactName;
         this.email = email;
         this.phone = phone;
         this.notes = notes;
+        this.defaultCommissionBps = defaultCommissionBps;
     }
 
     public void markDeleted() {

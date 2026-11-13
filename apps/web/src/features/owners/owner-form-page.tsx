@@ -10,24 +10,32 @@ import { FormPageLayout } from "../../components/ui/form-page-layout";
 import { MessageBanner } from "../../components/ui/message-banner";
 import { readStoredSession } from "../../lib/session-storage";
 import {
+  COMMISSION_PRESET_PERCENTS,
   createOwner,
   fetchOwner,
+  formatCommissionPercent,
+  parseCommissionBps,
   updateOwner,
   type OwnerFormValues,
 } from "./owners-api";
 
-const emptyOwnerForm: OwnerFormValues = {
+type OwnerFormState = Omit<OwnerFormValues, "defaultCommissionBps"> & {
+  defaultCommissionPercent: string;
+};
+
+const emptyOwnerForm: OwnerFormState = {
   name: "",
   type: "client",
   contactName: "",
   email: "",
   phone: "",
   notes: "",
+  defaultCommissionPercent: "0",
 };
 
 export function OwnerFormPage({ ownerId }: { ownerId?: string }) {
   const router = useRouter();
-  const [form, setForm] = useState<OwnerFormValues>(emptyOwnerForm);
+  const [form, setForm] = useState<OwnerFormState>(emptyOwnerForm);
   const [isLoading, setIsLoading] = useState(Boolean(ownerId));
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -60,6 +68,7 @@ export function OwnerFormPage({ ownerId }: { ownerId?: string }) {
           email: owner.email ?? "",
           phone: owner.phone ?? "",
           notes: owner.notes ?? "",
+          defaultCommissionPercent: formatCommissionPercent(owner.defaultCommissionBps),
         });
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Falha ao carregar proprietário.");
@@ -71,6 +80,8 @@ export function OwnerFormPage({ ownerId }: { ownerId?: string }) {
     void loadOwner();
   }, [ownerId]);
 
+  const currentCommissionBps = parseCommissionBps(form.defaultCommissionPercent);
+
   async function submitOwner(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const session = readStoredSession();
@@ -79,14 +90,31 @@ export function OwnerFormPage({ ownerId }: { ownerId?: string }) {
       return;
     }
 
+    const rawPercentText = form.defaultCommissionPercent.trim();
+    const rawPercent = rawPercentText === "" ? 0 : Number(rawPercentText.replace(",", "."));
+    if (!Number.isFinite(rawPercent) || rawPercent < 0 || rawPercent > 100) {
+      setMessage("A taxa de administração padrão deve estar entre 0% e 100%.");
+      return;
+    }
+
+    const payload: OwnerFormValues = {
+      name: form.name,
+      type: form.type,
+      contactName: form.contactName,
+      email: form.email,
+      phone: form.phone,
+      notes: form.notes,
+      defaultCommissionBps: parseCommissionBps(form.defaultCommissionPercent),
+    };
+
     setIsSaving(true);
     setMessage("");
 
     try {
       if (ownerId) {
-        await updateOwner(session.token, ownerId, form);
+        await updateOwner(session.token, ownerId, payload);
       } else {
-        await createOwner(session.token, form);
+        await createOwner(session.token, payload);
       }
 
       router.push("/clientes");
@@ -130,6 +158,48 @@ export function OwnerFormPage({ ownerId }: { ownerId?: string }) {
               <option value="internal">Próprio</option>
             </Select>
           </Field>
+
+          <div className="grid min-w-0 gap-2">
+            <Field label="Taxa de Administração Padrão (%)">
+              <Input
+                inputMode="decimal"
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    defaultCommissionPercent: event.target.value,
+                  })
+                }
+                placeholder="15"
+                value={form.defaultCommissionPercent}
+              />
+            </Field>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {COMMISSION_PRESET_PERCENTS.map((preset) => {
+                const isActive = currentCommissionBps === preset * 100;
+                return (
+                  <Button
+                    className="rounded-full"
+                    key={preset}
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        defaultCommissionPercent: String(preset),
+                      })
+                    }
+                    size="xs"
+                    type="button"
+                    variant={isActive ? "subtle" : "outline"}
+                  >
+                    {preset}%
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-text-muted">
+              Taxa estritamente informativa e gerencial para pré-preencher novos apartamentos deste
+              proprietário (sem processamento de pagamentos).
+            </p>
+          </div>
 
           <Field label="Nome do contato">
             <Input

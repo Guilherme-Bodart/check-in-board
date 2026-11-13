@@ -12,9 +12,12 @@ import { messages } from "../../i18n";
 import { formatDateInput } from "../../lib/date-formatters";
 import { authenticate } from "../auth/auth-api";
 import {
+  fetchAggregateOperationsBoard,
   fetchApartments,
+  fetchTodayTasks,
   fetchWorkspace,
   markTaskDone as markTaskDoneRequest,
+  type TodayTasksResponse,
 } from "./dashboard-api";
 import type {
   AuthFormValues,
@@ -98,13 +101,13 @@ export function useDashboard() {
 
       try {
         if (apartmentId === allApartmentsValue) {
-          const workspaces = await Promise.all(
-            apartments.map((apartment) => fetchWorkspace(token, apartment.id, date)),
-          );
-          const aggregateBoard = aggregateBoards(workspaces.map((item) => item.board));
+          const [aggregateBoard, todayTasksResponse] = await Promise.all([
+            fetchAggregateOperationsBoard(token, date),
+            fetchTodayTasks(token, date),
+          ]);
 
           setBoard(aggregateBoard);
-          setTasks(workspaces.flatMap((item) => item.tasks));
+          setTasks(mapTodayTaskBoardItemsToTasks(todayTasksResponse, date));
           setLoadState("idle");
           return;
         }
@@ -119,7 +122,7 @@ export function useDashboard() {
         setMessage(getErrorMessage(error, messages.dashboard.errors.loadDashboardFailed));
       }
     },
-    [apartments],
+    [],
   );
 
   useEffect(() => {
@@ -136,7 +139,7 @@ export function useDashboard() {
     }
 
     void loadWorkspace(session.token, selectedApartmentId, boardDate);
-  }, [boardDate, loadWorkspace, selectedApartmentId, session]);
+  }, [apartments.length, boardDate, loadWorkspace, selectedApartmentId, session]);
 
   async function submitAuth(mode: AuthMode, values: AuthFormValues) {
     setMessage("");
@@ -198,42 +201,34 @@ export function useDashboard() {
   };
 }
 
-function aggregateBoards(boards: OperationsBoard[]): OperationsBoard {
-  const firstBoard = boards[0];
+function mapTodayTaskBoardItemsToTasks(
+  response: TodayTasksResponse | undefined,
+  fallbackDate: string,
+): Task[] {
+  const items = response?.boardItems ?? [];
+  const effectiveDate = response?.date || fallbackDate || formatDateInput();
 
-  if (!firstBoard) {
+  return items.map((item) => {
+    const time = item.time && /^\d{2}:\d{2}$/.test(item.time) ? item.time : "00:00";
+    const description = item.notes
+      ? item.apartment
+        ? `${item.apartment} · ${item.notes}`
+        : item.notes
+      : item.apartment || null;
+
     return {
-      apartmentId: allApartmentsValue,
-      date: formatDateInput(),
-      days: 7,
-      timezone: "America/Sao_Paulo",
-      checkIns: { count: 0, reservations: [] },
-      checkOuts: { count: 0, reservations: [] },
-      inHouse: { count: 0, reservations: [] },
-      upcoming: { count: 0, reservations: [] },
-      totals: emptyBoardTotals,
+      id: item.id,
+      apartmentId: item.apartmentId,
+      apartmentName: item.apartment,
+      reservationId: null,
+      title: item.headline,
+      description,
+      status: item.taskStatus ?? "pending",
+      statusNote: null,
+      dueAt: `${effectiveDate}T${time}:00Z`,
+      completedAt: null,
+      completedByUserId: null,
+      assignedUserId: null,
     };
-  }
-
-  const checkIns = boards.flatMap((board) => board.checkIns.reservations);
-  const checkOuts = boards.flatMap((board) => board.checkOuts.reservations);
-  const inHouse = boards.flatMap((board) => board.inHouse.reservations);
-  const upcoming = boards.flatMap((board) => board.upcoming.reservations);
-
-  return {
-    apartmentId: allApartmentsValue,
-    date: firstBoard.date,
-    days: firstBoard.days,
-    timezone: "Todos",
-    checkIns: { count: checkIns.length, reservations: checkIns },
-    checkOuts: { count: checkOuts.length, reservations: checkOuts },
-    inHouse: { count: inHouse.length, reservations: inHouse },
-    upcoming: { count: upcoming.length, reservations: upcoming },
-    totals: {
-      checkIns: checkIns.length,
-      checkOuts: checkOuts.length,
-      inHouse: inHouse.length,
-      upcoming: upcoming.length,
-    },
-  };
+  });
 }

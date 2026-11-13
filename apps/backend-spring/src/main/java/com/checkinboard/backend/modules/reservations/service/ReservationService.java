@@ -8,7 +8,10 @@ import com.checkinboard.backend.integrations.ical.ParsedIcalReservation;
 import com.checkinboard.backend.modules.apartments.model.ApartmentEntity;
 import com.checkinboard.backend.modules.apartments.model.ApartmentMembershipEntity;
 import com.checkinboard.backend.modules.apartments.repository.ApartmentMembershipRepository;
+import com.checkinboard.backend.modules.apartments.repository.ApartmentRepository;
 import com.checkinboard.backend.modules.auth.model.AuthRole;
+import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
+import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRepository;
 import com.checkinboard.backend.modules.icalsources.model.IcalSourceEntity;
 import com.checkinboard.backend.modules.icalsources.repository.IcalSourceRepository;
 import com.checkinboard.backend.modules.icalsources.service.IcalUrlPolicy;
@@ -44,12 +47,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -59,8 +64,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReservationService {
 
     private static final int MAX_RECORDED_CHANGES = 20;
+    private static final String DEFAULT_TIMEZONE = "America/Sao_Paulo";
+    private static final Comparator<BoardEntry> CHECK_IN_COMPARATOR = Comparator
+        .comparing((BoardEntry entry) -> entry.response().startsAt())
+        .thenComparing(BoardEntry::apartmentName, String.CASE_INSENSITIVE_ORDER)
+        .thenComparing(entry -> entry.response().id());
+    private static final Comparator<BoardEntry> CHECK_OUT_COMPARATOR = Comparator
+        .comparing((BoardEntry entry) -> entry.response().endsAt())
+        .thenComparing((BoardEntry entry) -> entry.response().startsAt())
+        .thenComparing(BoardEntry::apartmentName, String.CASE_INSENSITIVE_ORDER)
+        .thenComparing(entry -> entry.response().id());
 
+    private final ApartmentRepository apartmentRepository;
     private final ApartmentMembershipRepository apartmentMembershipRepository;
+    private final OrganizationMembershipRepository organizationMembershipRepository;
     private final IcalSourceRepository icalSourceRepository;
     private final ReservationRepository reservationRepository;
     private final SyncRunRepository syncRunRepository;
@@ -71,7 +88,9 @@ public class ReservationService {
     private final ObjectMapper objectMapper;
 
     public ReservationService(
+        ApartmentRepository apartmentRepository,
         ApartmentMembershipRepository apartmentMembershipRepository,
+        OrganizationMembershipRepository organizationMembershipRepository,
         IcalSourceRepository icalSourceRepository,
         ReservationRepository reservationRepository,
         SyncRunRepository syncRunRepository,
@@ -81,7 +100,9 @@ public class ReservationService {
         IcalFeedClient icalFeedClient,
         ObjectMapper objectMapper
     ) {
+        this.apartmentRepository = apartmentRepository;
         this.apartmentMembershipRepository = apartmentMembershipRepository;
+        this.organizationMembershipRepository = organizationMembershipRepository;
         this.icalSourceRepository = icalSourceRepository;
         this.reservationRepository = reservationRepository;
         this.syncRunRepository = syncRunRepository;
@@ -106,6 +127,35 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    public OperationsBoardResponse operationsBoardAll(
+        String userId,
+        LocalDate date,
+        int days
+    ) {
+        validateBoardDays(days);
+
+        List<ApartmentEntity> apartments = visibleApartments(userId);
+        ZoneId defaultZone = apartments.isEmpty()
+            ? ZoneId.of(DEFAULT_TIMEZONE)
+            : ZoneId.of(apartments.get(0).getTimezone());
+        LocalDate boardDate = date != null ? date : LocalDate.now(defaultZone);
+
+        BoardBuckets buckets = new BoardBuckets();
+        for (ApartmentEntity apartment : apartments) {
+            collectApartmentBoard(apartment, boardDate, days, buckets);
+        }
+        buckets.sortAll();
+
+        return buildOperationsBoardResponse(
+            "all",
+            boardDate,
+            days,
+            resolveAggregateTimezone(apartments),
+            buckets
+        );
+    }
+
+    @Transactional(readOnly = true)
     public OperationsBoardResponse operationsBoard(
         String userId,
         String apartmentId,
@@ -118,70 +168,20 @@ public class ReservationService {
             throw forbiddenApartmentAccess();
         }
 
-        if (days < 1 || days > 31) {
-            throw new ApiException(
-                HttpStatus.BAD_REQUEST,
-                "BAD_REQUEST",
-                "Board window must be between 1 and 31 days."
-            );
-        }
+        validateBoardDays(days);
 
-        ZoneId zoneId = ZoneId.of(membership.getApartment().getTimezone());
+        ApartmentEntity apartment = membership.getApartment();
+        ZoneId zoneId = ZoneId.of(apartment.getTimezone());
         LocalDate boardDate = date != null ? date : LocalDate.now(zoneId);
-        Instant dayStart = boardDate.atStartOfDay(zoneId).toInstant();
-        Instant nextDayStart = boardDate.plusDays(1).atStartOfDay(zoneId).toInstant();
-        Instant windowEnd = boardDate.plusDays(days).atStartOfDay(zoneId).toInstant();
-        List<ReservationEntity> reservations = reservationRepository
-            .findByApartment_IdAndEndsAtAfterAndStartsAtBeforeOrderByStartsAtAsc(
-                apartmentId,
-                dayStart,
-                windowEnd
-            );
-        List<OperationsBoardReservationResponse> checkIns = new ArrayList<>();
-        List<OperationsBoardReservationResponse> checkOuts = new ArrayList<>();
-        List<OperationsBoardReservationResponse> inHouse = new ArrayList<>();
-        List<OperationsBoardReservationResponse> upcoming = new ArrayList<>();
+        BoardBuckets buckets = new BoardBuckets();
+        collectApartmentBoard(apartment, boardDate, days, buckets);
 
-        for (ReservationEntity reservation : reservations) {
-            OperationsBoardReservationResponse response = toBoardReservationResponse(
-                reservation
-            );
-            LocalDate startsOn = reservation.getStartsAt().atZone(zoneId).toLocalDate();
-            LocalDate endsOn = reservation.getEndsAt().atZone(zoneId).toLocalDate();
-
-            if (startsOn.equals(boardDate)) {
-                checkIns.add(response);
-            }
-
-            if (endsOn.equals(boardDate)) {
-                checkOuts.add(response);
-            }
-
-            if (
-                reservation.getStartsAt().isBefore(nextDayStart) &&
-                reservation.getEndsAt().isAfter(dayStart)
-            ) {
-                inHouse.add(response);
-            } else if (reservation.getStartsAt().isAfter(nextDayStart.minusNanos(1))) {
-                upcoming.add(response);
-            }
-        }
-
-        return new OperationsBoardResponse(
+        return buildOperationsBoardResponse(
             apartmentId,
             boardDate,
             days,
             zoneId.getId(),
-            section(checkIns),
-            section(checkOuts),
-            section(inHouse),
-            section(upcoming),
-            new OperationsBoardTotals(
-                checkIns.size(),
-                checkOuts.size(),
-                inHouse.size(),
-                upcoming.size()
-            )
+            buckets
         );
     }
 
@@ -665,6 +665,152 @@ public class ReservationService {
             reservation.getGuestName(),
             reservation.getGuestCount()
         );
+    }
+
+    private void validateBoardDays(int days) {
+        if (days < 1 || days > 31) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "BAD_REQUEST",
+                "Board window must be between 1 and 31 days."
+            );
+        }
+    }
+
+    private List<ApartmentEntity> visibleApartments(String userId) {
+        OrganizationMembershipEntity orgMembership = organizationMembershipRepository
+            .findPrimaryByUserId(userId)
+            .orElse(null);
+
+        if (orgMembership == null || !orgMembership.isActive()) {
+            throw forbiddenApartmentAccess();
+        }
+
+        String organizationId = orgMembership.getOrganization().getId();
+        if (orgMembership.getRole() == AuthRole.host_admin) {
+            return apartmentRepository.findByOrganization_IdAndDeletedAtIsNullOrderByNameAsc(
+                organizationId
+            );
+        }
+
+        return apartmentMembershipRepository
+            .findByUserIdAndOrganizationId(userId, organizationId)
+            .stream()
+            .filter(membership ->
+                membership.canView() &&
+                membership.getApartment().getDeletedAt() == null
+            )
+            .map(ApartmentMembershipEntity::getApartment)
+            .toList();
+    }
+
+    private void collectApartmentBoard(
+        ApartmentEntity apartment,
+        LocalDate boardDate,
+        int days,
+        BoardBuckets buckets
+    ) {
+        ZoneId zoneId = ZoneId.of(apartment.getTimezone());
+        Instant dayStart = boardDate.atStartOfDay(zoneId).toInstant();
+        Instant nextDayStart = boardDate.plusDays(1).atStartOfDay(zoneId).toInstant();
+        Instant windowEnd = boardDate.plusDays(days).atStartOfDay(zoneId).toInstant();
+        List<ReservationEntity> reservations = reservationRepository
+            .findByApartment_IdAndEndsAtAfterAndStartsAtBeforeOrderByStartsAtAsc(
+                apartment.getId(),
+                dayStart,
+                windowEnd
+            );
+        String apartmentName = apartment.getName();
+
+        for (ReservationEntity reservation : reservations) {
+            OperationsBoardReservationResponse response = toBoardReservationResponse(
+                reservation
+            );
+            LocalDate startsOn = reservation.getStartsAt().atZone(zoneId).toLocalDate();
+            LocalDate endsOn = reservation.getEndsAt().atZone(zoneId).toLocalDate();
+
+            if (startsOn.equals(boardDate)) {
+                buckets.checkIns.add(new BoardEntry(response, apartmentName));
+            }
+
+            if (endsOn.equals(boardDate)) {
+                buckets.checkOuts.add(new BoardEntry(response, apartmentName));
+            }
+
+            if (
+                reservation.getStartsAt().isBefore(nextDayStart) &&
+                reservation.getEndsAt().isAfter(dayStart)
+            ) {
+                buckets.inHouse.add(new BoardEntry(response, apartmentName));
+            } else if (reservation.getStartsAt().isAfter(nextDayStart.minusNanos(1))) {
+                buckets.upcoming.add(new BoardEntry(response, apartmentName));
+            }
+        }
+    }
+
+    private OperationsBoardResponse buildOperationsBoardResponse(
+        String apartmentId,
+        LocalDate boardDate,
+        int days,
+        String timezone,
+        BoardBuckets buckets
+    ) {
+        List<OperationsBoardReservationResponse> checkIns = buckets.toResponses(buckets.checkIns);
+        List<OperationsBoardReservationResponse> checkOuts = buckets.toResponses(buckets.checkOuts);
+        List<OperationsBoardReservationResponse> inHouse = buckets.toResponses(buckets.inHouse);
+        List<OperationsBoardReservationResponse> upcoming = buckets.toResponses(buckets.upcoming);
+
+        return new OperationsBoardResponse(
+            apartmentId,
+            boardDate,
+            days,
+            timezone,
+            section(checkIns),
+            section(checkOuts),
+            section(inHouse),
+            section(upcoming),
+            new OperationsBoardTotals(
+                checkIns.size(),
+                checkOuts.size(),
+                inHouse.size(),
+                upcoming.size()
+            )
+        );
+    }
+
+    private String resolveAggregateTimezone(List<ApartmentEntity> apartments) {
+        if (apartments.isEmpty()) {
+            return DEFAULT_TIMEZONE;
+        }
+        Set<String> timezones = apartments
+            .stream()
+            .map(ApartmentEntity::getTimezone)
+            .collect(Collectors.toSet());
+        return timezones.size() == 1 ? timezones.iterator().next() : "Todos";
+    }
+
+    private record BoardEntry(
+        OperationsBoardReservationResponse response,
+        String apartmentName
+    ) {}
+
+    private static final class BoardBuckets {
+
+        private final List<BoardEntry> checkIns = new ArrayList<>();
+        private final List<BoardEntry> checkOuts = new ArrayList<>();
+        private final List<BoardEntry> inHouse = new ArrayList<>();
+        private final List<BoardEntry> upcoming = new ArrayList<>();
+
+        private void sortAll() {
+            checkIns.sort(CHECK_IN_COMPARATOR);
+            checkOuts.sort(CHECK_OUT_COMPARATOR);
+            inHouse.sort(CHECK_IN_COMPARATOR);
+            upcoming.sort(CHECK_IN_COMPARATOR);
+        }
+
+        private List<OperationsBoardReservationResponse> toResponses(List<BoardEntry> entries) {
+            return entries.stream().map(BoardEntry::response).toList();
+        }
     }
 
     private OperationsBoardSection section(

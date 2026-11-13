@@ -54,16 +54,17 @@ check-in-board/
 ## 3. O Que Já Está Implementado e Funcionando
 
 ### 3.1 Backend Oficial (`apps/backend-spring`)
-Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-feature`) e versionado com **14 migrações Flyway (`V1` a `V14`)**:
+Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-feature`) e versionado com **16 migrações Flyway (`V1` a `V16`)**:
 
-1. **Autenticação & Segurança (`modules/auth`, `V1`, `V2`):**
+1. **Autenticação, Segurança & E-mails Transacionais (`modules/auth`, `modules/notifications`, `V1`, `V2`):**
    - `POST /auth/sign-up`, `POST /auth/sign-in`, `GET /auth/me`.
    - `POST /auth/change-password`, `POST /auth/password-reset/request`, `POST /auth/password-reset/confirm`.
    - Autenticação stateless via JWT (HS256), senhas com BCrypt e tokens de reset com hash SHA-256.
    - Criação automática de `Organization`, `OrganizationMembership` (`host_admin`) e `Owner` interno padrão no cadastro inicial.
-2. **Proprietários / Clientes (`modules/owners`, `V7`):**
+   - `TransactionalEmailService` via `HttpClient` com suporte à API **Resend** (`RESEND_API_KEY`, `EMAIL_FROM`, `APP_BASE_URL`) e fallback estruturado seguro em log local/dev para recuperação de senha e convite de proprietário/membro.
+2. **Proprietários / Clientes (`modules/owners`, `V7`, `V16`):**
    - `GET /owners`, `POST /owners`, `GET /owners/{ownerId}`, `PUT /owners/{ownerId}`, `DELETE /owners/{ownerId}`.
-   - Separação entre proprietário `internal` (imóveis próprios da administradora/anfitrião) e `client` (imóveis de terceiros administrados).
+   - Separação entre proprietário `internal` (imóveis próprios da administradora/anfitrião) e `client` (imóveis de terceiros administrados), incluindo taxa padrão informativa de administração (`defaultCommissionBps`).
    - Contagem de apartamentos vinculados e bloqueio de exclusão caso existam imóveis ativos ligados ao proprietário.
 3. **Apartamentos & Permissões (`modules/apartments`, `V3`):**
    - `GET /apartments`, `POST /apartments`, `GET /apartments/{apartmentId}`, `PUT /apartments/{apartmentId}`, `DELETE /apartments/{apartmentId}` (soft delete).
@@ -79,6 +80,7 @@ Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-
    - `GET /notifications/sync`: lista as notificações de sincronização com detalhamento completo do que mudou (`reservationsCreated`, `reservationsCancelled`, lista de `changes` em `diff_details_json` ou `errorMessage`).
    - Parser `iCal4j` com tratamento correto de eventos `VALUE=DATE` (all-day) no fuso horário do apartamento, detecção de `STATUS:CANCELLED` e upsert idempotente (`ical_source_id + external_event_key`).
    - CRUD de **Reservas Manuais/Diretas** e enriquecimento de reservas (hóspede, quantidade de hóspedes `guest_count`, telefone, notas, valores financeiros e horários customizados).
+   - `GET /operations-board?date=YYYY-MM-DD&days=7`: visão agregada em 1 chamada HTTP para todos os imóveis visíveis pelo usuário autenticado (`host_admin` ou `co_host`).
    - `GET /apartments/{apartmentId}/operations-board?date=YYYY-MM-DD&days=7`: classifica reservas em `checkIns`, `checkOuts`, `inHouse` e `upcoming` respeitando o timezone local do imóvel.
 6. **Tarefas Operacionais (`modules/tasks`, `V6`):**
    - `GET /apartments/{apartmentId}/tasks`, `POST /apartments/{apartmentId}/tasks`, `PATCH /tasks/{taskId}/status`, `GET /tasks/today`.
@@ -86,9 +88,10 @@ Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-
 7. **Administradores e Proprietários Convidados (`modules/team`):**
    - `GET /team-members`, `POST /team-members`, `PUT /team-members/{membershipId}`, `DELETE /team-members/{membershipId}`.
    - Foco nos perfis `host_admin` (*Admin Geral*) e `co_host` (*Admin-Proprietário*), com vínculo explícito de acesso aos apartamentos do proprietário (`canView`).
-8. **Financeiro Completo, Estadias e Repasses com Escopo por Proprietário (`modules/finance`, `V8`, `V9`, `V10`, `V11`, `V12`):**
+8. **Financeiro Completo, Estadias, Despesas Fixas e Repasses com Escopo por Proprietário (`modules/finance`, `V8`–`V12`, `V15`):**
    - **Lançamentos e Resumo Global (`FinanceController`):** `GET/POST/PUT/DELETE /financial-entries` e `GET /financial-summary` (receitas, despesas e lucro por proprietário e por apartamento).
-   - **Visibilidade Financeira do `Admin-Proprietário` (`co_host`):** Leitura liberada em `/financial-entries`, `/financial-summary`, `/rental-stays` e `/finance-mvp/*` estritamente filtrada pelos apartamentos vinculados ao proprietário convidado (`canView = true`), mantendo criação/edição/exclusão exclusivas para `host_admin`.
+   - **Despesas Fixas Mensais Recorrentes (`RecurringExpenseController`, `V15`):** cadastro de despesas fixas por imóvel (Condomínio, Internet, Energia, IPTU, etc.) e geração idempotente em 1 clique via `POST /apartments/{apartmentId}/recurring-expenses/apply-month` (`recurring_expense_applications` garante unicidade por `(recurring_expense_id, applied_month)`).
+   - **Visibilidade Financeira do `Admin-Proprietário` (`co_host`):** Leitura liberada em `/financial-entries`, `/financial-summary`, `/rental-stays`, `/apartments/{apartmentId}/recurring-expenses` e `/finance-mvp/*` estritamente filtrada pelos apartamentos vinculados ao proprietário convidado (`canView = true`), mantendo criação/edição/exclusão exclusivas para `host_admin`.
    - **Estadias e Fechamento por Imóvel (`RentalStayController`):** gestão de estadias (`rental_stays`), vínculo com despesas e controle de períodos de repasse mensal (`settlement_periods` com status `pending` / `paid`).
    - **Endpoints dedicados ao Finance MVP (`FinanceMvpController`).**
 
@@ -111,11 +114,11 @@ Construída em **Next.js App Router + TypeScript + Tailwind CSS v4 + Radix UI / 
     - **Modal Unificado de Reserva (`ReservationUnifiedModal`)** dividido em abas (*Reserva & Financeiro* com modo rápido **Hóspede** vs **Bloqueio / Uso do Proprietário**; e *Tarefas & Despesas Operacionais* exibindo o que já está registrado na reserva antes de abrir o formulário de novos itens com presets de 1 clique para evitar duplicidade).
     - **Central de Relatórios e PDF (`CalendarReportsModal`):** acessível no celular e no desktop, com presets de 1 clique (**Mês Passado**, **Semana Passada** e **Mês Selecionado**) para gerar/compartilhar o PDF do proprietário, escala de limpeza e portaria.
   - `/apartamentos` (**Gestão de Imóveis**):
-    - Listagem e filtros (`/apartamentos`), criação (`/apartamentos/novo`), detalhes (`/apartamentos/[apartmentId]`), edição (`/editar`), gestão completa de fontes iCal e histórico de sync (`/ical`) e financeiro dedicado do imóvel com faturamento e repasses (`/financeiro` + `BillingModal`).
+    - Listagem e filtros (`/apartamentos`), criação (`/apartamentos/novo`, com pré-preenchimento e presets de taxa de administração herdados do proprietário), detalhes (`/apartamentos/[apartmentId]`), edição (`/editar`), gestão completa de fontes iCal e histórico de sync (`/ical`) e financeiro dedicado do imóvel com faturamento, painel **Despesas Fixas Mensais** (1 clique *"Lançar Fixas do Mês"*) e repasses (`/financeiro` + `BillingModal`).
   - `/reservas` (**Central de Reservas**):
     - Cards estruturados no mobile (`md:hidden`) e `DataTable` no desktop (`hidden md:block`), filtros por imóvel/canal/pendência de preço e modal de criação/edição e precificação.
   - `/clientes` (**Proprietários**):
-    - Listagem (`/clientes`), criação (`/clientes/novo`) e edição (`/clientes/[ownerId]/editar`), diferenciando carteira própria (`internal`) e clientes (`client`).
+    - Listagem (`/clientes`), criação (`/clientes/novo`) e edição (`/clientes/[ownerId]/editar`), diferenciando carteira própria (`internal`) e clientes (`client`), incluindo **Taxa de Administração Padrão (%)** com presets rápidos informativos (`0%`–`25%`).
   - `/financeiro` (**Financeiro Consolidado**):
     - Resumo de receitas, despesas e resultado líquido no período, presets instantâneos (**Mês Atual**, **Mês Passado**, **Semana Passada**), filtros automáticos por imóvel/proprietário e atalho rápido `+ Compra / Despesa`.
     - Formulário `/financeiro/lancamentos/novo` otimizado para entrada rápida no celular (padrão em Despesa + Consumo, chips de 1 toque para categorias formatadas como *Consumo / Mercado*, *Limpeza*, *Manutenção*, e botões `Hoje` / `Ontem`).
