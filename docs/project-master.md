@@ -101,12 +101,15 @@ Construída em **Next.js App Router + TypeScript + Tailwind CSS v4 + Radix UI / 
   - **Desktop (`>= 1024px`):** Sidebar lateral fixa (`w-[260px]`) e cabeçalho limpo.
   - **Mobile & Tablet (`< 1024px`):** Bottom Navigation Bar fixa (`h-16`) com 5 atalhos rápidos (*Hoje*, *Calendário*, *Imóveis*, *Financeiro* e gaveta *Menu*).
 - **Rotas Autenticadas (`src/app/(auth)/`):**
-  - `/dashboard` (**Hoje / Painel Operacional**): KPIs em grade responsiva, filtro por apartamento ou "Todos os apartamentos", gráfico de volume de reservas (Recharts), quadros de Check-in, Check-out, Hóspedes na Casa e Próximas Chegadas, e painel de tarefas do dia.
+  - `/dashboard` (**Hoje / Painel Operacional**):
+    - Navegação rápida de data (`<`, `Hoje`, `>`), filtro por apartamento e atalhos diretos de bolso (`+ Compra / Consumo` e `Relatório PDF Proprietário`).
+    - Resumo direto **"Quem Entra e Quem Sai Hoje"** mostrando exatamente quantos apartamentos têm check-in e check-out no dia e **quais são** (nome do imóvel, hóspede e canal).
+    - KPIs em grade responsiva, gráfico de volume de reservas (apenas Desktop), quadros completos e tarefas do dia.
   - `/calendario` (**Cronograma & Grade Mensal**):
     - Visão **Cronograma (Tape Chart)** mobile-first com coluna de imóvel fixa à esquerda, auto-scroll para o dia de *Hoje*, detecção visual de conflitos/overbooking e cores executivas de alto contraste por canal (Airbnb vs Direto/Manual).
     - Visão **Mês em Grade** tradicional.
-    - **Modal Unificado de Reserva (`ReservationUnifiedModal`)** dividido em abas (*Reserva & Financeiro* e *Tarefas & Despesas Operacionais*), funcionando como *Bottom Sheet* no celular.
-    - **Central de Relatórios e Demonstrativos A4 (`CalendarReportsModal`)** para prestação de contas ao proprietário com impressão/exportação limpa.
+    - **Modal Unificado de Reserva (`ReservationUnifiedModal`)** dividido em abas (*Reserva & Financeiro* com modo rápido **Hóspede** vs **Bloqueio / Uso do Proprietário**; e *Tarefas & Despesas Operacionais* exibindo o que já está registrado na reserva antes de abrir o formulário de novos itens com presets de 1 clique para evitar duplicidade).
+    - **Central de Relatórios e PDF (`CalendarReportsModal`):** acessível no celular e no desktop, com presets de 1 clique (**Mês Passado**, **Semana Passada** e **Mês Selecionado**) para gerar/compartilhar o PDF do proprietário, escala de limpeza e portaria.
   - `/apartamentos` (**Gestão de Imóveis**):
     - Listagem e filtros (`/apartamentos`), criação (`/apartamentos/novo`), detalhes (`/apartamentos/[apartmentId]`), edição (`/editar`), gestão completa de fontes iCal e histórico de sync (`/ical`) e financeiro dedicado do imóvel com faturamento e repasses (`/financeiro` + `BillingModal`).
   - `/reservas` (**Central de Reservas**):
@@ -114,7 +117,8 @@ Construída em **Next.js App Router + TypeScript + Tailwind CSS v4 + Radix UI / 
   - `/clientes` (**Proprietários**):
     - Listagem (`/clientes`), criação (`/clientes/novo`) e edição (`/clientes/[ownerId]/editar`), diferenciando carteira própria (`internal`) e clientes (`client`).
   - `/financeiro` (**Financeiro Consolidado**):
-    - Resumo de receitas, despesas e resultado líquido no período, quebras por proprietário e apartamento, e rotas dedicadas para novo lançamento (`/financeiro/lancamentos/novo`) e edição (`/editar`).
+    - Resumo de receitas, despesas e resultado líquido no período, presets instantâneos (**Mês Atual**, **Mês Passado**, **Semana Passada**), filtros automáticos por imóvel/proprietário e atalho rápido `+ Compra / Despesa`.
+    - Formulário `/financeiro/lancamentos/novo` otimizado para entrada rápida no celular (padrão em Despesa + Consumo, chips de 1 toque para categorias formatadas como *Consumo / Mercado*, *Limpeza*, *Manutenção*, e botões `Hoje` / `Ontem`).
   - `/configuracoes` (**Conta, Proprietários Convidados e Segurança**):
     - Dados da conta e organização (`/configuracoes`), gestão de administradores e proprietários convidados por imóvel (`/configuracoes/equipe`, `/novo`, `/[membershipId]/editar`) e alteração de senha (`/configuracoes/seguranca`).
   - `/notificacoes` (**Central de Notificações Inteligente**):

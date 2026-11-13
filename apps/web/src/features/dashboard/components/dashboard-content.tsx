@@ -61,6 +61,7 @@ export function DashboardContent({
 
       <section className="grid gap-6">
         <OperationsBoardPanel
+          apartments={snapshot.apartments}
           board={snapshot.board}
           boardDate={snapshot.boardDate}
           boardSections={snapshot.boardSections}

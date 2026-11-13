@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   Search,
+  ShoppingCart,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -37,6 +38,72 @@ import {
 import { formatMoney } from "./money";
 
 const allValue = "all";
+
+type PeriodPreset = "current_month" | "last_month" | "last_week";
+
+const periodPresets: { id: PeriodPreset; label: string }[] = [
+  { id: "current_month", label: "Mês Atual" },
+  { id: "last_month", label: "Mês Passado" },
+  { id: "last_week", label: "Semana Passada" },
+];
+
+const categoryLabels: Record<string, string> = {
+  consumo: "Consumo / Mercado",
+  manutencao: "Manutenção",
+  condominio: "Condomínio",
+  limpeza: "Limpeza",
+  enxoval: "Enxoval",
+  contas: "Contas / Energia",
+  taxas: "Taxas",
+  outros: "Outros",
+};
+
+function formatCategoryLabel(category: string): string {
+  const trimmed = category.trim();
+  return categoryLabels[trimmed.toLowerCase()] ?? trimmed;
+}
+
+function toLocalDateInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getPeriodPresetRange(preset: PeriodPreset): { dateFrom: string; dateTo: string } {
+  const today = new Date();
+
+  if (preset === "current_month") {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { dateFrom: toLocalDateInput(start), dateTo: toLocalDateInput(end) };
+  }
+
+  if (preset === "last_month") {
+    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const end = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { dateFrom: toLocalDateInput(start), dateTo: toLocalDateInput(end) };
+  }
+
+  const dayOfWeek = today.getDay();
+  const diffToCurrentMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const currentMonday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - diffToCurrentMonday,
+  );
+  const prevMonday = new Date(
+    currentMonday.getFullYear(),
+    currentMonday.getMonth(),
+    currentMonday.getDate() - 7,
+  );
+  const prevSunday = new Date(
+    currentMonday.getFullYear(),
+    currentMonday.getMonth(),
+    currentMonday.getDate() - 1,
+  );
+  return { dateFrom: toLocalDateInput(prevMonday), dateTo: toLocalDateInput(prevSunday) };
+}
 
 export function FinancePage() {
   const [userRole, setUserRole] = useState<AuthRole | null>(null);
@@ -106,19 +173,10 @@ export function FinancePage() {
   }
 
   useEffect(() => {
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const initialDateFrom = `${currentMonth}-01`;
-    const initialDateTo = new Date(
-      Number(currentMonth.slice(0, 4)),
-      Number(currentMonth.slice(5, 7)),
-      0,
-    )
-      .toISOString()
-      .slice(0, 10);
-
-    setDateFrom(initialDateFrom);
-    setDateTo(initialDateTo);
-    void loadFinance({ dateFrom: initialDateFrom, dateTo: initialDateTo });
+    const initialRange = getPeriodPresetRange("current_month");
+    setDateFrom(initialRange.dateFrom);
+    setDateTo(initialRange.dateTo);
+    void loadFinance(initialRange);
   }, []);
 
   const filteredEntries = useMemo(() => {
@@ -129,7 +187,13 @@ export function FinancePage() {
     }
 
     return entries.filter((entry) =>
-      [entry.apartmentName, entry.ownerName, entry.category, entry.description]
+      [
+        entry.apartmentName,
+        entry.ownerName,
+        entry.category,
+        formatCategoryLabel(entry.category),
+        entry.description,
+      ]
         .filter(Boolean)
         .some((value) => value?.toLowerCase().includes(normalizedQuery)),
     );
@@ -146,6 +210,33 @@ export function FinancePage() {
 
   function reloadWithFilters() {
     void loadFinance(currentFilters());
+  }
+
+  function applyPeriodPreset(preset: PeriodPreset) {
+    const nextRange = getPeriodPresetRange(preset);
+    setDateFrom(nextRange.dateFrom);
+    setDateTo(nextRange.dateTo);
+    void loadFinance({
+      ...currentFilters(),
+      dateFrom: nextRange.dateFrom,
+      dateTo: nextRange.dateTo,
+    });
+  }
+
+  function handleApartmentFilterChange(nextApartment: string) {
+    setApartmentFilter(nextApartment);
+    void loadFinance({
+      ...currentFilters(),
+      apartmentId: nextApartment === allValue ? undefined : nextApartment,
+    });
+  }
+
+  function handleOwnerFilterChange(nextOwner: string) {
+    setOwnerFilter(nextOwner);
+    void loadFinance({
+      ...currentFilters(),
+      ownerId: nextOwner === allValue ? undefined : nextOwner,
+    });
   }
 
   async function removeEntry() {
@@ -173,14 +264,30 @@ export function FinancePage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader
-        actionHref={isHostAdmin ? "/financeiro/lancamentos/novo" : undefined}
-        actionIcon={isHostAdmin ? Plus : undefined}
-        actionLabel={isHostAdmin ? "Novo lançamento" : undefined}
-        description="Acompanhe receitas, despesas e resultado por período e apartamento."
-        eyebrow="Financeiro"
-        title="Lançamentos e resultado"
-      />
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <PageHeader
+          description="Acompanhe receitas, despesas e resultado por período e apartamento."
+          eyebrow="Financeiro"
+          title="Lançamentos e resultado"
+        />
+
+        {isHostAdmin ? (
+          <div className="flex flex-wrap items-center gap-2.5 sm:flex-nowrap shrink-0">
+            <Button asChild className="flex-1 sm:flex-initial" size="md" variant="primary">
+              <Link href="/financeiro/lancamentos/novo?type=expense&category=consumo">
+                <ShoppingCart aria-hidden className="h-4 w-4" />
+                + Compra / Despesa
+              </Link>
+            </Button>
+            <Button asChild className="flex-1 sm:flex-initial" size="md" variant="secondary">
+              <Link href="/financeiro/lancamentos/novo">
+                <Plus aria-hidden className="h-4 w-4" />
+                Novo lançamento
+              </Link>
+            </Button>
+          </div>
+        ) : null}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-xs text-text-secondary shadow-2xs">
         <Badge tone="info">Demonstrativo Gerencial</Badge>
@@ -216,6 +323,25 @@ export function FinancePage() {
       </section>
 
       <Panel>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {periodPresets.map((preset) => {
+            const range = getPeriodPresetRange(preset.id);
+            const isActive = dateFrom === range.dateFrom && dateTo === range.dateTo;
+            return (
+              <Button
+                aria-pressed={isActive}
+                key={preset.id}
+                onClick={() => applyPeriodPreset(preset.id)}
+                size="sm"
+                type="button"
+                variant={isActive ? "primary" : "secondary"}
+              >
+                {preset.label}
+              </Button>
+            );
+          })}
+        </div>
+
         <Toolbar>
           <Input
             className="sm:w-40"
@@ -252,7 +378,7 @@ export function FinancePage() {
             />
           </div>
           <Select
-            onChange={(event) => setApartmentFilter(event.target.value)}
+            onChange={(event) => handleApartmentFilterChange(event.target.value)}
             value={apartmentFilter}
           >
             <option value={allValue}>Todos os apartamentos</option>
@@ -264,7 +390,7 @@ export function FinancePage() {
           </Select>
           {isHostAdmin ? (
             <Select
-              onChange={(event) => setOwnerFilter(event.target.value)}
+              onChange={(event) => handleOwnerFilterChange(event.target.value)}
               value={ownerFilter}
             >
               <option value={allValue}>Todos os proprietários</option>
@@ -315,7 +441,7 @@ export function FinancePage() {
                             </span>
                           </div>
                           <strong className="mt-1.5 block truncate text-sm font-bold text-text-primary">
-                            {entry.category}
+                            {formatCategoryLabel(entry.category)}
                           </strong>
                           <p className="truncate text-xs text-text-secondary">
                             {entry.apartmentName} • {entry.ownerName}
@@ -378,7 +504,7 @@ export function FinancePage() {
                         <tr key={entry.id}>
                           <td className="px-4 py-4">
                             <strong className="block font-semibold text-text-primary">
-                              {entry.category}
+                              {formatCategoryLabel(entry.category)}
                             </strong>
                             <span className="text-xs text-text-muted">
                               {entry.type === "revenue" ? "Receita" : "Despesa"}
@@ -447,7 +573,7 @@ export function FinancePage() {
 
       <ConfirmDialog
         confirmLabel="Remover"
-        description={`O lançamento ${entryToDelete?.category ?? ""} será removido do resultado financeiro.`}
+        description={`O lançamento ${entryToDelete ? formatCategoryLabel(entryToDelete.category) : ""} será removido do resultado financeiro.`}
         isOpen={Boolean(entryToDelete)}
         isWorking={isDeleting}
         onCancel={() => setEntryToDelete(null)}

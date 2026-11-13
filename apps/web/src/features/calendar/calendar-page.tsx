@@ -126,6 +126,12 @@ export function CalendarPage() {
   useEffect(() => {
     setMonth(currentMonthInput());
     void loadCalendar(allApartmentsValue);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("openReports") === "1") {
+        setIsReportsModalOpen(true);
+      }
+    }
   }, []);
 
   // Quick lookup map: reservation.id -> RentalStay
@@ -344,13 +350,13 @@ export function CalendarPage() {
               </button>
 
               <button
-                className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary"
+                className="inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary active:scale-[0.98]"
                 onClick={() => setIsReportsModalOpen(true)}
                 title="Gerar Demonstrativo do Proprietário, Escala de Limpeza ou Portaria"
                 type="button"
               >
-                <FileText className="h-3.5 w-3.5" />
-                <span>Relatórios</span>
+                <FileText className="h-3.5 w-3.5 shrink-0" />
+                <span>PDF / Relatórios</span>
               </button>
 
               <button
@@ -659,7 +665,7 @@ export function CalendarPage() {
       </section>
 
       <p className="md:hidden text-[11px] text-text-muted text-center py-1">
-        Dica: Acesse pelo computador para gerar relatórios A4 e ver indicadores detalhados do mês.
+        Dica: Acesse pelo computador para visualizar indicadores detalhados de ocupação e receita do mês.
       </p>
 
       {/* Unified Edit & Create Modal with Overbooking and Cleaning Task */}
@@ -688,7 +694,7 @@ export function CalendarPage() {
         month={month}
         onClose={() => setIsReportsModalOpen(false)}
         rentalStaysMap={rentalStaysMap}
-        reservations={monthReservations}
+        reservations={reservations}
         selectedApartmentId={selectedApartmentId}
       />
     </div>

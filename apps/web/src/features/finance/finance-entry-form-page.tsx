@@ -28,26 +28,55 @@ type FinanceFormState = {
   occurredOn: string;
 };
 
-const expenseCategories = [
-  "limpeza",
-  "consumo",
-  "enxoval",
-  "manutencao",
-  "condominio",
-  "contas",
-  "taxas",
-  "outros",
+type CategoryOption = {
+  value: string;
+  label: string;
+};
+
+const expenseCategoryOptions: CategoryOption[] = [
+  { value: "consumo", label: "🛒 Consumo / Mercado" },
+  { value: "limpeza", label: "🧹 Limpeza & Lavanderia" },
+  { value: "manutencao", label: "🔧 Manutenção & Reparos" },
+  { value: "enxoval", label: "🛏️ Enxoval" },
+  { value: "condominio", label: "🏢 Condomínio" },
+  { value: "contas", label: "⚡ Energia / Internet / Contas" },
+  { value: "taxas", label: "📄 Taxas" },
+  { value: "outros", label: "📌 Outros" },
 ];
+
+const revenueCategoryOptions: CategoryOption[] = [
+  { value: "Hospedagem Extra", label: "🏨 Hospedagem Extra" },
+  { value: "Taxa de Limpeza", label: "🧹 Taxa de Limpeza" },
+  { value: "Taxa Pet", label: "🐾 Taxa Pet" },
+  { value: "Outra Receita", label: "📌 Outra Receita" },
+];
+
+function toLocalDateInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayAndYesterday() {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  return {
+    today: toLocalDateInput(today),
+    yesterday: toLocalDateInput(yesterday),
+  };
+}
 
 const emptyForm: FinanceFormState = {
   apartmentId: "",
   rentalStayId: "",
-  type: "revenue",
-  category: "",
+  type: "expense",
+  category: "consumo",
   description: "",
   amount: "",
   currency: "BRL",
-  occurredOn: new Date().toISOString().slice(0, 10),
+  occurredOn: toLocalDateInput(new Date()),
 };
 
 export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
@@ -121,10 +150,30 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
             type: entry.type,
           });
         } else {
+          const searchParams =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search)
+              : null;
+          const paramType = searchParams?.get("type");
+          const initialType: FinancialEntryType =
+            paramType === "revenue" || paramType === "expense" ? paramType : "expense";
+          const paramCategory = searchParams?.get("category")?.trim();
+          const initialCategory =
+            paramCategory ||
+            (initialType === "expense" ? "consumo" : "Hospedagem Extra");
+          const paramApartmentId = searchParams?.get("apartmentId");
+          const initialApartmentId =
+            paramApartmentId &&
+            nextApartments.some((apartment) => apartment.id === paramApartmentId)
+              ? paramApartmentId
+              : (nextApartments[0]?.id ?? "");
+
           setForm({
             ...emptyForm,
-            apartmentId: nextApartments[0]?.id ?? "",
-            occurredOn: new Date().toISOString().slice(0, 10),
+            apartmentId: initialApartmentId,
+            category: initialCategory,
+            occurredOn: toLocalDateInput(new Date()),
+            type: initialType,
           });
         }
       } catch (error) {
@@ -141,9 +190,10 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
     event.preventDefault();
     const session = readStoredSession();
     const amountCents = parseMoneyToCents(form.amount);
+    const trimmedCategory = form.category.trim();
 
-    if (!session || !form.apartmentId || amountCents <= 0) {
-      setMessage("Informe apartamento e valor válido.");
+    if (!session || !form.apartmentId || !trimmedCategory || amountCents <= 0) {
+      setMessage("Informe apartamento, categoria e valor válido.");
       return;
     }
 
@@ -155,7 +205,7 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
         amountCents,
         apartmentId: form.apartmentId,
         rentalStayId: form.rentalStayId || undefined,
-        category: form.category,
+        category: trimmedCategory,
         currency: form.currency,
         description: form.description,
         occurredOn: form.occurredOn,
@@ -189,6 +239,57 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
         <p className="text-sm text-text-secondary">Carregando lançamento...</p>
       ) : (
         <form className="grid gap-4" onSubmit={submitEntry}>
+          <div className="grid gap-2">
+            <span className="text-sm font-medium text-text-secondary">Tipo</span>
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-surface-muted p-1.5">
+              <Button
+                aria-pressed={form.type === "expense"}
+                className={
+                  form.type === "expense"
+                    ? "min-h-11 border-danger/40 bg-danger-soft text-danger shadow-2xs hover:border-danger/60 hover:bg-danger-soft hover:text-danger"
+                    : "min-h-11 border-transparent bg-transparent text-text-secondary hover:bg-surface hover:text-text-primary"
+                }
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    type: "expense",
+                    category: expenseCategoryOptions.some((opt) => opt.value === prev.category)
+                      ? prev.category
+                      : "consumo",
+                  }))
+                }
+                size="md"
+                type="button"
+                variant="ghost"
+              >
+                - Despesa / Compra
+              </Button>
+              <Button
+                aria-pressed={form.type === "revenue"}
+                className={
+                  form.type === "revenue"
+                    ? "min-h-11 border-success/40 bg-success-soft text-success shadow-2xs hover:border-success/60 hover:bg-success-soft hover:text-success"
+                    : "min-h-11 border-transparent bg-transparent text-text-secondary hover:bg-surface hover:text-text-primary"
+                }
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    type: "revenue",
+                    category:
+                      prev.type === "revenue" && prev.category
+                        ? prev.category
+                        : "Hospedagem Extra",
+                  }))
+                }
+                size="md"
+                type="button"
+                variant="ghost"
+              >
+                + Receita Extra
+              </Button>
+            </div>
+          </div>
+
           <Field label="Apartamento">
             <Select
               disabled={apartments.length === 0}
@@ -220,66 +321,125 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
             </Field>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Tipo">
-              <Select
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    category: "",
-                    type: event.target.value as FinancialEntryType,
-                  })
-                }
-                value={form.type}
-              >
-                <option value="revenue">Receita</option>
-                <option value="expense">Despesa</option>
-              </Select>
-            </Field>
-
-            <Field label="Categoria">
-              {form.type === "expense" ? (
-                <Select
-                  onChange={(event) => setForm({ ...form, category: event.target.value })}
-                  required
-                  value={form.category}
-                >
-                  <option value="">Selecione</option>
-                  {expenseCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
+          <div className="grid gap-2 min-w-0">
+            <span className="text-sm font-medium text-text-secondary">Categoria</span>
+            {form.type === "expense" ? (
+              <div className="flex flex-wrap gap-2">
+                {expenseCategoryOptions.map((option) => {
+                  const isSelected = form.category === option.value;
+                  return (
+                    <Button
+                      aria-pressed={isSelected}
+                      className={
+                        isSelected
+                          ? "border-primary bg-primary-soft text-primary hover:border-primary hover:bg-primary-soft"
+                          : ""
+                      }
+                      key={option.value}
+                      onClick={() => setForm({ ...form, category: option.value })}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {option.label}
+                    </Button>
+                  );
+                })}
+                {form.category &&
+                !expenseCategoryOptions.some((option) => option.value === form.category) ? (
+                  <Button
+                    aria-pressed
+                    className="border-primary bg-primary-soft text-primary hover:border-primary hover:bg-primary-soft"
+                    onClick={() => setForm({ ...form, category: form.category })}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    {form.category}
+                  </Button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="grid gap-2.5 min-w-0">
+                <div className="flex flex-wrap gap-2">
+                  {revenueCategoryOptions.map((option) => {
+                    const isSelected = form.category === option.value;
+                    return (
+                      <Button
+                        aria-pressed={isSelected}
+                        className={
+                          isSelected
+                            ? "border-success/50 bg-success-soft text-success hover:border-success/70 hover:bg-success-soft hover:text-success"
+                            : ""
+                        }
+                        key={option.value}
+                        onClick={() => setForm({ ...form, category: option.value })}
+                        size="sm"
+                        type="button"
+                        variant="secondary"
+                      >
+                        {option.label}
+                      </Button>
+                    );
+                  })}
+                </div>
                 <Input
+                  aria-label="Categoria personalizada"
                   onChange={(event) => setForm({ ...form, category: event.target.value })}
-                  placeholder="Hospedagem"
+                  placeholder="Ou digite uma categoria personalizada"
                   required
                   value={form.category}
                 />
-              )}
-            </Field>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Valor">
+            <Field className="min-w-0" label="Valor">
               <Input
                 inputMode="decimal"
                 onChange={(event) => setForm({ ...form, amount: event.target.value })}
-                placeholder="1200,00"
+                placeholder="120,00"
                 required
                 value={form.amount}
               />
             </Field>
-            <Field label="Data">
-              <Input
-                onChange={(event) => setForm({ ...form, occurredOn: event.target.value })}
-                required
-                type="date"
-                value={form.occurredOn}
-              />
-            </Field>
+            <div className="grid gap-2 min-w-0">
+              <span className="text-sm font-medium text-text-secondary">Data</span>
+              {(() => {
+                const { today, yesterday } = getTodayAndYesterday();
+                return (
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <Input
+                      aria-label="Data"
+                      className="min-w-[140px] flex-1"
+                      onChange={(event) => setForm({ ...form, occurredOn: event.target.value })}
+                      required
+                      type="date"
+                      value={form.occurredOn}
+                    />
+                    <Button
+                      aria-pressed={form.occurredOn === today}
+                      size="sm"
+                      type="button"
+                      variant={form.occurredOn === today ? "primary" : "secondary"}
+                      onClick={() => setForm({ ...form, occurredOn: today })}
+                    >
+                      Hoje
+                    </Button>
+                    <Button
+                      aria-pressed={form.occurredOn === yesterday}
+                      size="sm"
+                      type="button"
+                      variant={form.occurredOn === yesterday ? "primary" : "secondary"}
+                      onClick={() => setForm({ ...form, occurredOn: yesterday })}
+                    >
+                      Ontem
+                    </Button>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
 
           <Field label="Descrição">

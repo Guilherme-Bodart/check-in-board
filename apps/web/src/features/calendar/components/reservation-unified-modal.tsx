@@ -9,23 +9,26 @@ import {
   Clock,
   Copy,
   DollarSign,
+  Loader2,
   Plus,
+  Receipt,
   Trash2,
   User,
   Users,
   Wrench,
 } from "lucide-react";
 
-import type { Apartment, RentalStay } from "../../../api";
+import { apiRequest, type Apartment, type FinancialEntry, type RentalStay, type Task, type TaskStatus } from "../../../api";
+import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../../../components/ui/dialog";
 import { Input, Select as FormSelect } from "../../../components/ui/form-controls";
 import { MessageBanner } from "../../../components/ui/message-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { readStoredSession } from "../../../lib/session-storage";
 import { createTask } from "../../dashboard/dashboard-api";
-import { createFinancialEntry } from "../../finance/finance-api";
+import { createFinancialEntry, fetchFinancialEntries } from "../../finance/finance-api";
 import { formatMoney, parseMoneyToCents } from "../../finance/money";
 import { createRentalStay, updateRentalStay } from "../../finance/rental-stay-api";
 import { createManualReservation, updateReservation } from "../../reservations/reservations-api";
@@ -62,6 +65,74 @@ const categoryLabels: Record<OperationalCategory, string> = {
   outros: "📌 Outra Tarefa / Despesa",
 };
 
+const financialCategoryLabels: Record<string, string> = {
+  ...categoryLabels,
+  consumo: "🛒 Consumo / Mercado",
+  enxoval: "🛏️ Enxoval",
+  condominio: "🏢 Condomínio",
+  contas: "⚡ Energia / Internet / Contas",
+  taxas: "📄 Taxas",
+};
+
+const operationalPresets: Array<{
+  label: string;
+  category: OperationalCategory;
+  title: string;
+  amount: string;
+  scheduleOn: OperationalItem["scheduleOn"];
+}> = [
+  {
+    label: "+ 🧹 Limpeza",
+    category: "limpeza",
+    title: "Limpeza e lavanderia pós check-out",
+    amount: "190,00",
+    scheduleOn: "checkout",
+  },
+  {
+    label: "+ 🛒 Consumo / Mercado",
+    category: "cortesia",
+    title: "Compra de insumos / mercado",
+    amount: "",
+    scheduleOn: "now",
+  },
+  {
+    label: "+ 🔧 Manutenção",
+    category: "manutencao",
+    title: "Manutenção / reparo no imóvel",
+    amount: "",
+    scheduleOn: "now",
+  },
+  {
+    label: "+ 📋 Vistoria",
+    category: "inspecao",
+    title: "Vistoria de check-out",
+    amount: "0,00",
+    scheduleOn: "checkout",
+  },
+];
+
+const taskStatusMeta: Record<
+  TaskStatus,
+  { label: string; tone: "warning" | "success" | "danger" | "neutral" }
+> = {
+  pending: { label: "Pendente", tone: "warning" },
+  done: { label: "Concluída", tone: "success" },
+  not_done: { label: "Não concluída", tone: "danger" },
+  cancelled: { label: "Cancelada", tone: "neutral" },
+};
+
+async function fetchTasks(token: string, apartmentId: string): Promise<Task[]> {
+  const response = await apiRequest<{ tasks: Task[] }>(
+    `/apartments/${apartmentId}/tasks`,
+    { token },
+  );
+  return response.tasks;
+}
+
+function createOperationalItemId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export function ReservationUnifiedModal({
   isOpen,
   reservation,
@@ -80,6 +151,7 @@ export function ReservationUnifiedModal({
   const isAirbnb = provider === "airbnb";
 
   const [activeTab, setActiveTab] = useState<"main" | "operational">("main");
+  const [reservationMode, setReservationMode] = useState<"guest" | "owner_block">("guest");
 
   // Form states
   const [formApartmentId, setFormApartmentId] = useState("");
@@ -92,16 +164,12 @@ export function ReservationUnifiedModal({
   const [rentAmount, setRentAmount] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Operational items
-  const [operationalItems, setOperationalItems] = useState<OperationalItem[]>([
-    {
-      id: "1",
-      category: "limpeza",
-      title: "Limpeza e lavanderia pós check-out",
-      amount: "190,00",
-      scheduleOn: "checkout",
-    },
-  ]);
+  // Operational items (existing & new)
+  const [existingTasks, setExistingTasks] = useState<Task[]>([]);
+  const [existingEntries, setExistingEntries] = useState<FinancialEntry[]>([]);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+  const [isAddSectionOpen, setIsAddSectionOpen] = useState(true);
+  const [operationalItems, setOperationalItems] = useState<OperationalItem[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -126,6 +194,14 @@ export function ReservationUnifiedModal({
   const totalOperationalExpensesCents = useMemo(() => {
     return operationalItems.reduce((sum, item) => sum + parseMoneyToCents(item.amount), 0);
   }, [operationalItems]);
+
+  const existingOperationalExpensesCents = useMemo(() => {
+    return existingEntries
+      .filter((entry) => entry.type === "expense")
+      .reduce((sum, entry) => sum + entry.amountCents, 0);
+  }, [existingEntries]);
+
+  const existingCount = existingTasks.length + existingEntries.length;
 
   const conflictingReservation = useMemo(() => {
     if (!formApartmentId || !startsAt || !endsAt) return null;
@@ -156,6 +232,12 @@ export function ReservationUnifiedModal({
         setEndsAt(reservation.endsAt.substring(0, 10));
         setCheckInTime("14:00");
         setCheckOutTime("10:00");
+        setReservationMode(
+          reservation.guestName === "Uso do Proprietário / Manutenção" &&
+            (!existingStay || existingStay.rentAmountCents === 0)
+            ? "owner_block"
+            : "guest",
+        );
 
         if (existingStay) {
           setRentAmount(
@@ -169,15 +251,9 @@ export function ReservationUnifiedModal({
           setNotes("");
         }
 
-        setOperationalItems([
-          {
-            id: "1",
-            category: "limpeza",
-            title: "Limpeza e lavanderia pós check-out",
-            amount: "190,00",
-            scheduleOn: "checkout",
-          },
-        ]);
+        // Never pre-populate a default item when editing so saves don't duplicate existing tasks/expenses
+        setOperationalItems([]);
+        setIsAddSectionOpen(false);
       } else {
         const initialAptId =
           defaultApartmentId && defaultApartmentId !== "all"
@@ -190,6 +266,7 @@ export function ReservationUnifiedModal({
         setCheckInTime("14:00");
         setCheckOutTime("10:00");
         setNotes("");
+        setReservationMode("guest");
 
         const start = initialStartDate || new Date().toISOString().substring(0, 10);
         setStartsAt(start);
@@ -201,6 +278,7 @@ export function ReservationUnifiedModal({
           setEndsAt(d.toISOString().substring(0, 10));
         }
 
+        setIsAddSectionOpen(true);
         setOperationalItems([
           {
             id: "1",
@@ -214,21 +292,109 @@ export function ReservationUnifiedModal({
     }
   }, [isOpen, reservation, existingStay, apartments, defaultApartmentId, initialStartDate, initialEndDate]);
 
+  useEffect(() => {
+    if (!isOpen || !reservation) {
+      setExistingTasks([]);
+      setExistingEntries([]);
+      setIsLoadingExisting(false);
+      return;
+    }
+
+    const session = readStoredSession();
+    if (!session) {
+      setExistingTasks([]);
+      setExistingEntries([]);
+      setIsLoadingExisting(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingExisting(true);
+    setExistingTasks([]);
+    setExistingEntries([]);
+
+    const startBase = new Date(reservation.startsAt);
+    const safeStart = Number.isNaN(startBase.getTime()) ? new Date() : startBase;
+    const fromDate = new Date(safeStart);
+    fromDate.setDate(fromDate.getDate() - 60);
+
+    const endBase = new Date(reservation.endsAt || reservation.startsAt);
+    const safeEnd = Number.isNaN(endBase.getTime()) || endBase < safeStart ? safeStart : endBase;
+    const toDate = new Date(safeEnd);
+    toDate.setDate(toDate.getDate() + 60);
+
+    const dateFrom = fromDate.toISOString().slice(0, 10);
+    const dateTo = toDate.toISOString().slice(0, 10);
+
+    Promise.all([
+      fetchTasks(session.token, reservation.apartmentId).catch(() => [] as Task[]),
+      fetchFinancialEntries(session.token, {
+        apartmentId: reservation.apartmentId,
+        dateFrom,
+        dateTo,
+      }).catch(() => [] as FinancialEntry[]),
+    ])
+      .then(([tasks, entries]) => {
+        if (cancelled) return;
+        setExistingTasks(tasks.filter((task) => task.reservationId === reservation.id));
+        setExistingEntries(entries.filter((entry) => entry.rentalStayId === reservation.id));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingExisting(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, reservation]);
+
   const isGenericAirbnbSummary =
     isAirbnb &&
     (!reservation?.guestName || reservation.guestName.trim() === "") &&
     (reservation?.rawSummary?.toLowerCase().includes("reserved") ||
       reservation?.rawSummary?.toLowerCase().includes("airbnb"));
 
+  function selectReservationMode(mode: "guest" | "owner_block") {
+    setReservationMode(mode);
+    if (mode === "owner_block") {
+      setGuestName("Uso do Proprietário / Manutenção");
+      setRentAmount("0,00");
+    } else {
+      if (guestName === "Uso do Proprietário / Manutenção") {
+        setGuestName("");
+      }
+      if (rentAmount === "0,00") {
+        setRentAmount("");
+      }
+    }
+  }
+
   function addOperationalItem() {
+    setIsAddSectionOpen(true);
     setOperationalItems((prev) => [
       ...prev,
       {
-        id: String(Date.now()),
+        id: createOperationalItemId(),
         category: "manutencao",
         title: "",
         amount: "0,00",
         scheduleOn: "checkout",
+      },
+    ]);
+  }
+
+  function addOperationalPreset(preset: (typeof operationalPresets)[number]) {
+    setIsAddSectionOpen(true);
+    setOperationalItems((prev) => [
+      ...prev,
+      {
+        id: createOperationalItemId(),
+        category: preset.category,
+        title: preset.title,
+        amount: preset.amount,
+        scheduleOn: preset.scheduleOn,
       },
     ]);
   }
@@ -458,7 +624,11 @@ export function ReservationUnifiedModal({
                 </TabsTrigger>
                 <TabsTrigger value="operational" className="gap-1.5 text-xs">
                   <Wrench className="h-3.5 w-3.5" />
-                  Tarefas & Limpeza ({operationalItems.length})
+                  Tarefas & Limpeza (
+                  {isEditing
+                    ? `${existingCount}${operationalItems.length > 0 ? ` + ${operationalItems.length}` : ""}`
+                    : operationalItems.length}
+                  )
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -482,6 +652,33 @@ export function ReservationUnifiedModal({
 
             {activeTab === "main" ? (
               <div className="space-y-4">
+                {!isIcal && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-muted/40 p-1.5">
+                    <button
+                      className={`flex-1 min-w-[140px] cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition active:scale-[0.98] ${
+                        reservationMode === "guest"
+                          ? "bg-surface text-primary shadow-2xs ring-1 ring-primary/25"
+                          : "text-text-secondary hover:bg-surface/60 hover:text-text-primary"
+                      }`}
+                      onClick={() => selectReservationMode("guest")}
+                      type="button"
+                    >
+                      Reserva de Hóspede
+                    </button>
+                    <button
+                      className={`flex-1 min-w-[160px] cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition active:scale-[0.98] ${
+                        reservationMode === "owner_block"
+                          ? "bg-surface text-warning shadow-2xs ring-1 ring-warning/35"
+                          : "text-text-secondary hover:bg-surface/60 hover:text-text-primary"
+                      }`}
+                      onClick={() => selectReservationMode("owner_block")}
+                      type="button"
+                    >
+                      Bloqueio / Uso do Proprietário
+                    </button>
+                  </div>
+                )}
+
                 {/* Seção 1: Imóvel e Período */}
                 <div className="rounded-2xl border border-border bg-surface p-4 space-y-4">
                   {/* Imóvel */}
@@ -682,122 +879,281 @@ export function ReservationUnifiedModal({
             ) : (
               /* ABA 2: Tarefas & Despesas Operacionais */
               <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-muted/30 px-4 py-3">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
-                      Governança, Limpeza & Manutenção
-                    </h4>
-                    <p className="text-[11px] text-text-muted">
-                      Itens com valor geram lançamento automático no Financeiro e tarefa no Checklist.
-                    </p>
-                  </div>
-                  <Button
-                    className="h-9 gap-1.5 text-xs"
-                    onClick={addOperationalItem}
-                    type="button"
-                    variant="secondary"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Nova Tarefa
-                  </Button>
-                </div>
-
-                {operationalItems.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border py-10 text-center text-xs text-text-muted">
-                    Nenhuma tarefa ou despesa operacional vinculada a esta reserva.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {operationalItems.map((item) => (
-                      <div
-                        className="rounded-2xl border border-border bg-surface p-3.5 space-y-3 shadow-2xs"
-                        key={item.id}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                            <div className="min-w-[165px]">
-                              <FormSelect
-                                className="h-8 rounded-lg border-border bg-surface-muted px-2.5 text-xs font-bold text-text-primary"
-                                onChange={(e) =>
-                                  updateOperationalItem(item.id, {
-                                    category: e.target.value as OperationalCategory,
-                                  })
-                                }
-                                value={item.category}
-                              >
-                                {Object.entries(categoryLabels).map(([key, label]) => (
-                                  <option key={key} value={key}>
-                                    {label}
-                                  </option>
-                                ))}
-                              </FormSelect>
-                            </div>
-
-                            <div className="min-w-[215px]">
-                              <FormSelect
-                                className="h-8 rounded-lg border-border bg-surface-muted px-2.5 text-xs font-medium text-text-secondary"
-                                onChange={(e) =>
-                                  updateOperationalItem(item.id, {
-                                    scheduleOn: e.target.value as "checkout" | "checkin" | "now",
-                                  })
-                                }
-                                value={item.scheduleOn}
-                              >
-                                <option value="checkout">Agendar na Saída ({checkOutTime})</option>
-                                <option value="checkin">Agendar na Entrada ({checkInTime})</option>
-                                <option value="now">Execução Imediata</option>
-                              </FormSelect>
-                            </div>
-                          </div>
-
-                          <button
-                            aria-label="Remover tarefa"
-                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/60 text-text-muted transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                            onClick={() => removeOperationalItem(item.id)}
-                            type="button"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                          <div className="sm:col-span-8 min-w-0">
-                            <Input
-                              className="h-9 w-full text-xs sm:text-sm"
-                              onChange={(e) =>
-                                updateOperationalItem(item.id, { title: e.target.value })
-                              }
-                              placeholder="Descrição da atividade (ex: Limpeza pós check-out)"
-                              value={item.title}
-                            />
-                          </div>
-                          <div className="sm:col-span-4 min-w-0">
-                            <div className="relative">
-                              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-text-muted">
-                                R$
-                              </span>
-                              <Input
-                                className="h-9 w-full pl-8 text-xs sm:text-sm font-semibold text-emerald-700"
-                                inputMode="decimal"
-                                onChange={(e) =>
-                                  updateOperationalItem(item.id, { amount: e.target.value })
-                                }
-                                placeholder="0,00"
-                                value={item.amount}
-                              />
-                            </div>
-                          </div>
-                        </div>
+                {isEditing && (
+                  <div className="rounded-2xl border border-border bg-surface p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                          Já registrado nesta reserva
+                        </h4>
+                        <p className="text-[11px] text-text-muted">
+                          Tarefas de operação e lançamentos financeiros já vinculados a esta hospedagem.
+                        </p>
                       </div>
-                    ))}
+                      {existingCount > 0 && (
+                        <Badge tone="neutral">
+                          {existingCount} {existingCount === 1 ? "registro" : "registros"}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {isLoadingExisting ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-surface-muted/40 px-3.5 py-3 text-xs text-text-muted">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                        Carregando tarefas e lançamentos vinculados...
+                      </div>
+                    ) : existingTasks.length === 0 && existingEntries.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-border bg-surface-muted/25 px-4 py-4 text-center text-xs text-text-muted">
+                        Nenhuma tarefa ou despesa registrada ainda para esta reserva.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {existingTasks.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                              Tarefas ({existingTasks.length})
+                            </p>
+                            <div className="space-y-1.5">
+                              {existingTasks.map((task) => {
+                                const statusInfo = taskStatusMeta[task.status] ?? {
+                                  label: task.status,
+                                  tone: "neutral" as const,
+                                };
+                                return (
+                                  <div
+                                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-surface-muted/30 px-3 py-2.5"
+                                    key={task.id}
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-semibold text-text-primary truncate">
+                                        {task.title}
+                                      </p>
+                                      {task.description && (
+                                        <p className="text-[11px] text-text-muted truncate">
+                                          {task.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="text-[11px] font-medium text-text-muted whitespace-nowrap">
+                                        {formatDateBR(task.dueAt)}
+                                      </span>
+                                      <Badge tone={statusInfo.tone}>{statusInfo.label}</Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {existingEntries.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                              Lançamentos Financeiros ({existingEntries.length})
+                            </p>
+                            <div className="space-y-1.5">
+                              {existingEntries.map((entry) => {
+                                const categoryLabel =
+                                  financialCategoryLabels[entry.category] ?? entry.category;
+                                const isExpense = entry.type === "expense";
+                                return (
+                                  <div
+                                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-surface-muted/30 px-3 py-2.5"
+                                    key={entry.id}
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <Receipt className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                                        <p className="text-xs font-semibold text-text-primary truncate">
+                                          {categoryLabel}
+                                        </p>
+                                      </div>
+                                      {entry.description && (
+                                        <p className="text-[11px] text-text-muted truncate pl-5">
+                                          {entry.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="text-[11px] font-medium text-text-muted whitespace-nowrap">
+                                        {formatDateBR(entry.occurredOn)}
+                                      </span>
+                                      <Badge tone={isExpense ? "danger" : "success"}>
+                                        {isExpense ? "-" : "+"} {formatMoney(entry.amountCents, entry.currency)}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                <div className="flex items-center justify-between rounded-xl border border-border bg-surface-muted/40 px-4 py-3 text-xs font-semibold text-text-primary">
-                  <span>Total de Despesas Operacionais:</span>
-                  <span className="text-sm font-bold text-emerald-700">
-                    {formatMoney(totalOperationalExpensesCents)}
+                {/* Seção B: Adicionar novos itens */}
+                <div className="rounded-2xl border border-border bg-surface-muted/30 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                        Adicionar novos itens
+                      </h4>
+                      <p className="text-[11px] text-text-muted">
+                        Itens com valor geram lançamento automático no Financeiro e tarefa no Checklist.
+                      </p>
+                    </div>
+                    {!isAddSectionOpen ? (
+                      <Button
+                        onClick={() => setIsAddSectionOpen(true)}
+                        size="sm"
+                        type="button"
+                        variant="secondary"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Adicionar tarefa ou despesa
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={addOperationalItem}
+                        size="sm"
+                        type="button"
+                        variant="secondary"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Item em branco
+                      </Button>
+                    )}
+                  </div>
+
+                  {isAddSectionOpen && (
+                    <div className="space-y-3 pt-1">
+                      {/* Atalhos rápidos 1-clique */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {operationalPresets.map((preset) => (
+                          <button
+                            className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs transition hover:border-primary/60 hover:bg-primary-soft/35 hover:text-primary active:scale-[0.98]"
+                            key={preset.label}
+                            onClick={() => addOperationalPreset(preset)}
+                            type="button"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {operationalItems.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-center text-xs text-text-muted">
+                          Clique em um atalho acima ou em &ldquo;Item em branco&rdquo; para adicionar uma nova tarefa ou despesa.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {operationalItems.map((item) => (
+                            <div
+                              className="rounded-2xl border border-border bg-surface p-3.5 space-y-3 shadow-2xs"
+                              key={item.id}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                                  <div className="min-w-[165px]">
+                                    <FormSelect
+                                      className="h-8 rounded-lg border-border bg-surface-muted px-2.5 text-xs font-bold text-text-primary"
+                                      onChange={(e) =>
+                                        updateOperationalItem(item.id, {
+                                          category: e.target.value as OperationalCategory,
+                                        })
+                                      }
+                                      value={item.category}
+                                    >
+                                      {Object.entries(categoryLabels).map(([key, label]) => (
+                                        <option key={key} value={key}>
+                                          {label}
+                                        </option>
+                                      ))}
+                                    </FormSelect>
+                                  </div>
+
+                                  <div className="min-w-[215px]">
+                                    <FormSelect
+                                      className="h-8 rounded-lg border-border bg-surface-muted px-2.5 text-xs font-medium text-text-secondary"
+                                      onChange={(e) =>
+                                        updateOperationalItem(item.id, {
+                                          scheduleOn: e.target.value as "checkout" | "checkin" | "now",
+                                        })
+                                      }
+                                      value={item.scheduleOn}
+                                    >
+                                      <option value="checkout">Agendar na Saída ({checkOutTime})</option>
+                                      <option value="checkin">Agendar na Entrada ({checkInTime})</option>
+                                      <option value="now">Execução Imediata</option>
+                                    </FormSelect>
+                                  </div>
+                                </div>
+
+                                <button
+                                  aria-label="Remover tarefa"
+                                  className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg border border-border/60 text-text-muted transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
+                                  onClick={() => removeOperationalItem(item.id)}
+                                  type="button"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                                <div className="sm:col-span-8 min-w-0">
+                                  <Input
+                                    className="h-9 w-full text-xs sm:text-sm"
+                                    onChange={(e) =>
+                                      updateOperationalItem(item.id, { title: e.target.value })
+                                    }
+                                    placeholder="Descrição da atividade (ex: Limpeza pós check-out)"
+                                    value={item.title}
+                                  />
+                                </div>
+                                <div className="sm:col-span-4 min-w-0">
+                                  <div className="relative">
+                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-text-muted">
+                                      R$
+                                    </span>
+                                    <Input
+                                      className="h-9 w-full pl-8 text-xs sm:text-sm font-semibold text-emerald-700"
+                                      inputMode="decimal"
+                                      onChange={(e) =>
+                                        updateOperationalItem(item.id, { amount: e.target.value })
+                                      }
+                                      placeholder="0,00"
+                                      value={item.amount}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface-muted/40 px-4 py-3 text-xs font-semibold text-text-primary">
+                  <span>
+                    {isEditing
+                      ? "Novas Despesas a Lançar:"
+                      : "Total de Despesas Operacionais:"}
                   </span>
+                  <div className="flex items-center gap-3">
+                    {isEditing && existingOperationalExpensesCents > 0 && (
+                      <span className="text-[11px] font-medium text-text-muted">
+                        Já lançado: {formatMoney(existingOperationalExpensesCents)}
+                      </span>
+                    )}
+                    <span className="text-sm font-bold text-emerald-700">
+                      {formatMoney(totalOperationalExpensesCents)}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

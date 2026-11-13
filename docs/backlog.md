@@ -9,9 +9,6 @@
 
 ## Evoluções Futuras Candidatas (`P2` — Opcionais)
 
-- **`FUT-CAL-01` — Bloqueio de Datas / Uso do Proprietário no Calendário:**
-  - *O que é:* Permitir bloquear datas no Cronograma para manutenção ou uso do próprio dono do imóvel (sem contabilizar como receita de hóspede, mas bloqueando conflitos).
-  - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)**
 - **`FUT-CAL-02` — Endpoint Agregado do Operations Board (`GET /operations-board`):**
   - *O que é:* Consolidar a busca de `"Todos os apartamentos"` do `/dashboard` em uma única chamada HTTP no backend Spring.
   - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)**
