@@ -212,9 +212,9 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <main className="min-h-screen bg-background text-text-primary lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+    <main className="min-h-screen max-w-full overflow-x-clip bg-background text-text-primary lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
       <Sidebar currentPath={pathname} onSignOut={signOut} userRole={userRole} />
-      <section className="min-w-0">
+      <section className="min-w-0 max-w-full overflow-x-clip">
         <header className="sticky top-0 z-20 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:px-8 md:py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -252,7 +252,7 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <div className="px-4 py-5 md:px-8 lg:py-8 pb-28 lg:pb-8">
+        <div className="min-w-0 max-w-full px-4 py-5 md:px-8 lg:py-8 pb-28 lg:pb-8">
           {showAutoSyncBanner ? (
             <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary-soft/60 px-3.5 py-2.5 text-xs text-text-primary">
               <div className="flex min-w-0 items-center gap-2">

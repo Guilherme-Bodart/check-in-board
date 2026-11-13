@@ -121,8 +121,8 @@ export function CalendarTimelineView({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-2xs">
-      <div className="overflow-x-auto" ref={scrollContainerRef}>
+    <div className="min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-border bg-surface shadow-2xs">
+      <div className="w-full max-w-full overflow-x-auto overscroll-x-contain" ref={scrollContainerRef}>
         <div className="inline-block min-w-full align-middle">
           {/* Header Row: UNIDADE + Days of Month */}
           <div className="flex border-b border-border bg-surface-muted/80">

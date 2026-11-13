@@ -289,9 +289,9 @@ export function CalendarPage() {
   }, [month]);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 max-w-full gap-4">
       {/* 4-Col KPI Strip on Desktop Only (Hidden on Mobile for Immediate Schedule View) */}
-      <div className="hidden md:block">
+      <div className="hidden min-w-0 md:block">
         <CalendarStats
           apartments={apartments}
           isPendingFilterActive={isPendingFilterActive}
@@ -304,13 +304,13 @@ export function CalendarPage() {
       </div>
 
       {/* Main Calendar Card (Mobile-First matching Stitch reference) */}
-      <section className="rounded-xl border border-border bg-surface p-3.5 sm:p-5 shadow-2xs">
+      <section className="min-w-0 max-w-full rounded-xl border border-border bg-surface p-3.5 sm:p-5 shadow-2xs">
         <div className="flex flex-col gap-3.5">
           {/* Row 1: View Switcher (Cronograma / Mês) + Primary "+ Reserva" Button */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
             <div className="flex rounded-xl border border-border bg-surface-muted p-1">
               <button
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                   viewMode === "timeline"
                     ? "bg-surface text-primary shadow-2xs"
                     : "text-text-secondary hover:text-text-primary"
@@ -322,7 +322,7 @@ export function CalendarPage() {
                 Cronograma
               </button>
               <button
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                   viewMode === "grid"
                     ? "bg-surface text-primary shadow-2xs"
                     : "text-text-secondary hover:text-text-primary"
@@ -337,7 +337,7 @@ export function CalendarPage() {
 
             <div className="flex items-center gap-2">
               <button
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary disabled:opacity-50"
+                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isSyncingAirbnb}
                 onClick={handleSyncAirbnb}
                 title="Sincronizar reservas iCal do Airbnb agora"
@@ -360,7 +360,7 @@ export function CalendarPage() {
               </button>
 
               <button
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
                 onClick={() => handleOpenCreateModal()}
                 type="button"
               >
@@ -375,7 +375,7 @@ export function CalendarPage() {
             <div className="flex items-center gap-2">
               <button
                 aria-label="Mês anterior"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-muted text-text-primary transition hover:bg-border/60 active:scale-95"
+                className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg bg-surface-muted text-text-primary transition hover:bg-border/60 active:scale-95"
                 onClick={() => shiftMonth(-1)}
                 type="button"
               >
@@ -388,7 +388,7 @@ export function CalendarPage() {
 
               <button
                 aria-label="Próximo mês"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-muted text-text-primary transition hover:bg-border/60 active:scale-95"
+                className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg bg-surface-muted text-text-primary transition hover:bg-border/60 active:scale-95"
                 onClick={() => shiftMonth(1)}
                 type="button"
               >
@@ -408,7 +408,7 @@ export function CalendarPage() {
               </div>
 
               <button
-                className="h-9 shrink-0 rounded-lg bg-primary-soft px-3 text-xs font-bold text-primary transition hover:brightness-95 active:scale-95"
+                className="h-9 shrink-0 cursor-pointer rounded-lg bg-primary-soft px-3 text-xs font-bold text-primary transition hover:brightness-95 active:scale-95"
                 onClick={handleResetToCurrentMonth}
                 title="Ir para o mês atual"
                 type="button"
@@ -453,7 +453,7 @@ export function CalendarPage() {
 
             {/* Quick Pending Filter Pill */}
             <button
-              className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition ${
+              className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition ${
                 isPendingFilterActive
                   ? "border-amber-500 bg-amber-50 text-amber-900 font-semibold"
                   : "border-border bg-surface-muted/70 text-text-secondary hover:text-text-primary"
@@ -493,13 +493,15 @@ export function CalendarPage() {
           </div>
         ) : (
           /* Calendar Main View Immediately Visible */
-          <div className="mt-3">
+          <div className="mt-3 min-w-0 max-w-full">
             {viewMode === "grid" ? (
               <CalendarGridView
+                apartments={apartments}
                 calendarDays={calendarDays}
                 isLoading={isLoading}
                 onDayClick={(date) => handleOpenCreateModal(date)}
                 onReservationClick={handleOpenEditModal}
+                onSelectApartment={changeApartment}
                 rentalStaysMap={rentalStaysMap}
                 reservationsByDay={reservationsByDay}
                 selectedApartmentId={selectedApartmentId}
@@ -521,7 +523,7 @@ export function CalendarPage() {
       </section>
 
       {/* Bottom Section: Detailed Reservation List for the Month (Stitch Mobile-First Cards) */}
-      <section className="rounded-xl border border-border bg-surface p-4 sm:p-6 shadow-2xs">
+      <section className="min-w-0 max-w-full rounded-xl border border-border bg-surface p-4 sm:p-6 shadow-2xs">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
@@ -649,7 +651,7 @@ export function CalendarPage() {
                       </div>
 
                       <button
-                        className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
+                        className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
                         onClick={() => handleOpenEditModal(reservation)}
                         type="button"
                       >
@@ -705,12 +707,15 @@ function buildCalendarDays(month: string): CalendarDay[] {
   const range = monthRange(month);
   if (!range) return [];
 
+  const [yearValue, monthValue] = month.split("-").map(Number);
+  const daysInMonth = new Date(yearValue, monthValue, 0).getDate();
   const firstWeekday = new Date(`${range.monthStart}T12:00:00`).getDay();
+  const totalCells = firstWeekday + daysInMonth <= 35 ? 35 : 42;
   const start = addDays(range.monthStart, -firstWeekday);
   const todayStr = new Date().toISOString().slice(0, 10);
   const days: CalendarDay[] = [];
 
-  for (let index = 0; index < 42; index += 1) {
+  for (let index = 0; index < totalCells; index += 1) {
     const date = addDays(start, index);
     const dayDate = new Date(`${date}T12:00:00`);
     const weekDay = dayDate.getDay();
