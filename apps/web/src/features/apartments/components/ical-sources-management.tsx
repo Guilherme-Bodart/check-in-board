@@ -14,6 +14,7 @@ import {
 
 import type { Apartment, IcalSource, SyncRun } from "../../../api";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+import { Input, Select } from "../../../components/ui/form-controls";
 import { formatDateTime } from "../../../lib/date-formatters";
 import { readStoredSession } from "../../../lib/session-storage";
 import {
@@ -331,8 +332,7 @@ export function IcalSourcesManagement({
           </div>
           <div className="mt-4 grid gap-3">
             <Field label="Provider">
-              <select
-                className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
+              <Select
                 onChange={(event) =>
                   setForm({ ...form, provider: event.target.value })
                 }
@@ -340,19 +340,17 @@ export function IcalSourcesManagement({
               >
                 <option value="airbnb">Airbnb</option>
                 <option value="booking">Booking</option>
-              </select>
+              </Select>
             </Field>
             <Field label="Nome interno">
-              <input
-                className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
+              <Input
                 onChange={(event) => setForm({ ...form, label: event.target.value })}
                 placeholder={`${form.provider.toUpperCase()} - ${apartment.name}`}
                 value={form.label}
               />
             </Field>
             <Field label="URL iCal">
-              <input
-                className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
+              <Input
                 onChange={(event) => setForm({ ...form, url: event.target.value })}
                 placeholder={
                   isEditing ? "Deixe vazio para manter a URL atual" : "https://..."

@@ -19,7 +19,7 @@ import {
 import type { Apartment, RentalStay } from "../../../api";
 import { Button } from "../../../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../../../components/ui/dialog";
-import { Input } from "../../../components/ui/form-controls";
+import { Input, Select as FormSelect } from "../../../components/ui/form-controls";
 import { MessageBanner } from "../../../components/ui/message-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
@@ -715,35 +715,39 @@ export function ReservationUnifiedModal({
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                            <select
-                              className="h-8 rounded-lg border border-border bg-surface-muted px-2.5 text-xs font-bold text-text-primary outline-none focus:border-primary"
-                              onChange={(e) =>
-                                updateOperationalItem(item.id, {
-                                  category: e.target.value as OperationalCategory,
-                                })
-                              }
-                              value={item.category}
-                            >
-                              {Object.entries(categoryLabels).map(([key, label]) => (
-                                <option key={key} value={key}>
-                                  {label}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="min-w-[165px]">
+                              <FormSelect
+                                className="h-8 rounded-lg border-border bg-surface-muted px-2.5 text-xs font-bold text-text-primary"
+                                onChange={(e) =>
+                                  updateOperationalItem(item.id, {
+                                    category: e.target.value as OperationalCategory,
+                                  })
+                                }
+                                value={item.category}
+                              >
+                                {Object.entries(categoryLabels).map(([key, label]) => (
+                                  <option key={key} value={key}>
+                                    {label}
+                                  </option>
+                                ))}
+                              </FormSelect>
+                            </div>
 
-                            <select
-                              className="h-8 rounded-lg border border-border bg-surface-muted px-2.5 text-xs font-medium text-text-secondary outline-none focus:border-primary"
-                              onChange={(e) =>
-                                updateOperationalItem(item.id, {
-                                  scheduleOn: e.target.value as "checkout" | "checkin" | "now",
-                                })
-                              }
-                              value={item.scheduleOn}
-                            >
-                              <option value="checkout">Agendar na Saída ({checkOutTime})</option>
-                              <option value="checkin">Agendar na Entrada ({checkInTime})</option>
-                              <option value="now">Execução Imediata</option>
-                            </select>
+                            <div className="min-w-[215px]">
+                              <FormSelect
+                                className="h-8 rounded-lg border-border bg-surface-muted px-2.5 text-xs font-medium text-text-secondary"
+                                onChange={(e) =>
+                                  updateOperationalItem(item.id, {
+                                    scheduleOn: e.target.value as "checkout" | "checkin" | "now",
+                                  })
+                                }
+                                value={item.scheduleOn}
+                              >
+                                <option value="checkout">Agendar na Saída ({checkOutTime})</option>
+                                <option value="checkin">Agendar na Entrada ({checkInTime})</option>
+                                <option value="now">Execução Imediata</option>
+                              </FormSelect>
+                            </div>
                           </div>
 
                           <button

@@ -45,3 +45,28 @@ select,
 textarea {
   font: inherit;
 }
+
+/* Global Interactive Affordance Rules (Tailwind v4 Preflight Fix) */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]):not([data-disabled]),
+[role="tab"]:not([aria-disabled="true"]):not([data-disabled]),
+[role="option"]:not([aria-disabled="true"]):not([data-disabled]),
+[role="menuitem"]:not([aria-disabled="true"]):not([data-disabled]),
+a[href],
+select:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled="true"],
+[data-disabled] {
+  cursor: not-allowed;
+}
+
+button:not(:disabled):active {
+  transform: translateY(0.5px);
+}

@@ -28,6 +28,7 @@ import {
 } from "./reservation-view-model";
 import { ReservationUnifiedModal } from "../calendar/components/reservation-unified-modal";
 import { EmptyState } from "../../components/ui/empty-state";
+import { Select } from "../../components/ui/form-controls";
 
 const allApartmentsValue = "all";
 
@@ -220,18 +221,20 @@ export function ReservationsPage() {
               />
             </div>
 
-            <select
-              className="h-10 rounded-lg border border-border bg-surface-muted/50 px-3 text-xs font-semibold text-text-primary outline-none transition focus:border-primary focus:bg-surface"
-              onChange={(event) => changeApartment(event.target.value)}
-              value={selectedApartmentId}
-            >
-              <option value={allApartmentsValue}>{messages.reservations.allApartments}</option>
-              {apartments.map((apartment) => (
-                <option key={apartment.id} value={apartment.id}>
-                  {apartment.name}
-                </option>
-              ))}
-            </select>
+            <div className="min-w-[200px] sm:w-56">
+              <Select
+                className="h-10 rounded-lg border-border bg-surface-muted/50 px-3 text-xs font-semibold text-text-primary"
+                onChange={(event) => changeApartment(event.target.value)}
+                value={selectedApartmentId}
+              >
+                <option value={allApartmentsValue}>{messages.reservations.allApartments}</option>
+                {apartments.map((apartment) => (
+                  <option key={apartment.id} value={apartment.id}>
+                    {apartment.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
             <button
               className="hidden xl:inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"

@@ -3,6 +3,7 @@
 import { AlertTriangle } from "lucide-react";
 
 import { messages } from "../../i18n";
+import { Button } from "./button";
 import { Dialog, DialogContent, DialogTitle } from "./dialog";
 
 export function ConfirmDialog({
@@ -36,22 +37,20 @@ export function ConfirmDialog({
         </div>
 
         <div className="mt-6 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
-          <button
-            className="h-10 rounded-xl border border-border px-4 text-sm font-semibold text-text-secondary transition hover:border-primary hover:text-primary"
+          <Button
             disabled={isWorking}
             onClick={onCancel}
-            type="button"
+            variant="secondary"
           >
             {messages.common.cancel}
-          </button>
-          <button
-            className="h-10 rounded-xl bg-danger px-4 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+          </Button>
+          <Button
             disabled={isWorking}
             onClick={onConfirm}
-            type="button"
+            variant="danger"
           >
             {isWorking ? messages.common.removing : confirmLabel}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

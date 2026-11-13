@@ -46,6 +46,7 @@ import { CalendarTimelineView } from "./components/calendar-timeline-view";
 import { ReservationUnifiedModal } from "./components/reservation-unified-modal";
 import { CalendarReportsModal } from "./components/calendar-reports-modal";
 import { EmptyState } from "../../components/ui/empty-state";
+import { Select } from "../../components/ui/form-controls";
 
 const allApartmentsValue = "all";
 
@@ -410,35 +411,36 @@ export function CalendarPage() {
           </div>
 
           {/* Row 3: Horizontal Filter Pills (Todos os Apês / Canais / Pendências) */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {/* Dark Pill Select for Apartments */}
-            <select
-              className="h-8 shrink-0 cursor-pointer rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white outline-none transition hover:bg-slate-800"
-              onChange={(e) => changeApartment(e.target.value)}
-              value={selectedApartmentId}
-            >
-              <option value={allApartmentsValue}>
-                Todos os Apês ({apartments.length})
-              </option>
-              {apartments.map((apt) => (
-                <option key={apt.id} value={apt.id}>
-                  {apt.name}
+          <div className="flex flex-wrap items-center gap-2 pb-1">
+            {/* Apartment Filter Dropdown (Radix UI Select) */}
+            <div className="min-w-[180px] sm:min-w-[210px]">
+              <Select
+                className="h-8 rounded-lg bg-slate-900 border-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 hover:border-slate-800 [&_svg]:text-slate-300"
+                onChange={(e) => changeApartment(e.target.value)}
+                value={selectedApartmentId}
+              >
+                <option value={allApartmentsValue}>
+                  Todos os Apês ({apartments.length})
                 </option>
-              ))}
-            </select>
+                {apartments.map((apt) => (
+                  <option key={apt.id} value={apt.id}>
+                    {apt.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-            {/* Channel Filter Pill */}
-            <div className="relative flex items-center shrink-0">
-              <span className="pointer-events-none absolute left-2.5 h-2 w-2 rounded-full bg-primary" />
-              <select
-                className="h-8 cursor-pointer rounded-lg border border-border bg-surface-muted/70 pl-6 pr-2.5 text-xs font-medium text-text-primary outline-none transition hover:bg-surface-muted"
+            {/* Channel Filter Dropdown (Radix UI Select) */}
+            <div className="min-w-[155px]">
+              <Select
+                className="h-8 rounded-lg border-border bg-surface-muted/70 px-3 text-xs font-semibold text-text-primary hover:bg-surface-muted"
                 onChange={(e) => setChannelFilter(e.target.value as "all" | "airbnb" | "manual")}
                 value={channelFilter}
               >
                 <option value="all">Airbnb / Direto</option>
                 <option value="airbnb">Apenas Airbnb</option>
                 <option value="manual">Apenas Direto</option>
-              </select>
+              </Select>
             </div>
 
             {/* Quick Pending Filter Pill */}
