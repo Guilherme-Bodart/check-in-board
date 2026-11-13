@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Banknote,
   Info,
@@ -14,7 +14,13 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import type { Apartment, AuthRole, FinancialEntry, FinancialSummary } from "../../api";
+import {
+  isAbortError,
+  type Apartment,
+  type AuthRole,
+  type FinancialEntry,
+  type FinancialSummary,
+} from "../../api";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
@@ -120,23 +126,31 @@ export function FinancePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState("");
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   const isHostAdmin = userRole === "host_admin";
 
   async function loadFinance(nextFilters: FinanceFilters = currentFilters()) {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+
     const session = readStoredSession();
 
     if (!session || !nextFilters.dateFrom || !nextFilters.dateTo) {
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     setMessage("");
+    let isAborted = false;
 
     try {
       let resolvedRole = userRole;
       if (!resolvedRole) {
         const me = await fetchMe(session.token);
+        if (controller.signal.aborted) return;
         resolvedRole = me.memberships.find((m) => m.isActive)?.role ?? null;
         setUserRole(resolvedRole);
       }
@@ -147,8 +161,11 @@ export function FinancePage() {
         fetchFinancialSummary(session.token, nextFilters),
       ]);
 
+      if (controller.signal.aborted) return;
+
       if (resolvedRole === "host_admin") {
         const nextOwners = await fetchOwners(session.token);
+        if (controller.signal.aborted) return;
         setOwners(nextOwners.map((owner) => ({ id: owner.id, name: owner.name })));
       } else {
         const uniqueOwners = new Map<string, string>();
@@ -164,11 +181,20 @@ export function FinancePage() {
       setEntries(nextEntries);
       setSummary(nextSummary);
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        isAborted = true;
+        return;
+      }
       setMessage(
         error instanceof Error ? error.message : "Falha ao carregar financeiro.",
       );
     } finally {
-      setIsLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        if (!controller.signal.aborted && !isAborted) {
+          setIsLoading(false);
+        }
+      }
     }
   }
 
@@ -177,6 +203,10 @@ export function FinancePage() {
     setDateFrom(initialRange.dateFrom);
     setDateTo(initialRange.dateTo);
     void loadFinance(initialRange);
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, []);
 
   const filteredEntries = useMemo(() => {
@@ -254,6 +284,7 @@ export function FinancePage() {
       setEntryToDelete(null);
       await loadFinance(currentFilters());
     } catch (error) {
+      if (isAbortError(error)) return;
       setMessage(
         error instanceof Error ? error.message : "Falha ao remover lançamento.",
       );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Building2,
   CalendarDays,
@@ -13,7 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-import type { Apartment, AuthRole } from "../../api";
+import { isAbortError, type Apartment, type AuthRole } from "../../api";
 import { Badge } from "../../components/ui/badge";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { DataTable, TableStateRow } from "../../components/ui/data-table";
@@ -37,13 +37,19 @@ export function ApartmentsPage() {
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [ownerTypeFilter, setOwnerTypeFilter] = useState<"all" | "internal" | "client">("all");
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   const isHostAdmin = userRole === "host_admin";
 
   async function loadData() {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+
     const session = readStoredSession();
 
     if (!session) {
+      setIsLoading(false);
       return;
     }
 
@@ -53,8 +59,17 @@ export function ApartmentsPage() {
     try {
       const [loadedApartments, me] = await Promise.all([
         fetchApartments(session.token),
-        fetchMe(session.token).catch(() => null),
+        fetchMe(session.token).catch((error) => {
+          if (isAbortError(error)) {
+            throw error;
+          }
+          return null;
+        }),
       ]);
+      if (controller.signal.aborted) {
+        return;
+      }
+
       setApartments(loadedApartments);
       if (me) {
         const activeMembership =
@@ -62,14 +77,26 @@ export function ApartmentsPage() {
         setUserRole(activeMembership?.role ?? null);
       }
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
       setMessage(error instanceof Error ? error.message : messages.apartments.loadFailed);
     } finally {
-      setIsLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
     }
   }
 
   useEffect(() => {
     void loadData();
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, []);
 
   const filteredApartments = useMemo(() => {

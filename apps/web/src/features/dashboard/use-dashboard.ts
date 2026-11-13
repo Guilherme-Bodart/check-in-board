@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   clearStoredSession,
@@ -25,7 +25,12 @@ import type {
   DashboardSnapshot,
   LoadState,
 } from "./types";
-import type { Apartment, OperationsBoard, Task } from "../../api";
+import {
+  isAbortError,
+  type Apartment,
+  type OperationsBoard,
+  type Task,
+} from "../../api";
 import {
   createBoardSections,
   emptyBoardTotals,
@@ -46,6 +51,8 @@ export function useDashboard() {
   const [boardDate, setBoardDate] = useState("");
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [message, setMessage] = useState("");
+  const apartmentListAbortRef = useRef<AbortController | null>(null);
+  const workspaceAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setSession(readStoredSession());
@@ -79,23 +86,41 @@ export function useDashboard() {
   );
 
   const loadApartmentList = useCallback(async (token: string) => {
+    apartmentListAbortRef.current?.abort();
+    const controller = new AbortController();
+    apartmentListAbortRef.current = controller;
+
     setLoadState("loading");
     setMessage("");
 
     try {
       const nextApartments = await fetchApartments(token);
+      if (controller.signal.aborted) {
+        return;
+      }
 
       setApartments(nextApartments);
       setSelectedApartmentId((current) => current || allApartmentsValue);
       setLoadState("idle");
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
       setLoadState("error");
       setMessage(getErrorMessage(error, messages.dashboard.errors.loadApartmentsFailed));
+    } finally {
+      if (apartmentListAbortRef.current === controller) {
+        apartmentListAbortRef.current = null;
+      }
     }
   }, []);
 
   const loadWorkspace = useCallback(
     async (token: string, apartmentId: string, date: string) => {
+      workspaceAbortRef.current?.abort();
+      const controller = new AbortController();
+      workspaceAbortRef.current = controller;
+
       setLoadState("loading");
       setMessage("");
 
@@ -105,6 +130,9 @@ export function useDashboard() {
             fetchAggregateOperationsBoard(token, date),
             fetchTodayTasks(token, date),
           ]);
+          if (controller.signal.aborted) {
+            return;
+          }
 
           setBoard(aggregateBoard);
           setTasks(mapTodayTaskBoardItemsToTasks(todayTasksResponse, date));
@@ -113,13 +141,23 @@ export function useDashboard() {
         }
 
         const workspace = await fetchWorkspace(token, apartmentId, date);
+        if (controller.signal.aborted) {
+          return;
+        }
 
         setBoard(workspace.board);
         setTasks(workspace.tasks);
         setLoadState("idle");
       } catch (error) {
+        if (controller.signal.aborted || isAbortError(error)) {
+          return;
+        }
         setLoadState("error");
         setMessage(getErrorMessage(error, messages.dashboard.errors.loadDashboardFailed));
+      } finally {
+        if (workspaceAbortRef.current === controller) {
+          workspaceAbortRef.current = null;
+        }
       }
     },
     [],
@@ -131,6 +169,10 @@ export function useDashboard() {
     }
 
     void loadApartmentList(session.token);
+
+    return () => {
+      apartmentListAbortRef.current?.abort();
+    };
   }, [loadApartmentList, session]);
 
   useEffect(() => {
@@ -139,6 +181,10 @@ export function useDashboard() {
     }
 
     void loadWorkspace(session.token, selectedApartmentId, boardDate);
+
+    return () => {
+      workspaceAbortRef.current?.abort();
+    };
   }, [apartments.length, boardDate, loadWorkspace, selectedApartmentId, session]);
 
   async function submitAuth(mode: AuthMode, values: AuthFormValues) {
@@ -164,6 +210,9 @@ export function useDashboard() {
       await markTaskDoneRequest(session.token, taskId);
       await loadWorkspace(session.token, selectedApartmentId, boardDate);
     } catch (error) {
+      if (isAbortError(error)) {
+        return;
+      }
       setMessage(getErrorMessage(error, messages.dashboard.errors.updateTaskFailed));
     }
   }
@@ -177,6 +226,8 @@ export function useDashboard() {
   }
 
   function signOut() {
+    apartmentListAbortRef.current?.abort();
+    workspaceAbortRef.current?.abort();
     clearStoredSession();
     setSession(null);
     setApartments([]);

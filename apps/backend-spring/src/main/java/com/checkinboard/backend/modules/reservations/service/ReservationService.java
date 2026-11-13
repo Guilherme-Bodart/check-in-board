@@ -58,7 +58,9 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class ReservationService {
@@ -86,6 +88,7 @@ public class ReservationService {
     private final IcalUrlPolicy icalUrlPolicy;
     private final IcalFeedClient icalFeedClient;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     public ReservationService(
         ApartmentRepository apartmentRepository,
@@ -98,7 +101,8 @@ public class ReservationService {
         SecretEncryptionService secretEncryptionService,
         IcalUrlPolicy icalUrlPolicy,
         IcalFeedClient icalFeedClient,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        PlatformTransactionManager transactionManager
     ) {
         this.apartmentRepository = apartmentRepository;
         this.apartmentMembershipRepository = apartmentMembershipRepository;
@@ -111,6 +115,7 @@ public class ReservationService {
         this.icalUrlPolicy = icalUrlPolicy;
         this.icalFeedClient = icalFeedClient;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @Transactional(readOnly = true)
@@ -185,77 +190,118 @@ public class ReservationService {
         );
     }
 
-    @Transactional(noRollbackFor = ApiException.class)
     public ManualSyncResponse sync(
         String userId,
         String icalSourceId,
         ManualSyncRequest request
     ) {
-        IcalSourceEntity icalSource = findIcalSource(icalSourceId);
-        ApartmentMembershipEntity membership = getMembership(
-            userId,
-            icalSource.getApartment().getId()
-        );
-
-        if (!canManageSync(membership)) {
-            throw new ApiException(
-                HttpStatus.FORBIDDEN,
-                "FORBIDDEN",
-                "You do not have permission to sync this iCal source."
+        PreparedSyncContext context = transactionTemplate.execute(status -> {
+            IcalSourceEntity icalSource = findIcalSource(icalSourceId);
+            ApartmentMembershipEntity membership = getMembership(
+                userId,
+                icalSource.getApartment().getId()
             );
-        }
 
-        if (request != null && request.icsText() != null && request.icsText().isBlank()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid sync payload.");
-        }
+            if (!canManageSync(membership)) {
+                throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN",
+                    "You do not have permission to sync this iCal source."
+                );
+            }
 
-        SyncRunEntity syncRun = syncRunRepository.save(new SyncRunEntity(newId(), icalSource));
+            if (request != null && request.icsText() != null && request.icsText().isBlank()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid sync payload.");
+            }
 
-        if (!icalSource.isSyncEnabled()) {
-            String reason = "iCal source sync is paused.";
-            syncRun.markSkipped(reason);
-            syncRunRepository.save(syncRun);
+            SyncRunEntity syncRun = syncRunRepository.save(new SyncRunEntity(newId(), icalSource));
 
-            return new ManualSyncResponse(
-                List.of(),
-                new ManualSyncSummary(0, 0, 0, 0, 0, true, reason)
+            if (!icalSource.isSyncEnabled()) {
+                String reason = "iCal source sync is paused.";
+                syncRun.markSkipped(reason);
+                syncRunRepository.save(syncRun);
+
+                return new PreparedSyncContext(
+                    syncRun.getId(),
+                    icalSource.getId(),
+                    null,
+                    null,
+                    new ManualSyncResponse(
+                        List.of(),
+                        new ManualSyncSummary(0, 0, 0, 0, 0, true, reason)
+                    )
+                );
+            }
+
+            return new PreparedSyncContext(
+                syncRun.getId(),
+                icalSource.getId(),
+                icalSource.getIcalUrlEncrypted(),
+                icalSource.getApartment().getTimezone(),
+                null
             );
+        });
+
+        if (context.skippedResponse() != null) {
+            return context.skippedResponse();
         }
 
-        return executeSyncForSource(icalSource, syncRun, request, true);
+        return executeSyncForSource(context, request, true).manualSyncResponse();
     }
 
-    @Transactional(noRollbackFor = ApiException.class)
     public AutoSyncResponse autoSync(String userId) {
-        List<String> apartmentIds = viewableApartmentIds(userId);
+        AutoSyncPreparation preparation = transactionTemplate.execute(status -> {
+            List<String> apartmentIds = viewableApartmentIds(userId);
 
-        if (apartmentIds.isEmpty()) {
-            return new AutoSyncResponse(0, 0, List.of());
+            if (apartmentIds.isEmpty()) {
+                return new AutoSyncPreparation(0, List.of());
+            }
+
+            List<IcalSourceEntity> activeSources = icalSourceRepository
+                .findByApartment_IdInAndSyncEnabledTrueAndDeletedAtIsNullOrderByCreatedAtAsc(
+                    apartmentIds
+                );
+
+            int sourcesChecked = activeSources.size();
+            List<PreparedSyncContext> dueContexts = new ArrayList<>();
+            Instant cutoff = Instant.now().minusSeconds(3600);
+
+            for (IcalSourceEntity source : activeSources) {
+                if (!isDueForAutoSync(source, cutoff)) {
+                    continue;
+                }
+                SyncRunEntity syncRun = syncRunRepository.save(new SyncRunEntity(newId(), source));
+                dueContexts.add(
+                    new PreparedSyncContext(
+                        syncRun.getId(),
+                        source.getId(),
+                        source.getIcalUrlEncrypted(),
+                        source.getApartment().getTimezone(),
+                        null
+                    )
+                );
+            }
+
+            return new AutoSyncPreparation(sourcesChecked, dueContexts);
+        });
+
+        if (preparation.dueContexts().isEmpty()) {
+            return new AutoSyncResponse(preparation.sourcesChecked(), 0, List.of());
         }
 
-        List<IcalSourceEntity> activeSources = icalSourceRepository
-            .findByApartment_IdInAndSyncEnabledTrueAndDeletedAtIsNullOrderByCreatedAtAsc(
-                apartmentIds
-            );
-
-        int sourcesChecked = activeSources.size();
-        int sourcesSynced = 0;
         List<SyncRunResponse> notableRuns = new ArrayList<>();
-        Instant cutoff = Instant.now().minusSeconds(3600);
-
-        for (IcalSourceEntity source : activeSources) {
-            if (!isDueForAutoSync(source, cutoff)) {
-                continue;
-            }
-            sourcesSynced++;
-            SyncRunEntity syncRun = syncRunRepository.save(new SyncRunEntity(newId(), source));
-            executeSyncForSource(source, syncRun, null, false);
-            if (isNotableRun(syncRun)) {
-                notableRuns.add(toSyncRunResponse(syncRun));
+        for (PreparedSyncContext context : preparation.dueContexts()) {
+            SyncExecutionOutcome outcome = executeSyncForSource(context, null, false);
+            if (outcome.notableSyncRun() != null) {
+                notableRuns.add(outcome.notableSyncRun());
             }
         }
 
-        return new AutoSyncResponse(sourcesChecked, sourcesSynced, notableRuns);
+        return new AutoSyncResponse(
+            preparation.sourcesChecked(),
+            preparation.dueContexts().size(),
+            notableRuns
+        );
     }
 
     @Transactional(readOnly = true)
@@ -275,59 +321,30 @@ public class ReservationService {
         );
     }
 
-    private ManualSyncResponse executeSyncForSource(
-        IcalSourceEntity icalSource,
-        SyncRunEntity syncRun,
+    private SyncExecutionOutcome executeSyncForSource(
+        PreparedSyncContext context,
         ManualSyncRequest request,
         boolean throwOnError
     ) {
         try {
-            String icsText = resolveIcsText(icalSource, request);
-            ZoneId apartmentZone = ZoneId.of(icalSource.getApartment().getTimezone());
+            String icsText = resolveIcsText(context.icalUrlEncrypted(), request);
+            ZoneId apartmentZone = ZoneId.of(context.apartmentTimezone());
             List<ParsedIcalReservation> parsedReservations = icalReservationParser.parse(
                 icsText,
                 apartmentZone
             );
-            UpsertDiffResult diff = upsertReservationsWithDiff(icalSource, parsedReservations);
 
-            syncRun.markSucceeded(
-                parsedReservations.size(),
-                diff.reservations().size(),
-                diff.createdCount(),
-                diff.updatedCount(),
-                diff.cancelledCount(),
-                serializeChanges(diff.changes())
-            );
-            icalSource.markSyncSuccess();
-            syncRunRepository.save(syncRun);
-            icalSourceRepository.save(icalSource);
-
-            return new ManualSyncResponse(
-                diff.reservations(),
-                new ManualSyncSummary(
-                    parsedReservations.size(),
-                    diff.reservations().size(),
-                    diff.createdCount(),
-                    diff.updatedCount(),
-                    diff.cancelledCount(),
-                    false,
-                    null
-                )
+            return transactionTemplate.execute(status ->
+                completeSyncSuccess(context, parsedReservations)
             );
         } catch (IcalReservationParserException exception) {
-            syncRun.markFailed(exception.getMessage());
-            icalSource.markSyncFailure();
-            syncRunRepository.save(syncRun);
-            icalSourceRepository.save(icalSource);
+            SyncRunResponse failedRun = recordSyncFailure(context, exception.getMessage());
             if (throwOnError) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "BAD_REQUEST", exception.getMessage());
             }
-            return null;
+            return new SyncExecutionOutcome(null, failedRun);
         } catch (IcalFeedFetchException exception) {
-            syncRun.markFailed(exception.getMessage());
-            icalSource.markSyncFailure();
-            syncRunRepository.save(syncRun);
-            icalSourceRepository.save(icalSource);
+            SyncRunResponse failedRun = recordSyncFailure(context, exception.getMessage());
             if (throwOnError) {
                 throw new ApiException(
                     HttpStatus.BAD_GATEWAY,
@@ -335,12 +352,9 @@ public class ReservationService {
                     exception.getMessage()
                 );
             }
-            return null;
+            return new SyncExecutionOutcome(null, failedRun);
         } catch (IcalUrlPolicyException | IllegalArgumentException | IllegalStateException exception) {
-            syncRun.markFailed("Stored iCal URL is invalid.");
-            icalSource.markSyncFailure();
-            syncRunRepository.save(syncRun);
-            icalSourceRepository.save(icalSource);
+            SyncRunResponse failedRun = recordSyncFailure(context, "Stored iCal URL is invalid.");
             if (throwOnError) {
                 throw new ApiException(
                     HttpStatus.BAD_REQUEST,
@@ -348,8 +362,79 @@ public class ReservationService {
                     "Stored iCal URL is invalid."
                 );
             }
-            return null;
+            return new SyncExecutionOutcome(null, failedRun);
         }
+    }
+
+    private SyncExecutionOutcome completeSyncSuccess(
+        PreparedSyncContext context,
+        List<ParsedIcalReservation> parsedReservations
+    ) {
+        IcalSourceEntity icalSource = icalSourceRepository
+            .findById(context.icalSourceId())
+            .orElseThrow(() ->
+                new ApiException(
+                    HttpStatus.NOT_FOUND,
+                    "ICAL_SOURCE_NOT_FOUND",
+                    "iCal source was not found."
+                )
+            );
+        SyncRunEntity syncRun = syncRunRepository
+            .findById(context.syncRunId())
+            .orElseThrow();
+
+        UpsertDiffResult diff = upsertReservationsWithDiff(icalSource, parsedReservations);
+
+        syncRun.markSucceeded(
+            parsedReservations.size(),
+            diff.reservations().size(),
+            diff.createdCount(),
+            diff.updatedCount(),
+            diff.cancelledCount(),
+            serializeChanges(diff.changes())
+        );
+        icalSource.markSyncSuccess();
+        syncRunRepository.save(syncRun);
+        icalSourceRepository.save(icalSource);
+
+        ManualSyncResponse manualSyncResponse = new ManualSyncResponse(
+            diff.reservations(),
+            new ManualSyncSummary(
+                parsedReservations.size(),
+                diff.reservations().size(),
+                diff.createdCount(),
+                diff.updatedCount(),
+                diff.cancelledCount(),
+                false,
+                null
+            )
+        );
+        SyncRunResponse notableSyncRun = isNotableRun(syncRun)
+            ? toSyncRunResponse(syncRun)
+            : null;
+
+        return new SyncExecutionOutcome(manualSyncResponse, notableSyncRun);
+    }
+
+    private SyncRunResponse recordSyncFailure(
+        PreparedSyncContext context,
+        String errorMessage
+    ) {
+        return transactionTemplate.execute(status -> {
+            IcalSourceEntity icalSource = icalSourceRepository
+                .findById(context.icalSourceId())
+                .orElseThrow();
+            SyncRunEntity syncRun = syncRunRepository
+                .findById(context.syncRunId())
+                .orElseThrow();
+
+            syncRun.markFailed(errorMessage);
+            icalSource.markSyncFailure();
+            syncRunRepository.save(syncRun);
+            icalSourceRepository.save(icalSource);
+
+            return isNotableRun(syncRun) ? toSyncRunResponse(syncRun) : null;
+        });
     }
 
     @Transactional
@@ -421,14 +506,12 @@ public class ReservationService {
         );
     }
 
-    private String resolveIcsText(IcalSourceEntity icalSource, ManualSyncRequest request) {
+    private String resolveIcsText(String icalUrlEncrypted, ManualSyncRequest request) {
         if (request != null && request.icsText() != null) {
             return request.icsText();
         }
 
-        String decryptedUrl = secretEncryptionService.decrypt(
-            icalSource.getIcalUrlEncrypted()
-        );
+        String decryptedUrl = secretEncryptionService.decrypt(icalUrlEncrypted);
         URI safeUri = icalUrlPolicy.assertSafe(decryptedUrl);
         return icalFeedClient.fetch(safeUri);
     }
@@ -608,6 +691,24 @@ public class ReservationService {
             syncRun.getStatus() == SyncRunStatus.failed
         );
     }
+
+    private record PreparedSyncContext(
+        String syncRunId,
+        String icalSourceId,
+        String icalUrlEncrypted,
+        String apartmentTimezone,
+        ManualSyncResponse skippedResponse
+    ) {}
+
+    private record AutoSyncPreparation(
+        int sourcesChecked,
+        List<PreparedSyncContext> dueContexts
+    ) {}
+
+    private record SyncExecutionOutcome(
+        ManualSyncResponse manualSyncResponse,
+        SyncRunResponse notableSyncRun
+    ) {}
 
     private record UpsertDiffResult(
         List<ReservationResponse> reservations,

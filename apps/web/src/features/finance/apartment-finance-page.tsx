@@ -1,10 +1,16 @@
 "use client";
 
-import React, { type FormEvent, useEffect, useState } from "react";
+import React, { type FormEvent, useEffect, useRef, useState } from "react";
 import { CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Info, Plus, Repeat, Trash2 } from "lucide-react";
 import Link from "next/link";
 
-import type { Apartment, AuthRole, RentalStay, FinancialEntry } from "../../api";
+import {
+  isAbortError,
+  type Apartment,
+  type AuthRole,
+  type RentalStay,
+  type FinancialEntry,
+} from "../../api";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
@@ -90,6 +96,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
   } | null>(null);
 
   const isHostAdmin = userRole === "host_admin";
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setMonth(new Date().toISOString().slice(0, 7));
@@ -99,24 +106,38 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
     if (!month) return;
     setRecurringBanner(null);
     void loadData();
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, [apartmentId, month]);
 
   async function loadData() {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+
     const session = readStoredSession();
-    if (!session) return;
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setMessage("");
+    let isAborted = false;
 
     try {
       let resolvedRole = userRole;
       if (!resolvedRole) {
         const me = await fetchMe(session.token);
+        if (controller.signal.aborted) return;
         resolvedRole = me.memberships.find((m) => m.isActive)?.role ?? null;
         setUserRole(resolvedRole);
       }
 
       const apt = await fetchApartment(session.token, apartmentId);
+      if (controller.signal.aborted) return;
       setApartment(apt);
 
       // Fetch reservations and stays for the month + some margin
@@ -145,14 +166,25 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
         fetchRecurringExpenses(session.token, apartmentId),
       ]);
 
+      if (controller.signal.aborted) return;
+
       setFinancialEntries(entries);
       setRentalStays(stays);
       setReservations(attachApartmentDetails(reservationGroups, [apt]));
       setRecurringExpenses(recurringItems);
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        isAborted = true;
+        return;
+      }
       setMessage(error instanceof Error ? error.message : "Falha ao carregar dados financeiros.");
     } finally {
-      setIsLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        if (!controller.signal.aborted && !isAborted) {
+          setIsLoading(false);
+        }
+      }
     }
   }
 
@@ -211,6 +243,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
         message: `Despesa fixa "${created.title}" adicionada.`,
       });
     } catch (error) {
+      if (isAbortError(error)) return;
       setRecurringBanner({
         isError: true,
         message:
@@ -240,6 +273,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
         message: `Despesa fixa "${removedTitle}" removida.`,
       });
     } catch (error) {
+      if (isAbortError(error)) return;
       setRecurringBanner({
         isError: true,
         message:
@@ -269,6 +303,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
         message: `${result.createdCount} ${result.createdCount === 1 ? "lançada" : "lançadas"}, ${result.skippedCount} já ${result.skippedCount === 1 ? "aplicada" : "aplicadas"} neste mês (${result.month}).`,
       });
     } catch (error) {
+      if (isAbortError(error)) return;
       setRecurringBanner({
         isError: true,
         message:

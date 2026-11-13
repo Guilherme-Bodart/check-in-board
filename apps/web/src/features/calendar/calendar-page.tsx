@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -22,7 +22,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-import type { Apartment, RentalStay } from "../../api";
+import { isAbortError, type Apartment, type RentalStay } from "../../api";
 import { messages } from "../../i18n";
 import { formatMoney } from "../finance/money";
 import { fetchRentalStays } from "../finance/rental-stay-api";
@@ -72,8 +72,13 @@ export function CalendarPage() {
   const [createInitialApartmentId, setCreateInitialApartmentId] = useState<string | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   async function loadCalendar(nextApartmentId = selectedApartmentId) {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+
     const session = readStoredSession();
     if (!session) {
       setIsLoading(false);
@@ -85,6 +90,10 @@ export function CalendarPage() {
 
     try {
       const nextApartments = await fetchApartments(session.token);
+      if (controller.signal.aborted) {
+        return;
+      }
+
       if (nextApartments.length === 0) {
         setApartments([]);
         setRentalStays([]);
@@ -100,6 +109,9 @@ export function CalendarPage() {
       const reservationGroups = await Promise.all(
         apartmentIds.map((apartmentId) => fetchReservations(session.token, apartmentId)),
       );
+      if (controller.signal.aborted) {
+        return;
+      }
 
       // Fetch rental stays in a wider window to ensure price coverage
       const dateFrom = new Date();
@@ -112,14 +124,25 @@ export function CalendarPage() {
         dateTo: dateTo.toISOString().slice(0, 10),
         apartmentId: nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
       });
+      if (controller.signal.aborted) {
+        return;
+      }
 
       setApartments(nextApartments);
       setRentalStays(stays);
       setReservations(attachApartmentDetails(reservationGroups.flat(), nextApartments));
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
       setMessage(error instanceof Error ? error.message : messages.calendar.loadFailed);
     } finally {
-      setIsLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
     }
   }
 
@@ -132,6 +155,10 @@ export function CalendarPage() {
         setIsReportsModalOpen(true);
       }
     }
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, []);
 
   // Quick lookup map: reservation.id -> RentalStay

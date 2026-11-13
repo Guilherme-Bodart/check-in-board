@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -13,6 +13,8 @@ import {
   Home,
   RefreshCw,
 } from "lucide-react";
+
+import { isAbortError } from "../../api";
 
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -46,8 +48,13 @@ export function NotificationsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   const loadNotifications = useCallback(async () => {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+
     const session = readStoredSession();
     if (!session) {
       setIsLoading(false);
@@ -56,25 +63,40 @@ export function NotificationsPage() {
 
     setIsLoading(true);
     setErrorMessage("");
+    let isAborted = false;
 
     try {
       const items = await fetchSyncNotifications(session.token);
+      if (controller.signal.aborted) return;
       setNotifications(items);
       setReadIds(getReadSyncNotificationIds());
       setLastSyncAt(getLastAutoSyncAt());
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        isAborted = true;
+        return;
+      }
       setErrorMessage(
         error instanceof Error
           ? error.message
           : ptBR.notifications.errors.loadFailed,
       );
     } finally {
-      setIsLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        if (!controller.signal.aborted && !isAborted) {
+          setIsLoading(false);
+        }
+      }
     }
   }, []);
 
   useEffect(() => {
     void loadNotifications();
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, [loadNotifications]);
 
   const readSet = useMemo(() => new Set(readIds), [readIds]);
@@ -157,6 +179,7 @@ export function NotificationsPage() {
         );
       }
     } catch (error) {
+      if (isAbortError(error)) return;
       setErrorMessage(
         error instanceof Error
           ? error.message

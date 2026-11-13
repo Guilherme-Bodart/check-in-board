@@ -231,11 +231,31 @@ export type SyncResponse = {
   };
 };
 
-type ApiOptions = {
+export type ApiOptions = {
   method?: string;
   token?: string;
   body?: unknown;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  cancelOnNavigate?: boolean;
 };
+
+const navigationControllers = new Set<AbortController>();
+
+export function abortNavigationRequests() {
+  for (const controller of navigationControllers) {
+    controller.abort(new DOMException("Request cancelled on navigation", "AbortError"));
+  }
+  navigationControllers.clear();
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const name = "name" in error ? error.name : undefined;
+  return name === "AbortError" || name === "TimeoutError";
+}
 
 export class ApiClientError extends Error {
   constructor(
@@ -258,23 +278,68 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}) {
     headers.set("Authorization", `Bearer ${options.token}`);
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
-  const contentType = response.headers.get("content-type") ?? "";
-  const payload = contentType.includes("application/json")
-    ? ((await response.json()) as T & ApiError)
-    : undefined;
+  const method = (options.method ?? "GET").toUpperCase();
+  const shouldCancelOnNavigate = options.cancelOnNavigate ?? method === "GET";
+  const requestController = new AbortController();
 
-  if (!response.ok) {
-    throw new ApiClientError(
-      payload?.error?.message ?? "Request failed.",
-      response.status,
-      payload?.error?.code,
-    );
+  let externalAbortHandler: (() => void) | undefined;
+  if (options.signal) {
+    if (options.signal.aborted) {
+      requestController.abort(
+        options.signal.reason ?? new DOMException("Aborted", "AbortError"),
+      );
+    } else {
+      externalAbortHandler = () => {
+        requestController.abort(
+          options.signal?.reason ?? new DOMException("Aborted", "AbortError"),
+        );
+      };
+      options.signal.addEventListener("abort", externalAbortHandler, { once: true });
+    }
   }
 
-  return payload as T;
+  const timeoutMs = options.timeoutMs ?? (method === "GET" ? 15_000 : 45_000);
+  const timeoutId =
+    timeoutMs > 0
+      ? setTimeout(() => {
+          requestController.abort(new DOMException("Request timed out", "TimeoutError"));
+        }, timeoutMs)
+      : undefined;
+
+  if (shouldCancelOnNavigate) {
+    navigationControllers.add(requestController);
+  }
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method,
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: requestController.signal,
+    });
+    const contentType = response.headers.get("content-type") ?? "";
+    const payload = contentType.includes("application/json")
+      ? ((await response.json()) as T & ApiError)
+      : undefined;
+
+    if (!response.ok) {
+      throw new ApiClientError(
+        payload?.error?.message ?? "Request failed.",
+        response.status,
+        payload?.error?.code,
+      );
+    }
+
+    return payload as T;
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+    if (shouldCancelOnNavigate) {
+      navigationControllers.delete(requestController);
+    }
+    if (options.signal && externalAbortHandler) {
+      options.signal.removeEventListener("abort", externalAbortHandler);
+    }
+  }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Building2,
@@ -13,7 +13,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import type { Apartment, RentalStay } from "../../api";
+import { isAbortError, type Apartment, type RentalStay } from "../../api";
 import { messages } from "../../i18n";
 import { fetchApartments } from "../dashboard/dashboard-api";
 import { formatReservationDateRange } from "../../lib/date-formatters";
@@ -41,11 +41,16 @@ export function ReservationsPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "priced" | "unpriced">("all");
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   const [selectedReservation, setSelectedReservation] = useState<ReservationListItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   async function loadReservations(nextApartmentId = selectedApartmentId) {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+
     const session = readStoredSession();
     if (!session) {
       setIsLoading(false);
@@ -54,9 +59,12 @@ export function ReservationsPage() {
 
     setIsLoading(true);
     setMessage("");
+    let isAborted = false;
 
     try {
       const nextApartments = await fetchApartments(session.token);
+      if (controller.signal.aborted) return;
+
       if (nextApartments.length === 0) {
         setApartments([]);
         setRentalStays([]);
@@ -72,6 +80,7 @@ export function ReservationsPage() {
       const reservationGroups = await Promise.all(
         apartmentIds.map((apartmentId) => fetchReservations(session.token, apartmentId)),
       );
+      if (controller.signal.aborted) return;
 
       const dateFrom = new Date();
       dateFrom.setMonth(dateFrom.getMonth() - 6);
@@ -83,19 +92,33 @@ export function ReservationsPage() {
         dateTo: dateTo.toISOString().slice(0, 10),
         apartmentId: nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
       });
+      if (controller.signal.aborted) return;
 
       setApartments(nextApartments);
       setRentalStays(stays);
       setReservations(attachApartmentDetails(reservationGroups.flat(), nextApartments));
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        isAborted = true;
+        return;
+      }
       setMessage(error instanceof Error ? error.message : messages.reservations.loadFailed);
     } finally {
-      setIsLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        if (!controller.signal.aborted && !isAborted) {
+          setIsLoading(false);
+        }
+      }
     }
   }
 
   useEffect(() => {
     void loadReservations(allApartmentsValue);
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, []);
 
   const rentalStaysMap = useMemo(() => {

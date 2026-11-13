@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Bell, RefreshCw, UserRound, X } from "lucide-react";
 
-import { apiRequest, type AuthRole } from "../../api";
-import { fetchMe } from "../../features/auth/auth-api";
+import { abortNavigationRequests, apiRequest, type AuthRole } from "../../api";
+import { clearMeCache, fetchMe } from "../../features/auth/auth-api";
 import {
   clearStoredSession,
   readStoredSession,
@@ -19,6 +19,8 @@ import { Sidebar } from "./sidebar";
 const LAST_AUTO_SYNC_KEY = "cib-last-auto-sync-at";
 const READ_SYNC_NOTIFICATIONS_KEY = "cib-read-sync-notifications";
 const AUTO_SYNC_INTERVAL_MS = 3600_000;
+
+let autoSyncInFlight = false;
 
 type AutoSyncApiResponse = {
   sourcesChecked: number;
@@ -82,6 +84,13 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
     setUnreadCount(unread);
   }, []);
 
+  useEffect(
+    () => () => {
+      abortNavigationRequests();
+    },
+    [pathname],
+  );
+
   useEffect(() => {
     const storedSession = readStoredSession();
 
@@ -100,57 +109,73 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
     }
 
     let cancelled = false;
+    const controller = new AbortController();
     const token = session.token;
 
-    async function loadRoleAndRunAutoSync() {
-      try {
-        const me = await fetchMe(token);
-        if (!cancelled) {
-          const activeMembership =
-            me.memberships.find((membership) => membership.isActive) ?? me.memberships[0];
-          setUserRole(activeMembership?.role ?? null);
-        }
-      } catch {
-        // Silent fallback so transient errors never break layout
+    function triggerBackgroundAutoSync() {
+      if (autoSyncInFlight) {
+        return;
       }
 
-      try {
-        const lastSyncRaw = window.localStorage.getItem(LAST_AUTO_SYNC_KEY);
-        const lastSyncAt = lastSyncRaw ? Number(lastSyncRaw) : NaN;
-        const isDue =
-          !lastSyncRaw ||
-          Number.isNaN(lastSyncAt) ||
-          Date.now() - lastSyncAt >= AUTO_SYNC_INTERVAL_MS;
+      const lastSyncRaw = window.localStorage.getItem(LAST_AUTO_SYNC_KEY);
+      const lastSyncAt = lastSyncRaw ? Number(lastSyncRaw) : NaN;
+      const isDue =
+        !lastSyncRaw ||
+        Number.isNaN(lastSyncAt) ||
+        Date.now() - lastSyncAt >= AUTO_SYNC_INTERVAL_MS;
 
-        if (isDue) {
-          window.localStorage.setItem(LAST_AUTO_SYNC_KEY, String(Date.now()));
-          try {
-            const autoSyncResult = await apiRequest<AutoSyncApiResponse>(
-              "/ical-sources/auto-sync",
-              {
-                method: "POST",
-                token,
-              },
-            );
-            if (!cancelled && autoSyncResult.notableRuns?.length > 0) {
-              setShowAutoSyncBanner(true);
-            }
-          } catch {
-            // Silent catch so auto-sync failures never break the layout
+      if (!isDue) {
+        return;
+      }
+
+      autoSyncInFlight = true;
+      window.localStorage.setItem(LAST_AUTO_SYNC_KEY, String(Date.now()));
+
+      void apiRequest<AutoSyncApiResponse>("/ical-sources/auto-sync", {
+        method: "POST",
+        token,
+        cancelOnNavigate: false,
+      })
+        .then((autoSyncResult) => {
+          if (!cancelled && autoSyncResult.notableRuns?.length > 0) {
+            setShowAutoSyncBanner(true);
           }
-        }
+        })
+        .catch(() => {
+          // Silent catch so auto-sync failures never break the layout
+        })
+        .finally(() => {
+          autoSyncInFlight = false;
+        });
+    }
 
-        const notifResponse = await apiRequest<SyncNotificationsListResponse>(
-          "/notifications/sync",
-          { token },
-        );
-        if (!cancelled) {
-          const ids = (notifResponse.notifications ?? []).map((item) => item.id);
-          setNotificationIds(ids);
-          recomputeUnreadCount(ids);
-        }
-      } catch {
-        // Silent catch
+    async function loadRoleAndRunAutoSync() {
+      triggerBackgroundAutoSync();
+
+      const [meResult, notifResult] = await Promise.allSettled([
+        fetchMe(token),
+        apiRequest<SyncNotificationsListResponse>("/notifications/sync", {
+          token,
+          signal: controller.signal,
+          cancelOnNavigate: false,
+        }),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (meResult.status === "fulfilled") {
+        const activeMembership =
+          meResult.value.memberships.find((membership) => membership.isActive) ??
+          meResult.value.memberships[0];
+        setUserRole(activeMembership?.role ?? null);
+      }
+
+      if (notifResult.status === "fulfilled") {
+        const ids = (notifResult.value.notifications ?? []).map((item) => item.id);
+        setNotificationIds(ids);
+        recomputeUnreadCount(ids);
       }
     }
 
@@ -158,6 +183,7 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [recomputeUnreadCount, session]);
 
@@ -195,6 +221,8 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
   );
 
   function signOut() {
+    clearMeCache(session?.token);
+    abortNavigationRequests();
     clearStoredSession();
     setSession(null);
     setUserRole(null);

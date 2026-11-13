@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BriefcaseBusiness,
   Building2,
@@ -15,8 +15,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import type { Owner, OwnerType } from "../../api";
-import { ApiClientError } from "../../api";
+import { ApiClientError, isAbortError, type Owner, type OwnerType } from "../../api";
 import { Badge } from "../../components/ui/badge";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { DataTable, TableStateRow } from "../../components/ui/data-table";
@@ -42,30 +41,52 @@ export function OwnersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState("");
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   async function loadOwners() {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+
     const session = readStoredSession();
 
     if (!session) {
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     setMessage("");
+    let isAborted = false;
 
     try {
-      setOwners(await fetchOwners(session.token));
+      const loadedOwners = await fetchOwners(session.token);
+      if (controller.signal.aborted) return;
+      setOwners(loadedOwners);
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        isAborted = true;
+        return;
+      }
       setMessage(
         error instanceof Error ? error.message : "Falha ao carregar proprietários.",
       );
     } finally {
-      setIsLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        if (!controller.signal.aborted && !isAborted) {
+          setIsLoading(false);
+        }
+      }
     }
   }
 
   useEffect(() => {
     void loadOwners();
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, []);
 
   const filteredOwners = useMemo(() => {
@@ -108,6 +129,7 @@ export function OwnersPage() {
       setOwnerToDelete(null);
       await loadOwners();
     } catch (error) {
+      if (isAbortError(error)) return;
       if (error instanceof ApiClientError && error.code === "OWNER_HAS_APARTMENTS") {
         setMessage("Esse proprietário ainda tem apartamentos vinculados.");
       } else {
