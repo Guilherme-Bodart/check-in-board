@@ -90,7 +90,14 @@ Todo modal deve ser estruturado como `flex flex-col max-h-[90vh] overflow-hidden
 
 ---
 
-## 5. Arquitetura Responsiva (Mobile-First & Desktop)
+## 5. Arquitetura Responsiva (Web-Mobile Enxuto & Desktop Completo)
+
+### 5.0 Filosofia Web-Mobile: Menos Coisas, Mais Direto
+- O usuário no celular (`< 768px`) **não quer ver uma versão espremida do Desktop**.
+- **Regra do Web-Mobile:**
+  - Mostrar apenas as informações e ações essenciais de consulta rápida (quem entra/sai hoje, calendário direto, resumo financeiro do mês e notificações).
+  - Controles secundários, filtros avançados múltiplos, gráficos secundários e geradores de relatórios A4 para impressão devem ficar ocultos ou recolhidos no celular (`hidden md:flex` / `hidden md:block`), mantendo a tela mobile limpa, leve e rápida de operar com uma mão.
+  - Se o usuário precisar de análise detalhada ou configuração pesada, ele usa a visão Desktop.
 
 ### 5.1 Navegação Global
 - **Desktop (`>= 1024px` / `lg`):** Sidebar lateral fixa à esquerda (`w-[260px]`).

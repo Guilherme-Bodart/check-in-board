@@ -1,98 +1,54 @@
 # Check-In Board — Backlog Futuro (`backlog.md`)
 
-> **Propósito deste documento:**  
-> Toda a fundação inicial e o escopo do MVP original (Auth, Proprietários, Apartamentos, Sync iCal, Calendário/Cronograma, Reservas Manuais, Tarefas, Equipe e Financeiro/Repasses) **já estão concluídos e funcionando** (veja o [Arquivo Mestre (`docs/project-master.md`)](file:///c:/Users/Inbazz2/Documents/GitHub/check-in-board/docs/project-master.md)).
->
-> Este arquivo lista **apenas ideias, melhorias e expansões futuras** que **podem ou não acontecer** conforme a necessidade real da operação. Cada item já traz a recomendação de **Agente** e **Modelo** (conforme o [Workflow de Agentes (`docs/agent-workflow.md`)](file:///c:/Users/Inbazz2/Documents/GitHub/check-in-board/docs/agent-workflow.md)), priorizando o **Gemini 4 Hydrogen** para as entregas do dia a dia (cota diária) e reservando o **Gemini 4 Argon** para lógica crítica/arquitetural (cota semanal).
+> **Regras de Produto Inegociáveis:**
+> 1. **Sem processamento de pagamentos na plataforma:** Dinheiro no sistema é 100% demonstrativo/gerencial.
+> 2. **Apenas 2 perfis reais de uso (`Admin-Admin` e `Admin-Proprietário`):** Sem perfil de limpeza/operacional logado. O `Admin-Admin` vê todos os imóveis e todo o financeiro; o `Admin-Proprietário` convidado vê **apenas seus próprios apartamentos e o financeiro deles**.
+> 3. **Zero custo com notificações/jobs 24/7 em tempo real:** O sync automático de iCal roda apenas quando o usuário abre o sistema (com intervalo mínimo de **1 hora**). Notificações só nascem quando há **diferença real** (novas reservas, cancelamentos) ou **erros/falhas**, exibindo o detalhe em uma página de notificações dedicada.
+> 4. **Foco em Web-Mobile Simples (Sem App Nativo agora):** A versão Web aberta no celular deve ser muito mais limpa e enxuta que o Desktop, mostrando apenas o essencial.
 
 ---
 
-## Legenda de Horizonte e Modelos
+## Prioridade 1 (`P1` — Próximas Entregas Diretas)
 
-- **Horizonte:**
-  - `H1 (Curto Prazo / Refinamento)`: Polimento de fluxos existentes, performance e automação leve.
-  - `H2 (Médio Prazo / Expansão)`: Novas capacidades de negócio, notificações ativas e relatórios avançados.
-  - `H3 (Longo Prazo / Opcional)`: Integrações profundas com OTAs, portal do proprietário e faturamento SaaS.
-- **Modelos Recomendados:**
-  - **Gemini 4 Hydrogen (Medium / High / XHigh):** Modelo do **dia a dia** (cota renova diariamente) — ideal para CRUDs, telas, formulários, filtros e features padrão.
-  - **Gemini 4 Argon (Medium / High):** Modelo **topo de linha / pesado** (cota semanal) — reservado para algoritmos críticos de sync iCal, concorrência, regras financeiras delicadas e arquitetura.
-  - **Gemini 3.8 Flash:** Executor ultrarrápido — ideal para `i18n`, testes, lint, exportações simples e validação visual no Browser.
-
----
-
-## 1. Sincronização iCal, Reservas & Calendário
-
-- **`FUT-CAL-01` [H1] — Agendador Automático de Sync iCal em Background (`@Scheduled`):**
-  - *O que é:* Hoje o sync iCal pode ser disparado manualmente pela UI/API; adicionar job periódico configurável no Spring Boot para sincronizar automaticamente todas as fontes ativas a cada X minutos com lock seguro contra concorrência.
-  - *Agente / Modelo:* `Agente Backend` — **Gemini 4 Argon (High)** *(lógica crítica de concorrência/background)*
-- **`FUT-CAL-02` [H1] — Endpoint Agregado do Operations Board (`GET /operations-board`):**
-  - *O que é:* Substituir as múltiplas chamadas por apartamento quando o filtro `"Todos os apartamentos"` está ativo no `/dashboard` por um único endpoint consolidado no Spring.
-  - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)** *(evolução direta de endpoint e consumo no dia a dia)*
-- **`FUT-CAL-03` [H2] — Regra de Janela de Confirmação para `missing_in_feed`:**
-  - *O que é:* Evitar que uma falha momentânea do feed do Airbnb marque reservas como ausentes de imediato; confirmar remoção/cancelamento apenas após $N$ sincronizações consecutivas ou alertar o anfitrião para decisão manual.
-  - *Agente / Modelo:* `Agente Backend` — **Gemini 4 Argon (High)** *(regra crítica de reconciliação de reservas)*
-- **`FUT-CAL-04` [H2] — Bloqueio de Datas / Manutenção no Calendário:**
-  - *O que é:* Permitir bloquear dias no Cronograma para manutenção ou uso do proprietário (sem contar como receita de hóspede, mas impedindo conflitos).
-  - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)**
-- **`FUT-CAL-05` [H3] — Exportação de Feed iCal do Check-In Board (`.ics` de saída):**
-  - *O que é:* Gerar um link `.ics` público assinado por apartamento para que reservas diretas/manuais criadas no Check-In Board bloqueiem automaticamente a agenda do Airbnb/Booking.
-  - *Agente / Modelo:* `Agente Backend` — **Gemini 4 Argon (High)** *(geração RFC 5545 + segurança de token assinado)*
-
----
-
-## 2. Operação de Campo, Tarefas & Checklists
-
-- **`FUT-OPS-01` [H1] — Templates Automáticos de Tarefas por Reserva:**
-  - *O que é:* Gerar automaticamente a tarefa de *Limpeza / Check-out* sempre que uma nova reserva confirmada entrar via iCal ou criação manual, evitando esquecimentos.
-  - *Agente / Modelo:* `Agente Backend` — **Gemini 4 Hydrogen (XHigh)**
-- **`FUT-OPS-02` [H2] — Checklists de Limpeza e Vistoria com Fotos:**
-  - *O que é:* Permitir que o perfil `team` marque itens de um checklist por apartamento e anexe fotos de vistoria ao concluir a limpeza.
-  - *Agente / Modelo:* `Agente Backend` + `Agente Web` / `Agente Mobile` — **Gemini 4 Hydrogen (High)**
-- **`FUT-OPS-03` [H2] — Link Rápido / WhatsApp de Escala Diária para Equipe de Limpeza:**
-  - *O que é:* Botão para gerar resumo formatado para WhatsApp com os check-outs e limpezas do dia ou da semana por responsável.
-  - *Agente / Modelo:* `Agente Web` — **Gemini 3.8 Flash**
-
----
-
-## 3. Financeiro, Proprietários & Prestação de Contas
-
-- **`FUT-FIN-01` [H1] — Unificação Completa do `finance-mvp` dentro do `apps/web`:**
-  - *O que é:* Trazer 100% da agilidade de criação rápida e exportação CSV detalhada do `apps/finance-mvp` para a experiência principal em `/financeiro`, permitindo aposentar o app separado quando desejado.
+### 1. Experiência Web-Mobile Simplificada (`apps/web`)
+- **`WEB-MOB-01` — Enxugar e Simplificar as Telas no Celular (`< 768px`):**
+  - *O que é:* Hoje o Web-Mobile tenta carregar a mesma quantidade de filtros, KPIs, botões secundários e blocos do Desktop. Simplificar a visão mobile para mostrar apenas o essencial e direto ao ponto (escondendo controles secundários, relatórios A4 e configurações densas que pertencem ao Desktop).
   - *Agente / Modelo:* `Agente Web` — **Gemini 4 Hydrogen (High)**
-- **`FUT-FIN-02` [H1] — Taxa de Administração Configurável por Proprietário/Apartamento:**
-  - *O que é:* Cadastrar o percentual de comissão da administradora (ex: 15% ou 20%) no cadastro do Proprietário/Apartamento para calcular automaticamente o valor líquido de repasse nos relatórios e fechamentos.
-  - *Agente / Modelo:* `Agente Backend` (**Gemini 4 Argon High** nos cálculos em centavos) + `Agente Web` (**Gemini 4 Hydrogen High** nas telas/relatórios)
-- **`FUT-FIN-03` [H2] — Despesas Recorrentes Mensais (Condomínio, Internet, Energia, IPTU):**
-  - *O que é:* Configurar despesas fixas mensais por apartamento para geração automática na abertura de cada competência (`period_month`).
-  - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)**
-- **`FUT-FIN-04` [H3] — Portal de Visualização do Proprietário (Read-Only):**
-  - *O que é:* Visão simplificada onde o proprietário (`co_host` / cliente) acessa apenas o calendário de ocupação e os demonstrativos mensais de repasse dos seus imóveis.
+
+### 2. Sync iCal ao Entrar (Cooldown 1h) + Página de Notificações Inteligente
+- **`SYNC-NOTIF-01` — Retorno de "Diff" no Sync iCal (`apps/backend-spring`):**
+  - *O que é:* Ao sincronizar uma fonte iCal, calcular exatamente o que mudou em relação ao estado anterior (`newReservationsCount`, `cancelledReservationsCount`, e a lista resumida das reservas novas/canceladas) em vez de apenas atualizar silenciosamente.
+  - *Agente / Modelo:* `Agente Backend` — **Gemini 4 Argon (High)** *(reconciliação de estado do parser/upsert)*
+- **`SYNC-NOTIF-02` — Gatilho de Sync Automático no Acesso com Trava de 1 Hora (`apps/web` + `apps/backend-spring`):**
+  - *O que é:* Quando o usuário entra no sistema, checar o timestamp da última sincronização automática (`lastSuccessAt` / `lastSyncAttemptAt`). Se passou mais de **1 hora**, disparar o sync das fontes ativas em segundo plano sem travar a tela.
   - *Agente / Modelo:* `Agente Web` + `Agente Backend` — **Gemini 4 Hydrogen (High)**
-
----
-
-## 4. Equipe, Segurança & Notificações
-
-- **`FUT-SEC-01` [H2] — Envio Real de E-mails Transacionais (Reset de Senha e Convites):**
-  - *O que é:* Conectar provedor de e-mail (ex: Resend / AWS SES) no Spring Boot para envio de links de recuperação de senha e convites de equipe.
-  - *Agente / Modelo:* `Agente Backend` — **Gemini 4 Hydrogen (Medium)**
-- **`FUT-SEC-02` [H2] — Trilha de Auditoria (`audit_logs`) Visível para Host Admin:**
-  - *O que é:* Registrar e exibir quem alterou preços de reserva, excluiu lançamentos financeiros ou mudou status de tarefas.
+- **`SYNC-NOTIF-03` — Central / Página de Notificações (`/notificacoes`):**
+  - *O que é:* Criar a página dedicada de notificações e o indicador (badge com contador) no topo/menu.
+    - **Regra do Silêncio:** Se o sync iCal rodou e não houve nenhuma reserva nova, cancelada ou erro, **não cria notificação**.
+    - **Quando há novidade ou falha:** Cria a notificação (ex: *"Sync Airbnb: 3 novas reservas e 1 cancelamento"* ou *"Falha ao sincronizar Apto 204"*). Ao clicar na notificação, expande os detalhes exatos das reservas que entraram/saíram ou o motivo do erro.
   - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)**
-- **`FUT-SEC-03` [H2] — Alertas Operacionais (Conflito de Reserva, Falha de Sync, Reserva Sem Preço):**
-  - *O que é:* Central de notificações ou envio de alerta quando um feed iCal falhar repetidamente ou houver colisão de datas no mesmo imóvel.
-  - *Agente / Modelo:* `Agente Backend` (**Gemini 4 Argon Medium**) + `Agente Web` (**Gemini 4 Hydrogen High**)
+
+### 3. Visibilidade Financeira e Operacional para `Admin-Proprietário` (`co_host`)
+- **`RBAC-OWN-01` — Escopo Financeiro por Apartamento/Proprietário no Backend (`apps/backend-spring`):**
+  - *O que é:* Hoje os endpoints financeiros (`/financial-entries`, `/financial-summary`, `/rental-stays`) são restritos apenas a `host_admin`. Liberar leitura financeira para o dono convidado (`co_host`), mas **filtrando estritamente pelos apartamentos aos quais ele tem vínculo**, garantindo que ele veja o dinheiro dos seus imóveis e nunca veja dados de outros proprietários.
+  - *Agente / Modelo:* `Agente Backend` — **Gemini 4 Argon (High)** *(segurança e isolamento de dados financeiros)*
+- **`RBAC-OWN-02` — Visão de Convidado Dono de Apartamento no Web (`apps/web`):**
+  - *O que é:* Simplificar o cadastro de equipe/convite para focar em **Convidar Dono de Apartamento** (vinculando quais imóveis ele é dono) e ajustar a interface para que o proprietário convidado veja o financeiro e o calendário dos seus imóveis sem ver menus administrativos globais.
+  - *Agente / Modelo:* `Agente Web` — **Gemini 4 Hydrogen (High)**
 
 ---
 
-## 5. Qualidade, Design System & Experiência Mobile
+## Prioridade 2 (`P2` — Ideias Futuras Opcionais)
 
-- **`FUT-QA-01` [H1] — Consolidação Total de Dicionário `i18n` (`pt-BR`):**
-  - *O que é:* Mover todas as strings ainda hardcoded nas features de calendário, financeiro e modais para módulos tipados em `apps/web/src/i18n/`.
+- **`FUT-CAL-01` — Bloqueio de Datas / Uso do Proprietário no Calendário:**
+  - *O que é:* Permitir bloquear datas no Cronograma para manutenção ou uso do próprio dono do imóvel.
+  - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)**
+- **`FUT-FIN-01` — Taxa de Administração Informativa por Proprietário/Apartamento:**
+  - *O que é:* Configurar percentual da comissão da administradora (ex: 15% ou 20%) apenas para cálculo automático no demonstrativo de repasse.
+  - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)**
+- **`FUT-FIN-02` — Despesas Recorrentes Mensais (Condomínio, Internet, Energia):**
+  - *O que é:* Lançamento rápido de despesas fixas mensais por imóvel.
+  - *Agente / Modelo:* `Agente Backend` + `Agente Web` — **Gemini 4 Hydrogen (High)**
+- **`FUT-QA-01` — Consolidação Total de Dicionário `i18n` (`pt-BR`):**
+  - *O que é:* Centralizar textos restantes das telas em `apps/web/src/i18n/pt-br.ts`.
   - *Agente / Modelo:* `Agente QA / Flash` — **Gemini 3.8 Flash**
-- **`FUT-QA-02` [H1] — Suíte de Testes E2E / Smoke Visual Automatizado:**
-  - *O que é:* Roteiro automatizado validando login, criação de reserva manual, visualização no cronograma mobile (375px) e desktop (1280px) e fechamento financeiro.
-  - *Agente / Modelo:* `Agente QA / Browser` — **Gemini 3.8 Flash**
-- **`FUT-MOB-01` [H3] — Alinhamento do `apps/mobile` (Expo) com os Novos Módulos do Spring:**
-  - *O que é:* Caso o app nativo Expo volte a ser prioridade em paralelo ao Web Mobile-First, atualizar seus serviços para consumir os novos endpoints de reservas manuais e estadias do Spring.
-  - *Agente / Modelo:* `Agente Mobile` — **Gemini 4 Hydrogen (High)**

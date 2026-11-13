@@ -12,12 +12,21 @@
 
 O **Check-In Board** é um SaaS operacional e financeiro para gestores de imóveis de temporada (anfitriões profissionais, co-anfitriões e administradoras). Ele centraliza a operação de múltiplos apartamentos e proprietários, unificando reservas importadas via iCal (Airbnb, Booking, etc.) e reservas diretas/manuais, tarefas operacionais de limpeza/manutenção, controle de equipe com permissões por imóvel e apuração financeira com fechamento de repasses.
 
-### Direção Oficial Atual
-- **`apps/web` (Next.js App Router):** É o **produto principal completo**, desenhado com arquitetura *Mobile-First & Desktop* (identidade visual *Carbon Enterprise* — Stitch `639271905691226277`).
-- **`apps/backend-spring` (Java 21 + Spring Boot):** É o **único backend oficial** e fonte única da verdade (o antigo backend Node/Fastify/Prisma do início do projeto já foi removido).
-- **`apps/finance-mvp` (Next.js):** App enxuto e independente para lançamentos financeiros rápidos em operação real imediata, consumindo o mesmo backend Spring.
-- **`apps/mobile` (Expo / React Native):** App mobile complementar voltado para operação rápida de campo.
-- **`packages/design-system`:** Pacote compartilhado de tokens visuais (`--cib-*`, paleta Carbon, espaçamentos, raios e tipografia).
+### Direção Oficial Atual e Regras de Produto Cravadas
+- **`apps/web` (Next.js App Router — Desktop + Web-Mobile Simplificado):** É o **único frontend principal**.
+  - **Desktop:** Visão completa de gestão, tabelas densas, demonstrativos A4 e configurações avançadas.
+  - **Web-Mobile (Celular):** Experiência **enxuta, simples e direta**, com menos elementos por tela para consulta e ação rápida (deixando análises densas para o Desktop).
+  - **App Nativo (`apps/mobile`) congelado:** Não investir tempo no app Expo no momento; o foco 100% mobile é o **Web-Mobile**.
+- **Público e Permissões (Apenas Admins e Donos de Imóveis):**
+  - O sistema é voltado **exclusivamente para gestores e proprietários de apartamentos** (sem perfil operacional de limpeza/terceirizados logando na plataforma).
+  - **`Admin-Admin` (`host_admin`):** Vê todos os apartamentos, todos os proprietários e todo o financeiro consolidado.
+  - **`Admin-Proprietário` (`co_host` / Convidado Dono de Apartamento):** Vê **apenas os seus próprios apartamentos** e o **financeiro/receitas/despesas estritamente dos seus próprios apartamentos**.
+- **Dinheiro Apenas Informativo/Gerencial:**
+  - O Check-In Board **não processa pagamentos** (sem gateway, sem movimentação bancária dentro da plataforma). Todos os valores registrados são apenas para controle gerencial e prestação de contas entre o gestor e o proprietário.
+- **Sincronização iCal Econômica (Trigger no Acesso com Cooldown de 1h) & Notificações com Diff:**
+  - **Zero custo de tempo real / background 24/7:** O sync automático roda **apenas quando o usuário entra no sistema**, respeitando uma trava mínima de **1 hora (cooldown)** entre sincronizações automáticas.
+  - **Notificações Inteligentes (Sem Spam):** Só gera notificação na página de notificações se o sync trouxer **novidades reais** (ex: *"3 novas reservas"*, *"1 reserva cancelada"*) ou se ocorrer **falha/erro**. Se sincronizar e não houver nenhuma mudança nas reservas, nenhuma notificação aparece.
+- **`apps/backend-spring` (Java 21 + Spring Boot):** É o **único backend oficial** e fonte única da verdade.
 
 ---
 
