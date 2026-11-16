@@ -17,7 +17,6 @@ import {
 import {
   isAbortError,
   type Apartment,
-  type AuthRole,
   type FinancialEntry,
   type FinancialSummary,
 } from "../../api";
@@ -31,10 +30,9 @@ import { Input, Select } from "../../components/ui/form-controls";
 import { PageHeader } from "../../components/ui/page-header";
 import { Panel } from "../../components/ui/panel";
 import { Toolbar } from "../../components/ui/toolbar";
-import { fetchMe } from "../auth/auth-api";
+import { useAuthSession } from "../auth/session-context";
 import { fetchApartments } from "../dashboard/dashboard-api";
 import { fetchOwners } from "../owners/owners-api";
-import { readStoredSession } from "../../lib/session-storage";
 import {
   deleteFinancialEntry,
   fetchFinancialEntries,
@@ -112,7 +110,7 @@ function getPeriodPresetRange(preset: PeriodPreset): { dateFrom: string; dateTo:
 }
 
 export function FinancePage() {
-  const [userRole, setUserRole] = useState<AuthRole | null>(null);
+  const { session, isHostAdmin } = useAuthSession();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
   const [entries, setEntries] = useState<FinancialEntry[]>([]);
@@ -128,14 +126,10 @@ export function FinancePage() {
   const [message, setMessage] = useState("");
   const loadAbortRef = useRef<AbortController | null>(null);
 
-  const isHostAdmin = userRole === "host_admin";
-
   async function loadFinance(nextFilters: FinanceFilters = currentFilters()) {
     loadAbortRef.current?.abort();
     const controller = new AbortController();
     loadAbortRef.current = controller;
-
-    const session = readStoredSession();
 
     if (!session || !nextFilters.dateFrom || !nextFilters.dateTo) {
       setIsLoading(false);
@@ -147,14 +141,6 @@ export function FinancePage() {
     let isAborted = false;
 
     try {
-      let resolvedRole = userRole;
-      if (!resolvedRole) {
-        const me = await fetchMe(session.token);
-        if (controller.signal.aborted) return;
-        resolvedRole = me.memberships.find((m) => m.isActive)?.role ?? null;
-        setUserRole(resolvedRole);
-      }
-
       const [nextApartments, nextEntries, nextSummary] = await Promise.all([
         fetchApartments(session.token),
         fetchFinancialEntries(session.token, nextFilters),
@@ -163,11 +149,7 @@ export function FinancePage() {
 
       if (controller.signal.aborted) return;
 
-      if (resolvedRole === "host_admin") {
-        const nextOwners = await fetchOwners(session.token);
-        if (controller.signal.aborted) return;
-        setOwners(nextOwners.map((owner) => ({ id: owner.id, name: owner.name })));
-      } else {
+      if (!isHostAdmin) {
         const uniqueOwners = new Map<string, string>();
         for (const apartment of nextApartments) {
           uniqueOwners.set(apartment.owner.id, apartment.owner.name);
@@ -199,6 +181,31 @@ export function FinancePage() {
   }
 
   useEffect(() => {
+    if (!session?.token || !isHostAdmin) {
+      return;
+    }
+
+    let cancelled = false;
+    void fetchOwners(session.token)
+      .then((nextOwners) => {
+        if (!cancelled) {
+          setOwners(nextOwners.map((owner) => ({ id: owner.id, name: owner.name })));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled && !isAbortError(error)) {
+          setMessage(
+            error instanceof Error ? error.message : "Falha ao carregar proprietários.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHostAdmin, session?.token]);
+
+  useEffect(() => {
     const initialRange = getPeriodPresetRange("current_month");
     setDateFrom(initialRange.dateFrom);
     setDateTo(initialRange.dateTo);
@@ -207,7 +214,7 @@ export function FinancePage() {
     return () => {
       loadAbortRef.current?.abort();
     };
-  }, []);
+  }, [session?.token]);
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -270,8 +277,6 @@ export function FinancePage() {
   }
 
   async function removeEntry() {
-    const session = readStoredSession();
-
     if (!session || !entryToDelete) {
       return;
     }

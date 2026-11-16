@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 
 import type { Apartment, IcalSource, SyncRun } from "../../../api";
+import { Button } from "../../../components/ui/button";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { Input, Select } from "../../../components/ui/form-controls";
+import { IconButton } from "../../../components/ui/icon-button";
 import { formatDateTime } from "../../../lib/date-formatters";
 import { readStoredSession } from "../../../lib/session-storage";
 import {
@@ -290,14 +292,13 @@ export function IcalSourcesManagement({
             importações e acompanhe o histórico sem poluir o dashboard operacional.
           </p>
         </div>
-        <button
+        <IconButton
           aria-label="Fechar gestao de iCal"
-          className="grid h-10 w-10 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
+          className="h-10 w-10 rounded-xl"
+          icon={X}
           onClick={onClose}
-          type="button"
-        >
-          <X aria-hidden className="h-4 w-4" />
-        </button>
+          variant="secondary"
+        />
       </div>
 
       {message ? (
@@ -321,13 +322,14 @@ export function IcalSourcesManagement({
               {isEditing ? "Editar fonte" : "Nova fonte"}
             </div>
             {isEditing ? (
-              <button
-                className="text-xs font-semibold text-text-muted transition hover:text-primary"
+              <Button
+                className="h-auto px-2 py-1 text-xs"
                 onClick={cancelEditing}
-                type="button"
+                size="xs"
+                variant="ghost"
               >
                 Cancelar
-              </button>
+              </Button>
             ) : null}
           </div>
           <div className="mt-4 grid gap-3">
@@ -374,17 +376,19 @@ export function IcalSourcesManagement({
               </label>
             ) : null}
           </div>
-          <button
-            className="mt-4 h-11 w-full rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+          <Button
+            className="mt-4 w-full rounded-xl"
             disabled={isSaving}
+            size="lg"
             type="submit"
+            variant="primary"
           >
             {isSaving
               ? "Salvando..."
               : isEditing
                 ? "Salvar alterações"
                 : "Adicionar fonte"}
-          </button>
+          </Button>
         </form>
 
         <div className="grid gap-4">
@@ -420,18 +424,21 @@ export function IcalSourcesManagement({
                       key={source.id}
                     >
                       <td className="px-4 py-4">
-                        <button
-                          className="text-left"
+                        <Button
+                          className="h-auto w-full justify-start whitespace-normal border-transparent bg-transparent p-0 text-left font-normal hover:bg-transparent hover:text-inherit"
                           onClick={() => setSelectedSourceId(source.id)}
-                          type="button"
+                          size="xs"
+                          variant="ghost"
                         >
-                          <strong className="block font-semibold text-text-primary">
-                            {source.label}
-                          </strong>
-                          <span className="text-xs text-text-muted">
-                            {source.provider}
-                          </span>
-                        </button>
+                          <div className="min-w-0">
+                            <strong className="block font-semibold text-text-primary">
+                              {source.label}
+                            </strong>
+                            <span className="text-xs text-text-muted">
+                              {source.provider}
+                            </span>
+                          </div>
+                        </Button>
                       </td>
                       <td className="px-4 py-4 text-text-secondary">
                         {formatDateTime(source.lastSuccessAt)}
@@ -443,22 +450,22 @@ export function IcalSourcesManagement({
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
-                          <button
+                          <IconButton
                             aria-label="Editar fonte"
-                            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
+                            className="rounded-xl"
+                            icon={Pencil}
                             onClick={() => startEditingSource(source)}
-                            type="button"
-                          >
-                            <Pencil aria-hidden className="h-4 w-4" />
-                          </button>
-                          <button
+                            variant="secondary"
+                          />
+                          <Button
                             aria-label="Sincronizar fonte"
-                            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-xl"
                             disabled={
                               syncingSourceId === source.id || !source.syncEnabled
                             }
                             onClick={() => void syncSource(source)}
-                            type="button"
+                            size="icon"
+                            variant="secondary"
                           >
                             <RefreshCw
                               aria-hidden
@@ -466,23 +473,21 @@ export function IcalSourcesManagement({
                                 syncingSourceId === source.id ? "animate-spin" : ""
                               }`}
                             />
-                          </button>
-                          <button
+                          </Button>
+                          <IconButton
                             aria-label="Ver histórico"
-                            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-primary hover:text-primary"
+                            className="rounded-xl"
+                            icon={History}
                             onClick={() => setSelectedSourceId(source.id)}
-                            type="button"
-                          >
-                            <History aria-hidden className="h-4 w-4" />
-                          </button>
-                          <button
+                            variant="secondary"
+                          />
+                          <IconButton
                             aria-label="Remover fonte"
-                            className="grid h-9 w-9 place-items-center rounded-xl border border-border text-text-secondary transition hover:border-danger hover:text-danger"
+                            className="rounded-xl"
+                            icon={Trash2}
                             onClick={() => setSourceToDelete(source)}
-                            type="button"
-                          >
-                            <Trash2 aria-hidden className="h-4 w-4" />
-                          </button>
+                            variant="danger"
+                          />
                         </div>
                       </td>
                     </tr>

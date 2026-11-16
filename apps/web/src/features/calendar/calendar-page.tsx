@@ -2,39 +2,42 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Building2,
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Filter,
-  Home,
+  FileText,
+  LayoutGrid,
   Plus,
-  RotateCcw,
   RotateCw,
   Search,
-  Sparkles,
   Table as TableIcon,
-  LayoutGrid,
-  ShieldCheck,
-  Building2,
-  DollarSign,
-  UserCheck,
-  FileText,
-  CheckCircle2,
 } from "lucide-react";
 
 import { isAbortError, type Apartment, type RentalStay } from "../../api";
 import { messages } from "../../i18n";
 import { formatMoney } from "../finance/money";
 import { fetchRentalStays } from "../finance/rental-stay-api";
+import {
+  addDays,
+  addMonths,
+  currentMonthInput,
+  monthRange,
+} from "../../lib/date-formatters";
 import { readStoredSession } from "../../lib/session-storage";
+import { useAuthSession } from "../auth/session-context";
 import {
   fetchApartments,
   fetchIcalSources,
   syncIcalSource,
 } from "../dashboard/dashboard-api";
-import { fetchReservations } from "../reservations/reservations-api";
+import { fetchAllReservations } from "../reservations/reservations-api";
 import {
   attachApartmentDetails,
+  getReservationDisplayGuest,
+  isGenericGuestReservation,
+  needsReservationAttention,
   nightsBetween,
   reservationLocalDate,
   type ReservationListItem,
@@ -45,12 +48,16 @@ import { CalendarGridView, type CalendarDay } from "./components/calendar-grid-v
 import { CalendarTimelineView } from "./components/calendar-timeline-view";
 import { ReservationUnifiedModal } from "./components/reservation-unified-modal";
 import { CalendarReportsModal } from "./components/calendar-reports-modal";
+import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Select } from "../../components/ui/form-controls";
+import { IconButton } from "../../components/ui/icon-button";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 
 const allApartmentsValue = "all";
 
 export function CalendarPage() {
+  const { session: authSession } = useAuthSession();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [reservations, setReservations] = useState<ReservationListItem[]>([]);
   const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
@@ -79,7 +86,7 @@ export function CalendarPage() {
     const controller = new AbortController();
     loadAbortRef.current = controller;
 
-    const session = readStoredSession();
+    const session = authSession ?? readStoredSession();
     if (!session) {
       setIsLoading(false);
       return;
@@ -101,14 +108,10 @@ export function CalendarPage() {
         return;
       }
 
-      const apartmentIds =
-        nextApartmentId === allApartmentsValue
-          ? nextApartments.map((apartment) => apartment.id)
-          : [nextApartmentId];
-
-      const reservationGroups = await Promise.all(
-        apartmentIds.map((apartmentId) => fetchReservations(session.token, apartmentId)),
-      );
+      const fetchedReservations = await fetchAllReservations(session.token, {
+        apartmentId: nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
+        signal: controller.signal,
+      });
       if (controller.signal.aborted) {
         return;
       }
@@ -130,7 +133,7 @@ export function CalendarPage() {
 
       setApartments(nextApartments);
       setRentalStays(stays);
-      setReservations(attachApartmentDetails(reservationGroups.flat(), nextApartments));
+      setReservations(attachApartmentDetails(fetchedReservations, nextApartments));
     } catch (error) {
       if (controller.signal.aborted || isAbortError(error)) {
         return;
@@ -194,13 +197,7 @@ export function CalendarPage() {
       // Pending filter
       if (isPendingFilterActive) {
         const stay = rentalStaysMap.get(reservation.id);
-        const hasPrice = stay && stay.rentAmountCents > 0;
-        const isGenericName =
-          !reservation.guestName ||
-          reservation.rawSummary?.toLowerCase().includes("reserved") ||
-          reservation.rawSummary?.toLowerCase().includes("airbnb");
-        const needsAttention = !hasPrice || isGenericName;
-        if (!needsAttention) return false;
+        if (!needsReservationAttention(reservation, stay)) return false;
       }
 
       // Search query
@@ -266,7 +263,7 @@ export function CalendarPage() {
 
   // Trigger real-time Airbnb iCal sync
   async function handleSyncAirbnb() {
-    const session = readStoredSession();
+    const session = authSession ?? readStoredSession();
     if (!session) return;
 
     setIsSyncingAirbnb(true);
@@ -335,92 +332,88 @@ export function CalendarPage() {
         <div className="flex flex-col gap-3.5">
           {/* Row 1: View Switcher (Cronograma / Mês) + Primary "+ Reserva" Button */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
-            <div className="flex rounded-xl border border-border bg-surface-muted p-1">
-              <button
-                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  viewMode === "timeline"
-                    ? "bg-surface text-primary shadow-2xs"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-                onClick={() => setViewMode("timeline")}
-                type="button"
-              >
-                <TableIcon className="h-3.5 w-3.5" />
-                Cronograma
-              </button>
-              <button
-                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  viewMode === "grid"
-                    ? "bg-surface text-primary shadow-2xs"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-                onClick={() => setViewMode("grid")}
-                type="button"
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-                Mês (Grade)
-              </button>
-            </div>
+            <Tabs
+              onValueChange={(value) => setViewMode(value as "grid" | "timeline")}
+              value={viewMode}
+            >
+              <TabsList className="h-auto rounded-xl border border-border bg-surface-muted p-1">
+                <TabsTrigger
+                  className="cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-bold text-text-secondary hover:text-text-primary data-[state=active]:text-primary data-[state=active]:shadow-2xs"
+                  value="timeline"
+                >
+                  <TableIcon className="h-3.5 w-3.5" />
+                  Cronograma
+                </TabsTrigger>
+                <TabsTrigger
+                  className="cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-bold text-text-secondary hover:text-text-primary data-[state=active]:text-primary data-[state=active]:shadow-2xs"
+                  value="grid"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  Mês (Grade)
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
             <div className="flex items-center gap-2">
-              <button
-                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              <Button
+                className="gap-1.5 px-2.5 text-text-secondary shadow-none hover:border-primary hover:bg-surface hover:text-primary"
                 disabled={isSyncingAirbnb}
                 onClick={handleSyncAirbnb}
+                size="sm"
                 title="Sincronizar reservas iCal do Airbnb agora"
-                type="button"
+                variant="secondary"
               >
                 <RotateCw className={`h-3.5 w-3.5 ${isSyncingAirbnb ? "animate-spin text-primary" : ""}`} />
                 <span className="hidden sm:inline">
                   {isSyncingAirbnb ? "Sincronizando..." : "Sincronizar iCal"}
                 </span>
-              </button>
+              </Button>
 
-              <button
-                className="inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary active:scale-[0.98]"
+              <Button
+                className="gap-1.5 px-2.5 text-text-secondary shadow-none hover:border-primary hover:bg-surface hover:text-primary"
                 onClick={() => setIsReportsModalOpen(true)}
+                size="sm"
                 title="Gerar Demonstrativo do Proprietário, Escala de Limpeza ou Portaria"
-                type="button"
+                variant="secondary"
               >
                 <FileText className="h-3.5 w-3.5 shrink-0" />
                 <span>PDF / Relatórios</span>
-              </button>
+              </Button>
 
-              <button
-                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
+              <Button
+                className="gap-1.5 px-3.5 font-bold"
                 onClick={() => handleOpenCreateModal()}
-                type="button"
+                size="sm"
+                variant="primary"
               >
                 <Plus className="h-4 w-4" />
                 Reserva
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Row 2: Month Navigation (< Outubro 2026 >) + Hoje + Search */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <button
+              <IconButton
                 aria-label="Mês anterior"
-                className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg bg-surface-muted text-text-primary transition hover:bg-border/60 active:scale-95"
+                className="shrink-0 bg-surface-muted text-text-primary shadow-none hover:bg-border/60"
+                icon={ChevronLeft}
                 onClick={() => shiftMonth(-1)}
-                type="button"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
+                variant="ghost"
+              />
 
               <span className="min-w-[130px] text-center text-base sm:text-lg font-bold tracking-tight text-text-primary">
                 {formattedMonthLabel}
               </span>
 
-              <button
+              <IconButton
                 aria-label="Próximo mês"
-                className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg bg-surface-muted text-text-primary transition hover:bg-border/60 active:scale-95"
+                className="shrink-0 bg-surface-muted text-text-primary shadow-none hover:bg-border/60"
+                icon={ChevronRight}
                 onClick={() => shiftMonth(1)}
-                type="button"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+                variant="ghost"
+              />
             </div>
 
             <div className="flex items-center gap-2">
@@ -434,14 +427,15 @@ export function CalendarPage() {
                 />
               </div>
 
-              <button
-                className="h-9 shrink-0 cursor-pointer rounded-lg bg-primary-soft px-3 text-xs font-bold text-primary transition hover:brightness-95 active:scale-95"
+              <Button
+                className="shrink-0 bg-primary-soft font-bold hover:brightness-95"
                 onClick={handleResetToCurrentMonth}
+                size="sm"
                 title="Ir para o mês atual"
-                type="button"
+                variant="subtle"
               >
                 Hoje
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -479,18 +473,20 @@ export function CalendarPage() {
             </div>
 
             {/* Quick Pending Filter Pill */}
-            <button
-              className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition ${
+            <Button
+              aria-pressed={isPendingFilterActive}
+              className={`shrink-0 gap-1.5 ${
                 isPendingFilterActive
-                  ? "border-amber-500 bg-amber-50 text-amber-900 font-semibold"
-                  : "border-border bg-surface-muted/70 text-text-secondary hover:text-text-primary"
+                  ? "border-amber-500 bg-amber-50 font-semibold text-amber-900 hover:border-amber-600 hover:bg-amber-100/70 hover:text-amber-900"
+                  : "border-border bg-surface-muted/70 font-medium text-text-secondary hover:bg-surface-muted hover:text-text-primary"
               }`}
               onClick={() => setIsPendingFilterActive((prev) => !prev)}
-              type="button"
+              size="xs"
+              variant="outline"
             >
               <CheckCircle2 className="h-3.5 w-3.5 text-text-muted" />
               Apenas Pendências
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -576,10 +572,8 @@ export function CalendarPage() {
               const nights = nightsBetween(reservation.startsAt, reservation.endsAt);
               const isAirbnb = reservation.provider?.toLowerCase() === "airbnb";
 
-              const isGenericName =
-                !reservation.guestName ||
-                reservation.rawSummary?.toLowerCase().includes("reserved") ||
-                reservation.rawSummary?.toLowerCase().includes("airbnb");
+              const isGenericName = isGenericGuestReservation(reservation);
+              const displayGuest = getReservationDisplayGuest(reservation);
 
               const codeSnippet = (reservation.externalEventKey || reservation.id)
                 .slice(-6)
@@ -623,12 +617,12 @@ export function CalendarPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <strong className="block truncate text-base font-bold text-text-primary">
-                        {isGenericName && !reservation.guestName ? (
+                        {isGenericName && !reservation.guestName?.trim() ? (
                           <span className="text-amber-800 underline decoration-amber-400">
-                            {reservation.rawSummary || "Hóspede Não Identificado"}
+                            {displayGuest}
                           </span>
                         ) : (
-                          reservation.guestName || reservation.rawSummary || "Reserva"
+                          displayGuest
                         )}
                       </strong>
                       <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-text-secondary truncate">
@@ -677,13 +671,14 @@ export function CalendarPage() {
                         )}
                       </div>
 
-                      <button
-                        className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
+                      <Button
+                        className="shrink-0 px-3.5 font-bold"
                         onClick={() => handleOpenEditModal(reservation)}
-                        type="button"
+                        size="sm"
+                        variant="primary"
                       >
                         Editar & Precificar
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </article>
@@ -754,29 +749,4 @@ function buildCalendarDays(month: string): CalendarDay[] {
   }
 
   return days;
-}
-
-function monthRange(month: string) {
-  if (!/^\d{4}-\d{2}$/.test(month)) return null;
-  const monthStart = `${month}-01`;
-  const nextMonth = addMonths(month, 1) + "-01";
-  return { monthStart, nextMonth };
-}
-
-function currentMonthInput() {
-  return new Date().toISOString().slice(0, 7);
-}
-
-function addMonths(month: string, amount: number) {
-  const [yearValue, monthValue] = month.split("-").map(Number);
-  const date = new Date(yearValue, monthValue - 1 + amount, 1, 12);
-  const year = date.getFullYear();
-  const nextMonth = String(date.getMonth() + 1).padStart(2, "0");
-  return `${year}-${nextMonth}`;
-}
-
-function addDays(date: string, amount: number) {
-  const nextDate = new Date(`${date}T12:00:00`);
-  nextDate.setDate(nextDate.getDate() + amount);
-  return nextDate.toISOString().slice(0, 10);
 }

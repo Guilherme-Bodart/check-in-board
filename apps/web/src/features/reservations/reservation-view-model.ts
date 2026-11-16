@@ -1,5 +1,6 @@
-import type { Apartment, Reservation } from "../../api";
+import type { Apartment, RentalStay, Reservation } from "../../api";
 import { messages } from "../../i18n";
+export { formatDateBR } from "../../lib/date-formatters";
 
 export type ReservationListItem = Reservation & {
   apartmentName: string;
@@ -47,16 +48,6 @@ export function reservationLocalDate(value: string): string {
   }
 }
 
-export function formatDateBR(value: string): string {
-  if (!value) return "";
-  const ymd = reservationLocalDate(value);
-  const parts = ymd.split("-");
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  }
-  return value;
-}
-
 export function nightsBetween(startsAt: string, endsAt: string) {
   const startYmd = reservationLocalDate(startsAt);
   const endYmd = reservationLocalDate(endsAt);
@@ -69,4 +60,110 @@ export function nightsBetween(startsAt: string, endsAt: string) {
   }
 
   return Math.round((end - start) / 86_400_000);
+}
+
+export function isGenericGuestReservation(
+  reservation: Pick<Reservation, "guestName" | "rawSummary">,
+): boolean {
+  const summary = reservation.rawSummary?.toLowerCase() ?? "";
+  return (
+    !reservation.guestName?.trim() ||
+    summary.includes("reserved") ||
+    summary.includes("airbnb")
+  );
+}
+
+export function getReservationDisplayGuest(
+  reservation: Pick<Reservation, "guestName" | "rawSummary">,
+  fallback = "Hóspede Não Identificado",
+): string {
+  return (
+    reservation.guestName?.trim() ||
+    reservation.rawSummary?.trim() ||
+    fallback
+  );
+}
+
+export function needsReservationAttention(
+  reservation: Pick<Reservation, "guestName" | "rawSummary">,
+  stay?: RentalStay | null,
+): boolean {
+  return (
+    !stay ||
+    stay.rentAmountCents <= 0 ||
+    isGenericGuestReservation(reservation)
+  );
+}
+
+export function findConflictingReservation<T extends Reservation>(
+  reservations: T[],
+  candidate: { id?: string; apartmentId: string; startsAt: string; endsAt: string },
+): T | null {
+  const candidateStart = reservationLocalDate(candidate.startsAt);
+  const candidateEnd = reservationLocalDate(candidate.endsAt);
+
+  if (!candidate.apartmentId || !candidateStart || !candidateEnd) {
+    return null;
+  }
+
+  for (const reservation of reservations) {
+    if (candidate.id && reservation.id === candidate.id) {
+      continue;
+    }
+    if (reservation.apartmentId !== candidate.apartmentId) {
+      continue;
+    }
+
+    const resStart = reservationLocalDate(reservation.startsAt);
+    const resEnd = reservationLocalDate(reservation.endsAt);
+    if (!resStart || !resEnd) {
+      continue;
+    }
+
+    const isTurnover = resEnd === candidateStart || candidateEnd === resStart;
+    if (!isTurnover && candidateStart < resEnd && candidateEnd > resStart) {
+      return reservation;
+    }
+  }
+
+  return null;
+}
+
+export function hasDayReservationConflict(
+  reservations: Reservation[],
+  date: string,
+): boolean {
+  const targetDate = reservationLocalDate(date);
+  if (!targetDate || reservations.length < 2) {
+    return false;
+  }
+
+  for (let i = 0; i < reservations.length; i += 1) {
+    const a = reservations[i];
+    const aStart = reservationLocalDate(a.startsAt);
+    const aEnd = reservationLocalDate(a.endsAt);
+
+    for (let j = i + 1; j < reservations.length; j += 1) {
+      const b = reservations[j];
+      if (a.apartmentId !== b.apartmentId) {
+        continue;
+      }
+
+      const bStart = reservationLocalDate(b.startsAt);
+      const bEnd = reservationLocalDate(b.endsAt);
+      const isTurnover = aEnd === bStart || bEnd === aStart;
+
+      if (
+        !isTurnover &&
+        targetDate >= aStart &&
+        targetDate <= aEnd &&
+        targetDate >= bStart &&
+        targetDate <= bEnd
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }

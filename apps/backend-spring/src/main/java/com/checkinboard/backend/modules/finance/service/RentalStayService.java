@@ -1,11 +1,9 @@
 package com.checkinboard.backend.modules.finance.service;
 
 import com.checkinboard.backend.modules.apartments.model.ApartmentEntity;
-import com.checkinboard.backend.modules.apartments.repository.ApartmentMembershipRepository;
-import com.checkinboard.backend.modules.apartments.repository.ApartmentRepository;
 import com.checkinboard.backend.modules.auth.model.AuthRole;
 import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
-import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRepository;
+import com.checkinboard.backend.modules.auth.service.OrganizationAccessService;
 import com.checkinboard.backend.modules.finance.dto.RentalStayDtos.RentalStayEnvelope;
 import com.checkinboard.backend.modules.finance.dto.RentalStayDtos.RentalStayResponse;
 import com.checkinboard.backend.modules.finance.dto.RentalStayDtos.RentalStaysResponse;
@@ -19,7 +17,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,20 +25,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class RentalStayService {
 
     private final RentalStayRepository rentalStayRepository;
-    private final ApartmentRepository apartmentRepository;
-    private final ApartmentMembershipRepository apartmentMembershipRepository;
-    private final OrganizationMembershipRepository organizationMembershipRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public RentalStayService(
         RentalStayRepository rentalStayRepository,
-        ApartmentRepository apartmentRepository,
-        ApartmentMembershipRepository apartmentMembershipRepository,
-        OrganizationMembershipRepository organizationMembershipRepository
+        OrganizationAccessService organizationAccessService
     ) {
         this.rentalStayRepository = rentalStayRepository;
-        this.apartmentRepository = apartmentRepository;
-        this.apartmentMembershipRepository = apartmentMembershipRepository;
-        this.organizationMembershipRepository = organizationMembershipRepository;
+        this.organizationAccessService = organizationAccessService;
     }
 
     @Transactional(readOnly = true)
@@ -52,13 +43,13 @@ public class RentalStayService {
         String apartmentId,
         String ownerId
     ) {
-        OrganizationMembershipEntity membership = getReadMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireReadMembership(userId);
         DateRange dateRange = normalizeDateRange(dateFrom, dateTo);
         String normalizedApartmentId = normalizeOptional(apartmentId);
         String normalizedOwnerId = normalizeOptional(ownerId);
 
         if (membership.getRole() == AuthRole.co_host) {
-            Set<String> allowedApartmentIds = allowedApartmentIdsForCoHost(
+            Set<String> allowedApartmentIds = organizationAccessService.allowedApartmentIdsForCoHost(
                 userId,
                 membership.getOrganization().getId()
             );
@@ -104,8 +95,8 @@ public class RentalStayService {
 
     @Transactional
     public RentalStayEnvelope create(String userId, UpsertRentalStayRequest request) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
-        ApartmentEntity apartment = findApartmentInOrganization(
+        OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
+        ApartmentEntity apartment = organizationAccessService.findApartmentInOrganization(
             request.apartmentId(),
             membership.getOrganization().getId()
         );
@@ -134,12 +125,12 @@ public class RentalStayService {
         String rentalStayId,
         UpsertRentalStayRequest request
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
         RentalStayEntity stay = findStayInOrganization(
             rentalStayId,
             membership.getOrganization().getId()
         );
-        ApartmentEntity apartment = findApartmentInOrganization(
+        ApartmentEntity apartment = organizationAccessService.findApartmentInOrganization(
             request.apartmentId(),
             membership.getOrganization().getId()
         );
@@ -161,7 +152,7 @@ public class RentalStayService {
 
     @Transactional
     public void delete(String userId, String rentalStayId) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
         RentalStayEntity stay = findStayInOrganization(
             rentalStayId,
             membership.getOrganization().getId()
@@ -189,67 +180,6 @@ public class RentalStayService {
         }
 
         return stay;
-    }
-
-    private ApartmentEntity findApartmentInOrganization(
-        String apartmentId,
-        String organizationId
-    ) {
-        ApartmentEntity apartment = apartmentRepository
-            .findByIdAndDeletedAtIsNull(apartmentId)
-            .orElseThrow(() ->
-                new ApiException(
-                    HttpStatus.NOT_FOUND,
-                    "APARTMENT_NOT_FOUND",
-                    "Apartment was not found."
-                )
-            );
-
-        if (!apartment.getOrganization().getId().equals(organizationId)) {
-            throw forbidden();
-        }
-
-        return apartment;
-    }
-
-    private Set<String> allowedApartmentIdsForCoHost(String userId, String organizationId) {
-        return apartmentMembershipRepository
-            .findByUserIdAndOrganizationId(userId, organizationId)
-            .stream()
-            .filter(m -> m.canView() && m.getApartment().getDeletedAt() == null)
-            .map(m -> m.getApartment().getId())
-            .collect(Collectors.toSet());
-    }
-
-    private OrganizationMembershipEntity getReadMembership(String userId) {
-        OrganizationMembershipEntity membership =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
-
-        if (
-            membership == null ||
-            !membership.isActive() ||
-            (membership.getRole() != AuthRole.host_admin &&
-                membership.getRole() != AuthRole.co_host)
-        ) {
-            throw forbidden();
-        }
-
-        return membership;
-    }
-
-    private OrganizationMembershipEntity getHostAdminMembership(String userId) {
-        OrganizationMembershipEntity membership =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
-
-        if (
-            membership == null ||
-            !membership.isActive() ||
-            membership.getRole() != AuthRole.host_admin
-        ) {
-            throw forbidden();
-        }
-
-        return membership;
     }
 
     private RentalStayResponse toResponse(RentalStayEntity stay) {

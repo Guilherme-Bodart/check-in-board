@@ -24,6 +24,9 @@ import {
 import { formatMoney } from "../../finance/money";
 import {
   formatDateBR,
+  getReservationDisplayGuest,
+  hasDayReservationConflict,
+  isGenericGuestReservation,
   reservationLocalDate,
   type ReservationListItem,
 } from "../../reservations/reservation-view-model";
@@ -50,37 +53,13 @@ export type CalendarGridViewProps = {
 
 const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-function hasDayConflict(reservations: ReservationListItem[], date: string): boolean {
-  if (reservations.length < 2) return false;
-  for (let i = 0; i < reservations.length; i++) {
-    for (let j = i + 1; j < reservations.length; j++) {
-      const a = reservations[i];
-      const b = reservations[j];
-      if (a.apartmentId === b.apartmentId) {
-        const aStart = reservationLocalDate(a.startsAt);
-        const aEnd = reservationLocalDate(a.endsAt);
-        const bStart = reservationLocalDate(b.startsAt);
-        const bEnd = reservationLocalDate(b.endsAt);
-        const isTurnover = aEnd === bStart || bEnd === aStart;
-        if (!isTurnover && date >= aStart && date <= aEnd && date >= bStart && date <= bEnd) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
 function getReservationMeta(reservation: ReservationListItem, date: string) {
   const startDate = reservationLocalDate(reservation.startsAt);
   const endDate = reservationLocalDate(reservation.endsAt);
   const isCheckIn = date === startDate;
   const isCheckOut = date === endDate;
   const isAirbnb = reservation.provider?.toLowerCase() === "airbnb";
-  const isGenericName =
-    !reservation.guestName ||
-    reservation.rawSummary?.toLowerCase().includes("reserved") ||
-    reservation.rawSummary?.toLowerCase().includes("airbnb");
+  const isGenericName = isGenericGuestReservation(reservation);
 
   return {
     startDate,
@@ -226,7 +205,7 @@ function CalendarCell({
   showApartmentName: boolean;
 }) {
   const hasConflict = useMemo(
-    () => hasDayConflict(reservations, day.date),
+    () => hasDayReservationConflict(reservations, day.date),
     [reservations, day.date],
   );
 
@@ -287,24 +266,26 @@ function CalendarCell({
           );
 
           const visibilityClass =
-            index === 0 ? "block" : index === 1 ? "hidden md:block" : "hidden";
+            index === 0 ? "flex" : index === 1 ? "hidden md:flex" : "hidden";
 
           return (
-            <button
-              className={`${visibilityClass} group/item w-full min-w-0 cursor-pointer rounded-lg border p-1 text-left text-[10px] transition-all hover:shadow-sm active:scale-[0.98] md:rounded-xl md:p-1.5 md:text-[11px] ${
+            <Button
+              className={`${visibilityClass} group/item h-auto w-full min-w-0 flex-col items-stretch justify-start gap-0 whitespace-normal rounded-lg border p-1 text-left text-[10px] font-normal transition-all hover:shadow-sm md:rounded-xl md:p-1.5 md:text-[11px] ${
                 isAirbnb
-                  ? "border-blue-200 bg-blue-50/90 text-blue-900 hover:bg-blue-100/80"
-                  : "border-emerald-200 bg-emerald-50/90 text-emerald-900 hover:bg-emerald-100/80"
+                  ? "border-blue-200 bg-blue-50/90 text-blue-900 hover:border-blue-300 hover:bg-blue-100/80 hover:text-blue-900"
+                  : "border-emerald-200 bg-emerald-50/90 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-100/80 hover:text-emerald-900"
               }`}
               key={`${reservation.id}-${day.date}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onReservationClick(reservation);
               }}
-              title={`${reservation.apartmentName} - ${
-                reservation.guestName || reservation.rawSummary || "Reserva"
-              } (${stay ? formatMoney(stay.rentAmountCents) : "Sem preço"})`}
-              type="button"
+              size="xs"
+              title={`${reservation.apartmentName} - ${getReservationDisplayGuest(
+                reservation,
+                "Reserva",
+              )} (${stay ? formatMoney(stay.rentAmountCents) : "Sem preço"})`}
+              variant="outline"
             >
               {/* Row 1: Channel + Check-in/out tag + Price */}
               <div className="flex min-w-0 items-center justify-between gap-1">
@@ -352,16 +333,16 @@ function CalendarCell({
 
               {/* Row 2: Guest Name or Warning */}
               <div className="mt-0.5 truncate font-semibold leading-tight md:mt-1">
-                {isGenericName && !reservation.guestName ? (
+                {isGenericName && !reservation.guestName?.trim() ? (
                   <span className="flex min-w-0 items-center gap-0.5 font-medium text-amber-700 md:gap-1">
                     <AlertCircle className="hidden h-3 w-3 shrink-0 md:inline" />
                     <span className="truncate">
-                      {reservation.rawSummary || "Definir hóspede"}
+                      {getReservationDisplayGuest(reservation, "Definir hóspede")}
                     </span>
                   </span>
                 ) : (
                   <span className="block truncate">
-                    {reservation.guestName || reservation.rawSummary}
+                    {getReservationDisplayGuest(reservation, "Reserva")}
                   </span>
                 )}
               </div>
@@ -372,21 +353,22 @@ function CalendarCell({
                   {reservation.apartmentName}
                 </div>
               )}
-            </button>
+            </Button>
           );
         })}
 
         {reservations.length > 1 && (
-          <button
-            className={`mt-auto inline-flex w-full min-w-0 cursor-pointer items-center justify-center gap-1 rounded-md border border-primary/25 bg-primary-soft/65 px-1 py-0.5 text-[10px] font-bold text-primary transition-all hover:border-primary/50 hover:bg-primary-soft active:scale-[0.98] md:rounded-lg md:px-2 md:py-1 md:text-[11px] ${
+          <Button
+            className={`mt-auto h-auto w-full min-w-0 gap-1 rounded-md border border-primary/25 bg-primary-soft/65 px-1 py-0.5 text-[10px] font-bold text-primary hover:border-primary/50 hover:bg-primary-soft md:rounded-lg md:px-2 md:py-1 md:text-[11px] ${
               reservations.length <= 2 ? "md:hidden" : ""
             }`}
             onClick={(e) => {
               e.stopPropagation();
               onMoreClick(day.date);
             }}
+            size="xs"
             title="Ver todas as reservas deste dia"
-            type="button"
+            variant="subtle"
           >
             <span className="inline-flex items-center gap-0.5 md:hidden">
               <Layers className="h-2.5 w-2.5 shrink-0" />
@@ -401,7 +383,7 @@ function CalendarCell({
                 </span>
               </span>
             )}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -424,7 +406,7 @@ function DayReservationsModal({
   onCreateReservation?: (date: string) => void;
 }) {
   const hasConflict = useMemo(
-    () => (date ? hasDayConflict(reservations, date) : false),
+    () => (date ? hasDayReservationConflict(reservations, date) : false),
     [date, reservations],
   );
 
@@ -462,14 +444,15 @@ function DayReservationsModal({
                 getReservationMeta(reservation, date);
 
               return (
-                <button
-                  className="group flex w-full min-w-0 cursor-pointer flex-col gap-2 rounded-xl border border-border bg-surface-muted/40 p-3 text-left transition-all hover:border-primary/50 hover:bg-primary-soft/15 active:scale-[0.99]"
+                <Button
+                  className="group flex h-auto w-full min-w-0 flex-col items-stretch justify-start gap-2 whitespace-normal rounded-xl border border-border bg-surface-muted/40 p-3 text-left font-normal text-text-primary hover:border-primary/50 hover:bg-primary-soft/15 hover:text-text-primary active:scale-[0.99]"
                   key={`${reservation.id}-modal`}
                   onClick={() => {
                     onClose();
                     onReservationClick(reservation);
                   }}
-                  type="button"
+                  size="md"
+                  variant="outline"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -513,13 +496,15 @@ function DayReservationsModal({
 
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-text-primary group-hover:text-primary">
-                      {isGenericName && !reservation.guestName ? (
+                      {isGenericName && !reservation.guestName?.trim() ? (
                         <span className="inline-flex items-center gap-1 text-amber-700">
                           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                          <span>{reservation.rawSummary || "Definir hóspede"}</span>
+                          <span>
+                            {getReservationDisplayGuest(reservation, "Definir hóspede")}
+                          </span>
                         </span>
                       ) : (
-                        reservation.guestName || reservation.rawSummary || "Reserva"
+                        getReservationDisplayGuest(reservation, "Reserva")
                       )}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
@@ -532,7 +517,7 @@ function DayReservationsModal({
                       </span>
                     </div>
                   </div>
-                </button>
+                </Button>
               );
             })}
         </div>

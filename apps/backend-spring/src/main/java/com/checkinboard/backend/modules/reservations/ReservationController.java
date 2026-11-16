@@ -1,6 +1,7 @@
 package com.checkinboard.backend.modules.reservations;
 
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.AutoSyncResponse;
+import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.CreateManualReservationRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ManualSyncResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.OperationsBoardResponse;
@@ -8,8 +9,8 @@ import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.Reserva
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.ReservationsResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.SyncNotificationsResponse;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.SyncRunsResponse;
-import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.CreateManualReservationRequest;
 import com.checkinboard.backend.modules.reservations.dto.ReservationDtos.UpdateReservationRequest;
+import com.checkinboard.backend.modules.reservations.service.IcalSyncService;
 import com.checkinboard.backend.modules.reservations.service.ReservationService;
 import com.checkinboard.backend.shared.security.AuthenticatedUserPrincipal;
 import jakarta.validation.Valid;
@@ -28,9 +29,24 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReservationController {
 
     private final ReservationService reservationService;
+    private final IcalSyncService icalSyncService;
 
-    public ReservationController(ReservationService reservationService) {
+    public ReservationController(
+        ReservationService reservationService,
+        IcalSyncService icalSyncService
+    ) {
         this.reservationService = reservationService;
+        this.icalSyncService = icalSyncService;
+    }
+
+    @GetMapping("/reservations")
+    ReservationsResponse listAll(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @RequestParam(required = false) String apartmentId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return reservationService.listAll(principal.userId(), apartmentId, from, to);
     }
 
     @GetMapping("/apartments/{apartmentId}/reservations")
@@ -94,7 +110,7 @@ public class ReservationController {
         @PathVariable String icalSourceId,
         @Valid @RequestBody(required = false) ManualSyncRequest request
     ) {
-        return reservationService.sync(principal.userId(), icalSourceId, request);
+        return icalSyncService.sync(principal.userId(), icalSourceId, request);
     }
 
     @GetMapping("/ical-sources/{icalSourceId}/sync-runs")
@@ -102,20 +118,20 @@ public class ReservationController {
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
         @PathVariable String icalSourceId
     ) {
-        return reservationService.syncRuns(principal.userId(), icalSourceId);
+        return icalSyncService.syncRuns(principal.userId(), icalSourceId);
     }
 
     @PostMapping("/ical-sources/auto-sync")
     AutoSyncResponse autoSync(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
-        return reservationService.autoSync(principal.userId());
+        return icalSyncService.autoSync(principal.userId());
     }
 
     @GetMapping("/notifications/sync")
     SyncNotificationsResponse syncNotifications(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
-        return reservationService.syncNotifications(principal.userId());
+        return icalSyncService.syncNotifications(principal.userId());
     }
 }

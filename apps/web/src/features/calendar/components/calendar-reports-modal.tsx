@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
+  Check,
+  Copy,
   FileText,
   Loader2,
   Printer,
@@ -22,9 +24,23 @@ import { fetchReservations } from "../../reservations/reservations-api";
 import {
   attachApartmentDetails,
   formatDateBR,
-  reservationLocalDate,
   type ReservationListItem,
 } from "../../reservations/reservation-view-model";
+import {
+  buildCleaningSchedule,
+  buildEffectiveStaysMap,
+  buildGatekeeperSchedule,
+  buildOwnerStatementData,
+  buildWhatsAppCleaningSummary,
+  buildWhatsAppGatekeeperSummary,
+  buildWhatsAppOwnerSummary,
+  computePeriodRange,
+  filterActiveReservations,
+  filterPeriodReservations,
+  shiftYmd,
+  type PeriodPreset,
+  type ReportType,
+} from "./reports-calculator";
 
 export type CalendarReportsModalProps = {
   isOpen: boolean;
@@ -36,69 +52,34 @@ export type CalendarReportsModalProps = {
   rentalStaysMap: Map<string, RentalStay>;
 };
 
-type ReportType = "owner-statement" | "cleaning-schedule" | "building-reception";
-type PeriodPreset = "last-month" | "last-week" | "selected-month";
+const PERIOD_PRESET_OPTIONS: ReadonlyArray<{ value: PeriodPreset; label: string }> = [
+  { value: "last-month", label: "Mês Passado" },
+  { value: "last-week", label: "Semana Passada" },
+  { value: "selected-month", label: "Mês Selecionado" },
+];
 
-function toLocalYmd(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function shiftYmd(ymd: string, deltaDays: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const date = new Date(y, m - 1, d + deltaDays, 12);
-  return toLocalYmd(date);
-}
-
-function computePeriodRange(preset: PeriodPreset, month: string) {
-  const now = new Date();
-
-  if (preset === "last-month") {
-    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 12);
-    const end = new Date(now.getFullYear(), now.getMonth(), 0, 12);
-    const periodStart = toLocalYmd(start);
-    const periodEnd = toLocalYmd(end);
-    return {
-      periodStart,
-      periodEnd,
-      label: `${formatDateBR(periodStart)} a ${formatDateBR(periodEnd)}`,
-    };
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fallback below for non-secure contexts
+    }
   }
-
-  if (preset === "last-week") {
-    // Previous Monday through Sunday (7-day operational week)
-    const dayOfWeekMon0 = (now.getDay() + 6) % 7;
-    const end = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() - (dayOfWeekMon0 + 1),
-      12,
-    );
-    const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6, 12);
-    const periodStart = toLocalYmd(start);
-    const periodEnd = toLocalYmd(end);
-    return {
-      periodStart,
-      periodEnd,
-      label: `${formatDateBR(periodStart)} a ${formatDateBR(periodEnd)}`,
-    };
+  if (typeof document !== "undefined") {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
   }
-
-  // "selected-month"
-  const fallbackMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const validMonth = /^\d{4}-\d{2}$/.test(month) ? month : fallbackMonth;
-  const [year, m] = validMonth.split("-").map(Number);
-  const start = new Date(year, m - 1, 1, 12);
-  const end = new Date(year, m, 0, 12);
-  const periodStart = toLocalYmd(start);
-  const periodEnd = toLocalYmd(end);
-  return {
-    periodStart,
-    periodEnd,
-    label: `${formatDateBR(periodStart)} a ${formatDateBR(periodEnd)}`,
-  };
+  return false;
 }
 
 export function CalendarReportsModal({
@@ -121,6 +102,16 @@ export function CalendarReportsModal({
   const [periodEntries, setPeriodEntries] = useState<FinancialEntry[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
 
   // Keep chosenApartmentId synchronized when apartments load or selectedApartmentId changes
   useEffect(() => {
@@ -137,10 +128,11 @@ export function CalendarReportsModal({
     }
   }, [isOpen, selectedApartmentId, apartments, chosenApartmentId]);
 
-  const { periodStart, periodEnd, label: periodLabel } = useMemo(
-    () => computePeriodRange(periodPreset, month),
-    [periodPreset, month],
-  );
+  const {
+    dateFrom: periodStart,
+    dateTo: periodEnd,
+    label: periodLabel,
+  } = useMemo(() => computePeriodRange(periodPreset, month), [periodPreset, month]);
 
   // Fetch all apartments' reservations once per open (in case calendar was filtered to 1 apartment)
   useEffect(() => {
@@ -212,7 +204,9 @@ export function CalendarReportsModal({
       } catch (err) {
         if (!cancelled) {
           setLoadError(
-            err instanceof Error ? err.message : "Não foi possível atualizar os lançamentos do período.",
+            err instanceof Error
+              ? err.message
+              : "Não foi possível atualizar os lançamentos do período.",
           );
         }
       } finally {
@@ -227,160 +221,78 @@ export function CalendarReportsModal({
     };
   }, [isOpen, periodStart, periodEnd]);
 
-  const effectiveStaysMap = useMemo(() => {
-    const map = new Map<string, RentalStay>(rentalStaysMap);
-    if (periodRentalStays) {
-      for (const stay of periodRentalStays) {
-        map.set(stay.id, stay);
-      }
-    }
-    return map;
-  }, [rentalStaysMap, periodRentalStays]);
+  const effectiveStaysMap = useMemo(
+    () => buildEffectiveStaysMap(rentalStaysMap, periodRentalStays),
+    [rentalStaysMap, periodRentalStays],
+  );
 
-  const activeReservations = useMemo(() => {
-    const source = fetchedReservations ?? reservations;
-    return source.filter((res) => res.status?.toLowerCase() !== "cancelled");
-  }, [fetchedReservations, reservations]);
+  const activeReservations = useMemo(
+    () => filterActiveReservations(fetchedReservations ?? reservations),
+    [fetchedReservations, reservations],
+  );
 
-  const periodReservations = useMemo(() => {
-    return activeReservations
-      .filter((res) => {
-        const startYmd = reservationLocalDate(res.startsAt);
-        const endYmd = reservationLocalDate(res.endsAt);
-        return startYmd <= periodEnd && endYmd > periodStart;
-      })
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }, [activeReservations, periodStart, periodEnd]);
+  const periodReservations = useMemo(
+    () => filterPeriodReservations(activeReservations, periodStart, periodEnd),
+    [activeReservations, periodStart, periodEnd],
+  );
 
-  const selectedApt = useMemo(() => {
-    return apartments.find((a) => a.id === chosenApartmentId) || apartments[0];
-  }, [apartments, chosenApartmentId]);
+  const selectedApt = useMemo(
+    () => apartments.find((a) => a.id === chosenApartmentId) || apartments[0],
+    [apartments, chosenApartmentId],
+  );
 
-  const commissionPercent = useMemo(() => {
-    if (!selectedApt) return 15;
-    return selectedApt.managementCommissionBps
-      ? selectedApt.managementCommissionBps / 100
-      : 15;
-  }, [selectedApt]);
+  const statementData = useMemo(
+    () =>
+      buildOwnerStatementData({
+        apartment: selectedApt,
+        periodReservations,
+        periodEntries,
+        effectiveStaysMap,
+        dateFrom: periodStart,
+        dateTo: periodEnd,
+      }),
+    [selectedApt, periodReservations, periodEntries, effectiveStaysMap, periodStart, periodEnd],
+  );
 
-  const aptReservations = useMemo(() => {
-    if (!selectedApt) return [];
-    return periodReservations.filter((r) => r.apartmentId === selectedApt.id);
-  }, [periodReservations, selectedApt]);
+  const cleaningSchedule = useMemo(
+    () => buildCleaningSchedule(activeReservations, periodEntries, periodStart, periodEnd),
+    [activeReservations, periodEntries, periodStart, periodEnd],
+  );
 
-  const statementData = useMemo(() => {
-    const aptEntries = selectedApt
-      ? periodEntries.filter(
-          (entry) =>
-            entry.apartmentId === selectedApt.id &&
-            entry.occurredOn >= periodStart &&
-            entry.occurredOn <= periodEnd,
-        )
-      : [];
-
-    const matchedReservationIds = new Set(aptReservations.map((r) => r.id));
-
-    const list = aptReservations.map((res, index) => {
-      const stay = effectiveStaysMap.get(res.id);
-      const rentAmountCents = stay?.rentAmountCents || 0;
-      const commissionCents = Math.round((rentAmountCents * commissionPercent) / 100);
-      const linkedExpenses = aptEntries.filter(
-        (entry) => entry.type === "expense" && entry.rentalStayId === res.id,
-      );
-      const linkedExpensesCents = linkedExpenses.reduce(
-        (acc, entry) => acc + entry.amountCents,
-        0,
-      );
-      const totalExpensesCents = commissionCents + linkedExpensesCents;
-
-      return {
-        id: res.id,
-        index: index + 1,
-        guestName: res.guestName || res.rawSummary || "Hóspede",
-        period: `${formatDateBR(res.startsAt)} a ${formatDateBR(res.endsAt)}`,
-        rentAmountCents,
-        commissionCents,
-        linkedExpenses,
-        totalExpensesCents,
-      };
-    });
-
-    const otherExpenses = aptEntries.filter(
-      (entry) =>
-        entry.type === "expense" &&
-        (!entry.rentalStayId || !matchedReservationIds.has(entry.rentalStayId)),
-    );
-
-    const otherRevenues = aptEntries.filter(
-      (entry) =>
-        entry.type === "revenue" &&
-        (!entry.rentalStayId || !matchedReservationIds.has(entry.rentalStayId)),
-    );
-
-    const stayGrossCents = list.reduce((acc, curr) => acc + curr.rentAmountCents, 0);
-    const extraRevenueCents = otherRevenues.reduce((acc, curr) => acc + curr.amountCents, 0);
-    const totalGrossCents = stayGrossCents + extraRevenueCents;
-
-    const totalStayExpensesCents = list.reduce((acc, curr) => acc + curr.totalExpensesCents, 0);
-    const totalOtherExpensesCents = otherExpenses.reduce((acc, curr) => acc + curr.amountCents, 0);
-    const totalDueCents = totalStayExpensesCents + totalOtherExpensesCents;
-    const netPayoutCents = totalGrossCents - totalDueCents;
-
-    return {
-      items: list,
-      otherExpenses,
-      otherRevenues,
-      totalGrossCents,
-      totalStayExpensesCents,
-      totalOtherExpensesCents,
-      totalDueCents,
-      netPayoutCents,
-    };
-  }, [
-    aptReservations,
-    effectiveStaysMap,
-    commissionPercent,
-    periodEntries,
-    selectedApt,
-    periodStart,
-    periodEnd,
-  ]);
-
-  const cleaningSchedule = useMemo(() => {
-    return activeReservations
-      .filter((res) => {
-        const endYmd = reservationLocalDate(res.endsAt);
-        return endYmd >= periodStart && endYmd <= periodEnd;
-      })
-      .map((res) => {
-        const endYmd = reservationLocalDate(res.endsAt);
-        const cleaningEntries = periodEntries.filter(
-          (entry) =>
-            entry.type === "expense" &&
-            entry.rentalStayId === res.id &&
-            entry.category.toLowerCase().includes("limpeza"),
-        );
-        const cleaningFeeCents =
-          cleaningEntries.length > 0
-            ? cleaningEntries.reduce((sum, entry) => sum + entry.amountCents, 0)
-            : null;
-
-        return {
-          id: res.id,
-          sortDate: endYmd,
-          apartmentName: res.apartmentName,
-          checkoutDate: formatDateBR(res.endsAt),
-          checkoutTime: "10:00",
-          guestName: res.guestName || res.rawSummary || "Hóspede",
-          cleaningFeeCents,
-          provider: res.provider,
-        };
-      })
-      .sort((a, b) => a.sortDate.localeCompare(b.sortDate));
-  }, [activeReservations, periodStart, periodEnd, periodEntries]);
+  const gatekeeperSchedule = useMemo(
+    () => buildGatekeeperSchedule(periodReservations),
+    [periodReservations],
+  );
 
   function handlePrint() {
     window.print();
+  }
+
+  async function handleCopyWhatsApp() {
+    let summary: string;
+    if (activeReport === "cleaning-schedule") {
+      summary = buildWhatsAppCleaningSummary(periodLabel, cleaningSchedule);
+    } else if (activeReport === "building-reception") {
+      summary = buildWhatsAppGatekeeperSummary(periodLabel, gatekeeperSchedule);
+    } else {
+      summary = buildWhatsAppOwnerSummary({
+        apartmentName: selectedApt?.name,
+        ownerName: selectedApt?.owner?.name,
+        periodLabel,
+        statement: statementData,
+      });
+    }
+
+    const copied = await copyTextToClipboard(summary);
+    if (!copied) return;
+
+    setCopiedWhatsApp(true);
+    if (copyTimerRef.current) {
+      clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = setTimeout(() => {
+      setCopiedWhatsApp(false);
+    }, 2000);
   }
 
   return (
@@ -402,9 +314,27 @@ export function CalendarReportsModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Button
-              className="w-full sm:w-auto"
+              className="flex-1 sm:flex-none"
+              onClick={() => void handleCopyWhatsApp()}
+              size="sm"
+              variant="secondary"
+            >
+              {copiedWhatsApp ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  Copiado!
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  Copiar p/ WhatsApp
+                </>
+              )}
+            </Button>
+            <Button
+              className="flex-1 sm:flex-none"
               onClick={handlePrint}
               size="sm"
               variant="primary"
@@ -428,30 +358,17 @@ export function CalendarReportsModal({
           </div>
 
           <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
-            <Button
-              className="w-full sm:w-auto px-2 sm:px-3 text-[11px] sm:text-xs"
-              onClick={() => setPeriodPreset("last-month")}
-              size="xs"
-              variant={periodPreset === "last-month" ? "primary" : "secondary"}
-            >
-              <span className="truncate">Mês Passado</span>
-            </Button>
-            <Button
-              className="w-full sm:w-auto px-2 sm:px-3 text-[11px] sm:text-xs"
-              onClick={() => setPeriodPreset("last-week")}
-              size="xs"
-              variant={periodPreset === "last-week" ? "primary" : "secondary"}
-            >
-              <span className="truncate">Semana Passada</span>
-            </Button>
-            <Button
-              className="w-full sm:w-auto px-2 sm:px-3 text-[11px] sm:text-xs"
-              onClick={() => setPeriodPreset("selected-month")}
-              size="xs"
-              variant={periodPreset === "selected-month" ? "primary" : "secondary"}
-            >
-              <span className="truncate">Mês Selecionado</span>
-            </Button>
+            {PERIOD_PRESET_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                className="w-full sm:w-auto px-2 sm:px-3 text-[11px] sm:text-xs"
+                onClick={() => setPeriodPreset(option.value)}
+                size="xs"
+                variant={periodPreset === option.value ? "primary" : "secondary"}
+              >
+                <span className="truncate">{option.label}</span>
+              </Button>
+            ))}
             <Badge className="hidden sm:inline-flex" tone="neutral">
               {periodLabel}
             </Badge>
@@ -553,7 +470,8 @@ export function CalendarReportsModal({
                           <span className="font-semibold">Despesas e repasses</span>
                           <ul className="mt-1 space-y-0.5 pl-2">
                             <li>
-                              ▪ Taxa de gestão ({commissionPercent}%): {formatMoney(item.commissionCents)}
+                              ▪ Taxa de gestão ({statementData.commissionPercent}%):{" "}
+                              {formatMoney(item.commissionCents)}
                             </li>
                             {item.linkedExpenses.map((exp) => (
                               <li key={exp.id} className="break-words">
@@ -732,7 +650,7 @@ export function CalendarReportsModal({
                 </p>
               </div>
 
-              {periodReservations.length === 0 ? (
+              {gatekeeperSchedule.length === 0 ? (
                 <p className="py-8 text-center text-sm text-neutral-500">
                   Nenhuma hospedagem encontrada no período selecionado.
                 </p>
@@ -740,27 +658,27 @@ export function CalendarReportsModal({
                 <>
                   {/* Mobile Cards */}
                   <div className="mt-4 grid gap-3 md:hidden print:hidden">
-                    {periodReservations.map((res) => (
+                    {gatekeeperSchedule.map((item) => (
                       <div
                         className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-3 text-xs"
-                        key={res.id}
+                        key={item.id}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-bold text-neutral-900 break-words">
-                            {res.apartmentName}
+                            {item.apartmentName}
                           </span>
                           <Badge className="shrink-0" tone="neutral">
-                            {res.guestCount ? `${res.guestCount} pessoas` : "1 pessoa"}
+                            {item.guestCountLabel}
                           </Badge>
                         </div>
                         <p className="mt-1 font-semibold text-neutral-800 break-words">
-                          {res.guestName || res.rawSummary || "Hóspede"}
+                          {item.guestName}
                         </p>
                         <p className="mt-1 text-neutral-700">
-                          Check-in: {formatDateBR(res.startsAt)} (14h)
+                          Check-in: {item.checkInDate} (14h)
                         </p>
                         <p className="text-neutral-700">
-                          Check-out: {formatDateBR(res.endsAt)} (10h)
+                          Check-out: {item.checkOutDate} (10h)
                         </p>
                       </div>
                     ))}
@@ -779,20 +697,16 @@ export function CalendarReportsModal({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-200">
-                        {periodReservations.map((res) => (
-                          <tr key={res.id}>
-                            <td className="p-3 font-bold text-neutral-900">{res.apartmentName}</td>
-                            <td className="p-3 font-semibold text-neutral-800">
-                              {res.guestName || res.rawSummary || "Hóspede"}
-                            </td>
-                            <td className="p-3 text-neutral-600">
-                              {res.guestCount ? `${res.guestCount} pessoas` : "1 pessoa"}
+                        {gatekeeperSchedule.map((item) => (
+                          <tr key={item.id}>
+                            <td className="p-3 font-bold text-neutral-900">{item.apartmentName}</td>
+                            <td className="p-3 font-semibold text-neutral-800">{item.guestName}</td>
+                            <td className="p-3 text-neutral-600">{item.guestCountLabel}</td>
+                            <td className="p-3 text-neutral-700 font-medium">
+                              {item.checkInDate} (a partir das 14h)
                             </td>
                             <td className="p-3 text-neutral-700 font-medium">
-                              {formatDateBR(res.startsAt)} (a partir das 14h)
-                            </td>
-                            <td className="p-3 text-neutral-700 font-medium">
-                              {formatDateBR(res.endsAt)} (até 10h)
+                              {item.checkOutDate} (até 10h)
                             </td>
                           </tr>
                         ))}

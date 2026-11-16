@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { AlertCircle, BedDouble, KeyRound, UserRound } from "lucide-react";
+import { AlertCircle, BedDouble, UserRound } from "lucide-react";
 
 import type { Apartment, RentalStay } from "../../../api";
 import { formatMoney } from "../../finance/money";
 import {
+  findConflictingReservation,
+  getReservationDisplayGuest,
   reservationLocalDate,
   type ReservationListItem,
 } from "../../reservations/reservation-view-model";
@@ -264,18 +266,9 @@ export function CalendarTimelineView({
                         const leftPercent = (effectiveStart / days.length) * 100;
                         const widthPercent = (spanDays / days.length) * 100;
 
-                        const isGenericName =
-                          !reservation.guestName ||
-                          reservation.rawSummary?.toLowerCase().includes("reserved") ||
-                          reservation.rawSummary?.toLowerCase().includes("airbnb");
-
-                        const hasConflict = aptReservations.some((other) => {
-                          if (other.id === reservation.id) return false;
-                          const oStart = reservationLocalDate(other.startsAt);
-                          const oEnd = reservationLocalDate(other.endsAt);
-                          const isTurnover = oEnd === startDate || oStart === endDate;
-                          return !isTurnover && startDate < oEnd && endDate > oStart;
-                        });
+                        const hasConflict = Boolean(
+                          findConflictingReservation(aptReservations, reservation),
+                        );
 
                         // Serious, solid color blocks matching the reference design
                         const barStyle = hasConflict
@@ -286,10 +279,10 @@ export function CalendarTimelineView({
                               ? "bg-[#1D4ED8] hover:bg-[#1E40AF] text-white"
                               : "bg-[#1E293B] hover:bg-[#0F172A] text-white";
 
-                        const displayName =
-                          isGenericName && !reservation.guestName
-                            ? reservation.rawSummary || "Definir hóspede"
-                            : reservation.guestName || reservation.rawSummary || "Reserva";
+                        const displayName = getReservationDisplayGuest(
+                          reservation,
+                          "Definir hóspede",
+                        );
 
                         return (
                           <div

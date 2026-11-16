@@ -15,24 +15,30 @@ import {
 
 import { isAbortError, type Apartment, type RentalStay } from "../../api";
 import { messages } from "../../i18n";
+import { useAuthSession } from "../auth/session-context";
 import { fetchApartments } from "../dashboard/dashboard-api";
 import { formatReservationDateRange } from "../../lib/date-formatters";
 import { readStoredSession } from "../../lib/session-storage";
+import { cn } from "../../lib/utils";
 import { formatMoney } from "../finance/money";
 import { fetchRentalStays } from "../finance/rental-stay-api";
-import { fetchReservations } from "./reservations-api";
+import { fetchAllReservations } from "./reservations-api";
 import {
   attachApartmentDetails,
+  getReservationDisplayGuest,
+  isGenericGuestReservation,
   nightsBetween,
   type ReservationListItem,
 } from "./reservation-view-model";
 import { ReservationUnifiedModal } from "../calendar/components/reservation-unified-modal";
+import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Select } from "../../components/ui/form-controls";
 
 const allApartmentsValue = "all";
 
 export function ReservationsPage() {
+  const { session: authSession } = useAuthSession();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [reservations, setReservations] = useState<ReservationListItem[]>([]);
   const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
@@ -51,7 +57,7 @@ export function ReservationsPage() {
     const controller = new AbortController();
     loadAbortRef.current = controller;
 
-    const session = readStoredSession();
+    const session = authSession ?? readStoredSession();
     if (!session) {
       setIsLoading(false);
       return;
@@ -72,31 +78,29 @@ export function ReservationsPage() {
         return;
       }
 
-      const apartmentIds =
-        nextApartmentId === allApartmentsValue
-          ? nextApartments.map((apartment) => apartment.id)
-          : [nextApartmentId];
-
-      const reservationGroups = await Promise.all(
-        apartmentIds.map((apartmentId) => fetchReservations(session.token, apartmentId)),
-      );
-      if (controller.signal.aborted) return;
-
       const dateFrom = new Date();
       dateFrom.setMonth(dateFrom.getMonth() - 6);
       const dateTo = new Date();
       dateTo.setMonth(dateTo.getMonth() + 6);
 
-      const stays = await fetchRentalStays(session.token, {
-        dateFrom: dateFrom.toISOString().slice(0, 10),
-        dateTo: dateTo.toISOString().slice(0, 10),
-        apartmentId: nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
-      });
+      const [fetchedReservations, stays] = await Promise.all([
+        fetchAllReservations(session.token, {
+          apartmentId:
+            nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
+          signal: controller.signal,
+        }),
+        fetchRentalStays(session.token, {
+          dateFrom: dateFrom.toISOString().slice(0, 10),
+          dateTo: dateTo.toISOString().slice(0, 10),
+          apartmentId:
+            nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
+        }),
+      ]);
       if (controller.signal.aborted) return;
 
       setApartments(nextApartments);
       setRentalStays(stays);
-      setReservations(attachApartmentDetails(reservationGroups.flat(), nextApartments));
+      setReservations(attachApartmentDetails(fetchedReservations, nextApartments));
     } catch (error) {
       if (controller.signal.aborted || isAbortError(error)) {
         isAborted = true;
@@ -217,17 +221,18 @@ export function ReservationsPage() {
               </h2>
             </div>
 
-            <button
-              className="inline-flex xl:hidden h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
+            <Button
+              className="xl:hidden shrink-0"
               onClick={() => {
                 setSelectedReservation(null);
                 setIsModalOpen(true);
               }}
-              type="button"
+              size="sm"
+              variant="primary"
             >
               <Plus className="h-4 w-4" />
               Reserva
-            </button>
+            </Button>
           </div>
 
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
@@ -259,55 +264,62 @@ export function ReservationsPage() {
               </Select>
             </div>
 
-            <button
-              className="hidden xl:inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
+            <Button
+              className="hidden xl:inline-flex shrink-0"
               onClick={() => {
                 setSelectedReservation(null);
                 setIsModalOpen(true);
               }}
-              type="button"
+              size="md"
+              variant="primary"
             >
               <Plus className="h-4 w-4" />
               Nova Reserva
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Status Filter Chips (Stitch Mobile Pattern) */}
         <div className="mt-3.5 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <button
-            className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+          <Button
+            className={cn(
+              "shrink-0",
               statusFilter === "all"
-                ? "bg-text-primary text-surface"
-                : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
-            }`}
+                ? "border-text-primary bg-text-primary text-surface hover:border-text-primary/90 hover:bg-text-primary/90 hover:text-surface"
+                : "bg-surface-muted/60",
+            )}
             onClick={() => setStatusFilter("all")}
-            type="button"
+            size="xs"
+            variant="outline"
           >
             Todas ({summary.total})
-          </button>
-          <button
-            className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+          </Button>
+          <Button
+            className={cn(
+              "shrink-0",
               statusFilter === "priced"
-                ? "bg-text-primary text-surface"
-                : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
-            }`}
+                ? "border-text-primary bg-text-primary text-surface hover:border-text-primary/90 hover:bg-text-primary/90 hover:text-surface"
+                : "bg-surface-muted/60",
+            )}
             onClick={() => setStatusFilter("priced")}
-            type="button"
+            size="xs"
+            variant="outline"
           >
             Faturadas ({summary.priced})
-          </button>
-          <button
-            className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+          </Button>
+          <Button
+            className={cn(
+              "shrink-0",
               statusFilter === "unpriced"
-                ? "bg-amber-600 text-white"
-                : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
-            }`}
+                ? "border-amber-600 bg-amber-600 text-white hover:border-amber-700 hover:bg-amber-700 hover:text-white"
+                : "bg-surface-muted/60",
+            )}
             onClick={() => setStatusFilter("unpriced")}
-            type="button"
+            size="xs"
+            variant="outline"
           >
             Pendentes de Preço ({summary.unpriced})
-          </button>
+          </Button>
         </div>
 
         {message ? (
@@ -343,10 +355,8 @@ export function ReservationsPage() {
                   const stay = rentalStaysMap.get(reservation.id);
                   const nights = nightsBetween(reservation.startsAt, reservation.endsAt);
                   const isAirbnb = reservation.provider?.toLowerCase() === "airbnb";
-                  const isGenericName =
-                    !reservation.guestName ||
-                    reservation.rawSummary?.toLowerCase().includes("reserved") ||
-                    reservation.rawSummary?.toLowerCase().includes("airbnb");
+                  const isGenericName = isGenericGuestReservation(reservation);
+                  const displayGuest = getReservationDisplayGuest(reservation);
                   const codeSnippet = (reservation.externalEventKey || reservation.id)
                     .slice(-6)
                     .toUpperCase();
@@ -385,12 +395,12 @@ export function ReservationsPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <strong className="block truncate text-base font-bold text-text-primary">
-                            {isGenericName && !reservation.guestName ? (
+                            {isGenericName && !reservation.guestName?.trim() ? (
                               <span className="text-amber-800 underline decoration-amber-400">
-                                {reservation.rawSummary || "Hóspede Não Identificado"}
+                                {displayGuest}
                               </span>
                             ) : (
-                              reservation.guestName || reservation.rawSummary || "Reserva"
+                              displayGuest
                             )}
                           </strong>
                           <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-text-secondary truncate">
@@ -433,16 +443,17 @@ export function ReservationsPage() {
                           )}
                         </div>
 
-                        <button
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-primary px-3.5 text-xs font-bold text-white shadow-2xs transition hover:brightness-95 active:scale-95"
+                        <Button
+                          className="shrink-0"
                           onClick={() => {
                             setSelectedReservation(reservation);
                             setIsModalOpen(true);
                           }}
-                          type="button"
+                          size="sm"
+                          variant="primary"
                         >
                           Editar & Precificar
-                        </button>
+                        </Button>
                       </div>
                     </article>
                   );
@@ -528,10 +539,8 @@ function ReservationRow({
   onEdit: () => void;
 }) {
   const isAirbnb = reservation.provider?.toLowerCase() === "airbnb";
-  const isGenericName =
-    !reservation.guestName ||
-    reservation.rawSummary?.toLowerCase().includes("reserved") ||
-    reservation.rawSummary?.toLowerCase().includes("airbnb");
+  const isGenericName = isGenericGuestReservation(reservation);
+  const displayGuest = getReservationDisplayGuest(reservation);
 
   return (
     <tr className="transition hover:bg-surface-muted/30">
@@ -548,13 +557,13 @@ function ReservationRow({
             {isAirbnb ? "Airbnb" : "Direto"}
           </span>
           <strong className="block font-bold text-text-primary">
-            {isGenericName && !reservation.guestName ? (
+            {isGenericName && !reservation.guestName?.trim() ? (
               <span className="flex items-center gap-1 text-amber-800">
                 <AlertCircle className="h-3.5 w-3.5" />
-                {reservation.rawSummary || "Hóspede Não Identificado"}
+                {displayGuest}
               </span>
             ) : (
-              reservation.guestName || reservation.rawSummary || "Reserva"
+              displayGuest
             )}
           </strong>
         </div>
@@ -609,13 +618,9 @@ function ReservationRow({
 
       {/* Col 6: Ação */}
       <td className="px-4 py-4 text-right">
-        <button
-          className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-bold text-text-primary shadow-sm transition hover:border-primary hover:text-primary active:scale-95"
-          onClick={onEdit}
-          type="button"
-        >
+        <Button onClick={onEdit} size="xs" variant="secondary">
           Editar & Precificar
-        </button>
+        </Button>
       </td>
     </tr>
   );

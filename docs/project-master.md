@@ -75,6 +75,8 @@ Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-
    - Política de segurança de URL (`IcalUrlPolicy`): bloqueia hosts locais, IPs privados e protocolos inseguros (anti-SSRF).
    - Suporte a pausar/reativar sincronização (`syncEnabled`) por fonte.
 5. **Reservas, Sync iCal com Diff, Auto-Sync 1h, Notificações & Operations Board (`modules/reservations`, `V5`, `V13`, `V14`):**
+   - Arquitetura modularizada entre `ReservationService` (CRUD, listagem agregada e operations-board) e `IcalSyncService` (sync manual/auto com transações curtas via `TransactionTemplate` separadas do fetch HTTP).
+   - `GET /reservations` com filtros opcionais (`apartmentId`, `from`, `to`) para carregar reservas de todos os imóveis visíveis em 1 requisição única.
    - `POST /ical-sources/{icalSourceId}/sync` (via URL salva ou payload ICS direto) e `GET /ical-sources/{icalSourceId}/sync-runs`.
    - `POST /ical-sources/auto-sync`: dispara sincronização automática das fontes ativas com **trava mínima de 1 hora (cooldown)** por fonte e retorna apenas as execuções relevantes (*Regra do Silêncio*: novas reservas, cancelamentos ou falhas).
    - `GET /notifications/sync`: lista as notificações de sincronização com detalhamento completo do que mudou (`reservationsCreated`, `reservationsCancelled`, lista de `changes` em `diff_details_json` ou `errorMessage`).
@@ -85,8 +87,9 @@ Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-
 6. **Tarefas Operacionais (`modules/tasks`, `V6`):**
    - `GET /apartments/{apartmentId}/tasks`, `POST /apartments/{apartmentId}/tasks`, `PATCH /tasks/{taskId}/status`, `GET /tasks/today`.
    - Ciclo de vida `pending`, `done`, `not_done` (exige justificativa em `statusNote`) e `cancelled`, com vínculo opcional a uma reserva.
-7. **Administradores e Proprietários Convidados (`modules/team`):**
+7. **Administradores, Proprietários Convidados & Controle de Acesso Central (`modules/team`, `OrganizationAccessService`):**
    - `GET /team-members`, `POST /team-members`, `PUT /team-members/{membershipId}`, `DELETE /team-members/{membershipId}`.
+   - `OrganizationAccessService` centraliza validação de leitura (`host_admin` e `co_host`), exigência de `host_admin` e escopo de apartamentos permitidos (`canView`), eliminando duplicação de RBAC nos services financeiros.
    - Foco nos perfis `host_admin` (*Admin Geral*) e `co_host` (*Admin-Proprietário*), com vínculo explícito de acesso aos apartamentos do proprietário (`canView`).
 8. **Financeiro Completo, Estadias, Despesas Fixas e Repasses com Escopo por Proprietário (`modules/finance`, `V8`–`V12`, `V15`):**
    - **Lançamentos e Resumo Global (`FinanceController`):** `GET/POST/PUT/DELETE /financial-entries` e `GET /financial-summary` (receitas, despesas e lucro por proprietário e por apartamento).
@@ -111,8 +114,8 @@ Construída em **Next.js App Router + TypeScript + Tailwind CSS v4 + Radix UI / 
   - `/calendario` (**Cronograma & Grade Mensal**):
     - Visão **Cronograma (Tape Chart)** mobile-first com coluna de imóvel fixa à esquerda, auto-scroll para o dia de *Hoje*, detecção visual de conflitos/overbooking e cores executivas de alto contraste por canal (Airbnb vs Direto/Manual).
     - Visão **Mês em Grade** tradicional.
-    - **Modal Unificado de Reserva (`ReservationUnifiedModal`)** dividido em abas (*Reserva & Financeiro* com modo rápido **Hóspede** vs **Bloqueio / Uso do Proprietário**; e *Tarefas & Despesas Operacionais* exibindo o que já está registrado na reserva antes de abrir o formulário de novos itens com presets de 1 clique para evitar duplicidade).
-    - **Central de Relatórios e PDF (`CalendarReportsModal`):** acessível no celular e no desktop, com presets de 1 clique (**Mês Passado**, **Semana Passada** e **Mês Selecionado**) para gerar/compartilhar o PDF do proprietário, escala de limpeza e portaria.
+    - **Modal Unificado de Reserva (`ReservationUnifiedModal`)** modularizado (`ReservationDetailsTab` + `ReservationItemsTab`) com abas Radix (`<Tabs>`), modo rápido **Hóspede** vs **Bloqueio**, detecção centralizada de conflitos e lista de itens existentes antes dos presets rápidos.
+    - **Central de Relatórios, PDF e WhatsApp (`CalendarReportsModal` + `reports-calculator.ts`):** acessível no celular e no desktop, com presets de 1 clique (**Mês Passado**, **Semana Passada** e **Mês Selecionado**), PDF (`window.print()`) e botão **"Copiar p/ WhatsApp"** com resumo pronto do proprietário/limpeza/portaria.
   - `/apartamentos` (**Gestão de Imóveis**):
     - Listagem e filtros (`/apartamentos`), criação (`/apartamentos/novo`, com pré-preenchimento e presets de taxa de administração herdados do proprietário), detalhes (`/apartamentos/[apartmentId]`), edição (`/editar`), gestão completa de fontes iCal e histórico de sync (`/ical`) e financeiro dedicado do imóvel com faturamento, painel **Despesas Fixas Mensais** (1 clique *"Lançar Fixas do Mês"*) e repasses (`/financeiro` + `BillingModal`).
   - `/reservas` (**Central de Reservas**):
@@ -127,8 +130,14 @@ Construída em **Next.js App Router + TypeScript + Tailwind CSS v4 + Radix UI / 
   - `/notificacoes` (**Central de Notificações Inteligente**):
     - Sincronização automática de iCal ao entrar no sistema (trava mínima de 1h) com sininho e badge no topo/menu.
     - Exibe apenas notificações com mudanças reais (novas reservas ou cancelamentos) ou falhas de sincronização, expandindo os detalhes exatos ao clicar.
+- **Navegação, Sessão & Padrão de Rede (`SessionContext` + `apiRequest`):**
+  - `SessionProvider` / `useAuthSession()` no layout autenticado compartilha `session`, `userRole` e `isHostAdmin` sem chamadas redundantes por tela.
+  - Cancelamento automático de `GET`s pendentes ao trocar de rota (`AbortController`) e timeout de segurança.
+- **Qualidade Contínua & Testes (`apps/web`):**
+  - **ESLint Flat Config** (`eslint.config.mjs`) + **Vitest** (`vitest.config.ts`) com 93 testes unitários cobrindo dinheiro em centavos (`money.ts`), datas (`date-formatters.ts`), regras de reserva/overbooking (`reservation-view-model.ts`) e demonstrativos/WhatsApp (`reports-calculator.ts`).
+  - Zero `<select>` nativos e zero `<button>` HTML crus em `apps/web/src/features/` (uso uniforme de `<Button>`, `<IconButton>`, `<Select>` e `<Tabs>`).
 - **Internacionalização (`src/i18n/pt-br.ts`):**
-  - Textos compartilhados centralizados em português do Brasil (`pt-BR`) com acentuação UTF-8 correta.
+  - Textos compartilhados e módulos de notificações, calendário e financeiro centralizados em português do Brasil (`pt-BR`) com acentuação UTF-8 correta.
 
 ---
 

@@ -10,7 +10,11 @@ import {
 
 import type { Apartment, RentalStay } from "../../../api";
 import { formatMoney } from "../../finance/money";
-import { nightsBetween, type ReservationListItem } from "../../reservations/reservation-view-model";
+import {
+  needsReservationAttention,
+  nightsBetween,
+  type ReservationListItem,
+} from "../../reservations/reservation-view-model";
 
 export type CalendarStatsProps = {
   month: string; // YYYY-MM
@@ -59,18 +63,9 @@ export function CalendarStats({
 
       if (stay && stay.rentAmountCents > 0) {
         rev += stay.rentAmountCents;
-      } else {
-        pending += 1;
       }
 
-      const isGenericName =
-        !res.guestName ||
-        res.rawSummary?.toLowerCase().includes("reserved") ||
-        res.rawSummary?.toLowerCase().includes("airbnb");
-
-      if (isGenericName && !stay) {
-        // already counted
-      } else if (isGenericName && !res.guestName) {
+      if (needsReservationAttention(res, stay)) {
         pending += 1;
       }
 

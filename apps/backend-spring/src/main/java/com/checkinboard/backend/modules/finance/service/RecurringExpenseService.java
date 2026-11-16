@@ -1,11 +1,8 @@
 package com.checkinboard.backend.modules.finance.service;
 
 import com.checkinboard.backend.modules.apartments.model.ApartmentEntity;
-import com.checkinboard.backend.modules.apartments.repository.ApartmentMembershipRepository;
-import com.checkinboard.backend.modules.apartments.repository.ApartmentRepository;
-import com.checkinboard.backend.modules.auth.model.AuthRole;
 import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
-import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRepository;
+import com.checkinboard.backend.modules.auth.service.OrganizationAccessService;
 import com.checkinboard.backend.modules.finance.dto.RecurringExpenseDtos.ApplyRecurringExpensesRequest;
 import com.checkinboard.backend.modules.finance.dto.RecurringExpenseDtos.ApplyRecurringExpensesResponse;
 import com.checkinboard.backend.modules.finance.dto.RecurringExpenseDtos.CreateRecurringExpenseRequest;
@@ -30,7 +27,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,47 +48,33 @@ public class RecurringExpenseService {
     private final RecurringExpenseRepository recurringExpenseRepository;
     private final RecurringExpenseApplicationRepository recurringExpenseApplicationRepository;
     private final FinancialEntryRepository financialEntryRepository;
-    private final ApartmentRepository apartmentRepository;
-    private final ApartmentMembershipRepository apartmentMembershipRepository;
-    private final OrganizationMembershipRepository organizationMembershipRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public RecurringExpenseService(
         RecurringExpenseRepository recurringExpenseRepository,
         RecurringExpenseApplicationRepository recurringExpenseApplicationRepository,
         FinancialEntryRepository financialEntryRepository,
-        ApartmentRepository apartmentRepository,
-        ApartmentMembershipRepository apartmentMembershipRepository,
-        OrganizationMembershipRepository organizationMembershipRepository
+        OrganizationAccessService organizationAccessService
     ) {
         this.recurringExpenseRepository = recurringExpenseRepository;
         this.recurringExpenseApplicationRepository = recurringExpenseApplicationRepository;
         this.financialEntryRepository = financialEntryRepository;
-        this.apartmentRepository = apartmentRepository;
-        this.apartmentMembershipRepository = apartmentMembershipRepository;
-        this.organizationMembershipRepository = organizationMembershipRepository;
+        this.organizationAccessService = organizationAccessService;
     }
 
     @Transactional(readOnly = true)
     public RecurringExpensesListResponse list(String userId, String apartmentId) {
-        OrganizationMembershipEntity membership = getReadMembership(userId);
-        ApartmentEntity apartment = findApartmentInOrganization(
+        OrganizationMembershipEntity membership = organizationAccessService.requireReadMembership(userId);
+        ApartmentEntity apartment = organizationAccessService.findApartmentInOrganization(
             apartmentId,
             membership.getOrganization().getId()
         );
 
-        if (membership.getRole() == AuthRole.co_host) {
-            Set<String> allowedApartmentIds = allowedApartmentIdsForCoHost(
-                userId,
-                membership.getOrganization().getId()
-            );
-            if (!allowedApartmentIds.contains(apartment.getId())) {
-                throw new ApiException(
-                    HttpStatus.FORBIDDEN,
-                    "FORBIDDEN",
-                    "You do not have access to this apartment."
-                );
-            }
-        }
+        organizationAccessService.assertCanViewApartment(
+            membership,
+            userId,
+            apartment.getId()
+        );
 
         List<RecurringExpenseItemResponse> items = recurringExpenseRepository
             .findByApartment_IdAndDeletedAtIsNullOrderByDayOfMonthAscTitleAsc(apartment.getId())
@@ -109,8 +91,8 @@ public class RecurringExpenseService {
         String apartmentId,
         CreateRecurringExpenseRequest request
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
-        ApartmentEntity apartment = findApartmentInOrganization(
+        OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
+        ApartmentEntity apartment = organizationAccessService.findApartmentInOrganization(
             apartmentId,
             membership.getOrganization().getId()
         );
@@ -142,7 +124,7 @@ public class RecurringExpenseService {
         String expenseId,
         UpdateRecurringExpenseRequest request
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
         RecurringExpenseEntity entity = findExpenseInOrganization(
             expenseId,
             membership.getOrganization().getId()
@@ -182,7 +164,7 @@ public class RecurringExpenseService {
 
     @Transactional
     public void delete(String userId, String expenseId) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
         RecurringExpenseEntity entity = findExpenseInOrganization(
             expenseId,
             membership.getOrganization().getId()
@@ -197,11 +179,11 @@ public class RecurringExpenseService {
         String apartmentId,
         ApplyRecurringExpensesRequest request
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
         YearMonth yearMonth = parseYearMonth(request.month());
         String monthStr = yearMonth.toString();
 
-        ApartmentEntity apartment = findApartmentInOrganization(
+        ApartmentEntity apartment = organizationAccessService.findApartmentInOrganization(
             apartmentId,
             membership.getOrganization().getId()
         );
@@ -350,40 +332,6 @@ public class RecurringExpenseService {
         return canonical;
     }
 
-    private Set<String> allowedApartmentIdsForCoHost(String userId, String organizationId) {
-        return apartmentMembershipRepository
-            .findByUserIdAndOrganizationId(userId, organizationId)
-            .stream()
-            .filter(m -> m.canView() && m.getApartment().getDeletedAt() == null)
-            .map(m -> m.getApartment().getId())
-            .collect(Collectors.toSet());
-    }
-
-    private ApartmentEntity findApartmentInOrganization(
-        String apartmentId,
-        String organizationId
-    ) {
-        ApartmentEntity apartment = apartmentRepository
-            .findByIdAndDeletedAtIsNull(apartmentId)
-            .orElseThrow(() ->
-                new ApiException(
-                    HttpStatus.NOT_FOUND,
-                    "APARTMENT_NOT_FOUND",
-                    "Apartment was not found."
-                )
-            );
-
-        if (!apartment.getOrganization().getId().equals(organizationId)) {
-            throw new ApiException(
-                HttpStatus.FORBIDDEN,
-                "FORBIDDEN",
-                "You do not have access to this apartment."
-            );
-        }
-
-        return apartment;
-    }
-
     private RecurringExpenseEntity findExpenseInOrganization(
         String expenseId,
         String organizationId
@@ -407,45 +355,6 @@ public class RecurringExpenseService {
         }
 
         return expense;
-    }
-
-    private OrganizationMembershipEntity getReadMembership(String userId) {
-        OrganizationMembershipEntity membership =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
-
-        if (
-            membership == null ||
-            !membership.isActive() ||
-            (membership.getRole() != AuthRole.host_admin &&
-                membership.getRole() != AuthRole.co_host)
-        ) {
-            throw new ApiException(
-                HttpStatus.FORBIDDEN,
-                "FORBIDDEN",
-                "You do not have permission to view financial data."
-            );
-        }
-
-        return membership;
-    }
-
-    private OrganizationMembershipEntity getHostAdminMembership(String userId) {
-        OrganizationMembershipEntity membership =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
-
-        if (
-            membership == null ||
-            !membership.isActive() ||
-            membership.getRole() != AuthRole.host_admin
-        ) {
-            throw new ApiException(
-                HttpStatus.FORBIDDEN,
-                "FORBIDDEN",
-                "You do not have permission to manage financial data."
-            );
-        }
-
-        return membership;
     }
 
     private String newId() {

@@ -1,11 +1,9 @@
 package com.checkinboard.backend.modules.finance.service;
 
 import com.checkinboard.backend.modules.apartments.model.ApartmentEntity;
-import com.checkinboard.backend.modules.apartments.repository.ApartmentMembershipRepository;
-import com.checkinboard.backend.modules.apartments.repository.ApartmentRepository;
 import com.checkinboard.backend.modules.auth.model.AuthRole;
 import com.checkinboard.backend.modules.auth.model.OrganizationMembershipEntity;
-import com.checkinboard.backend.modules.auth.repository.OrganizationMembershipRepository;
+import com.checkinboard.backend.modules.auth.service.OrganizationAccessService;
 import com.checkinboard.backend.modules.finance.dto.FinanceMvpDtos.FinanceMvpStayItem;
 import com.checkinboard.backend.modules.finance.dto.FinanceMvpDtos.FinanceMvpSummaryItem;
 import com.checkinboard.backend.modules.finance.dto.FinanceMvpDtos.FinanceMvpSummaryResponse;
@@ -32,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,27 +40,21 @@ public class FinanceMvpService {
     private final RentalStayRepository rentalStayRepository;
     private final FinancialEntryRepository financialEntryRepository;
     private final SettlementPeriodRepository settlementPeriodRepository;
-    private final ApartmentRepository apartmentRepository;
-    private final ApartmentMembershipRepository apartmentMembershipRepository;
     private final OwnerRepository ownerRepository;
-    private final OrganizationMembershipRepository organizationMembershipRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public FinanceMvpService(
         RentalStayRepository rentalStayRepository,
         FinancialEntryRepository financialEntryRepository,
         SettlementPeriodRepository settlementPeriodRepository,
-        ApartmentRepository apartmentRepository,
-        ApartmentMembershipRepository apartmentMembershipRepository,
         OwnerRepository ownerRepository,
-        OrganizationMembershipRepository organizationMembershipRepository
+        OrganizationAccessService organizationAccessService
     ) {
         this.rentalStayRepository = rentalStayRepository;
         this.financialEntryRepository = financialEntryRepository;
         this.settlementPeriodRepository = settlementPeriodRepository;
-        this.apartmentRepository = apartmentRepository;
-        this.apartmentMembershipRepository = apartmentMembershipRepository;
         this.ownerRepository = ownerRepository;
-        this.organizationMembershipRepository = organizationMembershipRepository;
+        this.organizationAccessService = organizationAccessService;
     }
 
     @Transactional(readOnly = true)
@@ -73,13 +64,13 @@ public class FinanceMvpService {
         String apartmentId,
         String ownerId
     ) {
-        OrganizationMembershipEntity membership = getReadMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireReadMembership(userId);
         Period period = normalizeMonth(month);
         String normalizedApartmentId = normalizeOptional(apartmentId);
         String normalizedOwnerId = normalizeOptional(ownerId);
         String organizationId = membership.getOrganization().getId();
         Set<String> allowedApartments = membership.getRole() == AuthRole.co_host
-            ? allowedApartmentIdsForCoHost(userId, organizationId)
+            ? organizationAccessService.allowedApartmentIdsForCoHost(userId, organizationId)
             : null;
 
         if (
@@ -161,11 +152,11 @@ public class FinanceMvpService {
 
     @Transactional(readOnly = true)
     public SettlementsResponse settlements(String userId, String month) {
-        OrganizationMembershipEntity membership = getReadMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireReadMembership(userId);
         Period period = normalizeMonth(month);
         String organizationId = membership.getOrganization().getId();
         Set<String> allowedApartments = membership.getRole() == AuthRole.co_host
-            ? allowedApartmentIdsForCoHost(userId, organizationId)
+            ? organizationAccessService.allowedApartmentIdsForCoHost(userId, organizationId)
             : null;
 
         return new SettlementsResponse(
@@ -207,13 +198,13 @@ public class FinanceMvpService {
         String apartmentId,
         String ownerId
     ) {
-        OrganizationMembershipEntity membership = getReadMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireReadMembership(userId);
         Period period = normalizeMonth(month);
         String normalizedApartmentId = normalizeOptional(apartmentId);
         String normalizedOwnerId = normalizeOptional(ownerId);
         String organizationId = membership.getOrganization().getId();
         Set<String> allowedApartments = membership.getRole() == AuthRole.co_host
-            ? allowedApartmentIdsForCoHost(userId, organizationId)
+            ? organizationAccessService.allowedApartmentIdsForCoHost(userId, organizationId)
             : null;
         FinanceMvpSummaryResponse response = summary(userId, month, apartmentId, ownerId);
         StringBuilder csv = new StringBuilder(
@@ -332,9 +323,9 @@ public class FinanceMvpService {
         String userId,
         MarkSettlementRequest request
     ) {
-        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
+        OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
         Period period = normalizeMonth(request.periodMonth());
-        ApartmentEntity apartment = findApartment(
+        ApartmentEntity apartment = organizationAccessService.findApartmentInOrganization(
             request.apartmentId(),
             membership.getOrganization().getId()
         );
@@ -388,24 +379,6 @@ public class FinanceMvpService {
         return result;
     }
 
-    private ApartmentEntity findApartment(String apartmentId, String organizationId) {
-        ApartmentEntity apartment = apartmentRepository
-            .findByIdAndDeletedAtIsNull(apartmentId)
-            .orElseThrow(() ->
-                new ApiException(
-                    HttpStatus.NOT_FOUND,
-                    "APARTMENT_NOT_FOUND",
-                    "Apartment was not found."
-                )
-            );
-
-        if (!apartment.getOrganization().getId().equals(organizationId)) {
-            throw forbidden();
-        }
-
-        return apartment;
-    }
-
     private OwnerEntity findOwner(String ownerId, String organizationId) {
         OwnerEntity owner = ownerRepository
             .findByIdAndDeletedAtIsNull(ownerId)
@@ -436,46 +409,6 @@ public class FinanceMvpService {
             settlement.getPaidAt(),
             settlement.getNotes()
         );
-    }
-
-    private Set<String> allowedApartmentIdsForCoHost(String userId, String organizationId) {
-        return apartmentMembershipRepository
-            .findByUserIdAndOrganizationId(userId, organizationId)
-            .stream()
-            .filter(m -> m.canView() && m.getApartment().getDeletedAt() == null)
-            .map(m -> m.getApartment().getId())
-            .collect(Collectors.toSet());
-    }
-
-    private OrganizationMembershipEntity getReadMembership(String userId) {
-        OrganizationMembershipEntity membership =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
-
-        if (
-            membership == null ||
-            !membership.isActive() ||
-            (membership.getRole() != AuthRole.host_admin &&
-                membership.getRole() != AuthRole.co_host)
-        ) {
-            throw forbidden();
-        }
-
-        return membership;
-    }
-
-    private OrganizationMembershipEntity getHostAdminMembership(String userId) {
-        OrganizationMembershipEntity membership =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
-
-        if (
-            membership == null ||
-            !membership.isActive() ||
-            membership.getRole() != AuthRole.host_admin
-        ) {
-            throw forbidden();
-        }
-
-        return membership;
     }
 
     private Period normalizeMonth(String month) {

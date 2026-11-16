@@ -631,6 +631,147 @@ class ReservationControllerTest {
             .andExpect(jsonPath("$.notifications[0].apartmentName").value("Apto 204"));
     }
 
+    @Test
+    void listsAggregatedReservationsWithDateRangeAndCoHostScoping() throws Exception {
+        String hostAccessToken = signUpHost("host@example.com", "Host Ops");
+        String apartment1Id = createApartment(hostAccessToken, "Apto 101");
+        String apartment2Id = createApartment(hostAccessToken, "Apto 202");
+        String apartment3Id = createApartment(hostAccessToken, "Apto 303");
+
+        String source1Id = createIcalSource(hostAccessToken, apartment1Id);
+        String source2Id = createIcalSource(hostAccessToken, apartment2Id);
+        String source3Id = createIcalSource(hostAccessToken, apartment3Id);
+
+        syncIcalSource(
+            hostAccessToken,
+            source1Id,
+            """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:apt1-june
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260602T150000Z
+            DTEND:20260605T110000Z
+            SUMMARY:Guest Alice
+            END:VEVENT
+            BEGIN:VEVENT
+            UID:apt1-july
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260710T150000Z
+            DTEND:20260715T110000Z
+            SUMMARY:Guest July
+            END:VEVENT
+            END:VCALENDAR
+            """
+        );
+
+        syncIcalSource(
+            hostAccessToken,
+            source2Id,
+            """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:apt2-june-early
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260601T140000Z
+            DTEND:20260603T110000Z
+            SUMMARY:Guest Bob
+            END:VEVENT
+            END:VCALENDAR
+            """
+        );
+
+        syncIcalSource(
+            hostAccessToken,
+            source3Id,
+            """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:apt3-hidden
+            DTSTAMP:20260521T120000Z
+            DTSTART:20260603T150000Z
+            DTEND:20260606T110000Z
+            SUMMARY:Guest Hidden
+            END:VEVENT
+            END:VCALENDAR
+            """
+        );
+
+        // 1. host_admin without filters sees all 4 reservations across 3 apartments ordered by startsAt
+        mockMvc
+            .perform(
+                get("/reservations")
+                    .header("Authorization", "Bearer " + hostAccessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservations", hasSize(4)))
+            .andExpect(jsonPath("$.reservations[0].rawSummary").value("Guest Bob"))
+            .andExpect(jsonPath("$.reservations[1].rawSummary").value("Guest Alice"))
+            .andExpect(jsonPath("$.reservations[2].rawSummary").value("Guest Hidden"))
+            .andExpect(jsonPath("$.reservations[3].rawSummary").value("Guest July"));
+
+        // 2. Date range filter (June 2026) excludes the July reservation
+        mockMvc
+            .perform(
+                get("/reservations")
+                    .queryParam("from", "2026-06-01")
+                    .queryParam("to", "2026-06-30")
+                    .header("Authorization", "Bearer " + hostAccessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservations", hasSize(3)))
+            .andExpect(jsonPath("$.reservations[0].rawSummary").value("Guest Bob"))
+            .andExpect(jsonPath("$.reservations[1].rawSummary").value("Guest Alice"))
+            .andExpect(jsonPath("$.reservations[2].rawSummary").value("Guest Hidden"));
+
+        // 3. Single apartment filter via apartmentId query param
+        mockMvc
+            .perform(
+                get("/reservations")
+                    .queryParam("apartmentId", apartment1Id)
+                    .queryParam("from", "2026-06-01")
+                    .queryParam("to", "2026-06-30")
+                    .header("Authorization", "Bearer " + hostAccessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservations", hasSize(1)))
+            .andExpect(jsonPath("$.reservations[0].rawSummary").value("Guest Alice"));
+
+        // 4. co_host only sees apartments with canView=true, and gets 403 when querying hidden apartmentId
+        createCoHostMember(
+            hostAccessToken,
+            "cohost@example.com",
+            apartment1Id,
+            apartment2Id,
+            apartment3Id
+        );
+        String coHostAccessToken = signIn("cohost@example.com", "secure-password");
+
+        mockMvc
+            .perform(
+                get("/reservations")
+                    .queryParam("from", "2026-06-01")
+                    .queryParam("to", "2026-06-30")
+                    .header("Authorization", "Bearer " + coHostAccessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservations", hasSize(2)))
+            .andExpect(jsonPath("$.reservations[0].rawSummary").value("Guest Bob"))
+            .andExpect(jsonPath("$.reservations[1].rawSummary").value("Guest Alice"));
+
+        mockMvc
+            .perform(
+                get("/reservations")
+                    .queryParam("apartmentId", apartment3Id)
+                    .header("Authorization", "Bearer " + coHostAccessToken)
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
     private void syncIcalSource(String accessToken, String icalSourceId, String icsText)
         throws Exception {
         mockMvc

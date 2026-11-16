@@ -26,6 +26,7 @@ import { PageHeader } from "../../components/ui/page-header";
 import { Panel } from "../../components/ui/panel";
 import { Toolbar } from "../../components/ui/toolbar";
 import { readStoredSession } from "../../lib/session-storage";
+import { useAuthSession } from "../auth/session-context";
 import { deleteOwner, fetchOwners } from "./owners-api";
 
 const ownerTypeLabels: Record<OwnerType, string> = {
@@ -34,6 +35,7 @@ const ownerTypeLabels: Record<OwnerType, string> = {
 };
 
 export function OwnersPage() {
+  const { session: authSession, isHostAdmin } = useAuthSession();
   const [owners, setOwners] = useState<Owner[]>([]);
   const [ownerToDelete, setOwnerToDelete] = useState<Owner | null>(null);
   const [query, setQuery] = useState("");
@@ -48,7 +50,7 @@ export function OwnersPage() {
     const controller = new AbortController();
     loadAbortRef.current = controller;
 
-    const session = readStoredSession();
+    const session = authSession ?? readStoredSession();
 
     if (!session) {
       setIsLoading(false);
@@ -115,7 +117,7 @@ export function OwnersPage() {
   );
 
   async function removeOwner() {
-    const session = readStoredSession();
+    const session = authSession ?? readStoredSession();
 
     if (!session || !ownerToDelete) {
       return;
@@ -145,9 +147,9 @@ export function OwnersPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        actionHref="/clientes/novo"
-        actionIcon={Plus}
-        actionLabel="Novo proprietário"
+        actionHref={isHostAdmin ? "/clientes/novo" : undefined}
+        actionIcon={isHostAdmin ? Plus : undefined}
+        actionLabel={isHostAdmin ? "Novo proprietário" : undefined}
         description="Organize os donos dos apartamentos antes de vincular imóveis, reservas e financeiro."
         eyebrow="Clientes"
         title="Proprietários"
@@ -255,22 +257,24 @@ export function OwnersPage() {
                           {owner.apartmentCount === 1 ? "imóvel vinculado" : "imóveis vinculados"}
                         </span>
 
-                        <div className="flex items-center gap-2">
-                          <Link
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
-                            href={`/clientes/${owner.id}/editar`}
-                          >
-                            <Pencil aria-hidden className="h-3.5 w-3.5" />
-                            Editar
-                          </Link>
-                          <IconButton
-                            aria-label="Remover proprietário"
-                            disabled={owner.apartmentCount > 0}
-                            icon={Trash2}
-                            onClick={() => setOwnerToDelete(owner)}
-                            variant="danger"
-                          />
-                        </div>
+                        {isHostAdmin ? (
+                          <div className="flex items-center gap-2">
+                            <Link
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-text-primary transition hover:border-primary hover:text-primary"
+                              href={`/clientes/${owner.id}/editar`}
+                            >
+                              <Pencil aria-hidden className="h-3.5 w-3.5" />
+                              Editar
+                            </Link>
+                            <IconButton
+                              aria-label="Remover proprietário"
+                              disabled={owner.apartmentCount > 0}
+                              icon={Trash2}
+                              onClick={() => setOwnerToDelete(owner)}
+                              variant="danger"
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     </article>
                   ))
@@ -285,12 +289,14 @@ export function OwnersPage() {
                       <th className="px-4 py-3 font-semibold">Proprietário</th>
                       <th className="px-4 py-3 font-semibold">Contato</th>
                       <th className="px-4 py-3 font-semibold">Apartamentos</th>
-                      <th className="px-4 py-3 font-semibold">Ações</th>
+                      {isHostAdmin ? <th className="px-4 py-3 font-semibold">Ações</th> : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-surface">
                     {isLoading ? (
-                      <TableStateRow colSpan={4}>Carregando proprietários...</TableStateRow>
+                      <TableStateRow colSpan={isHostAdmin ? 4 : 3}>
+                        Carregando proprietários...
+                      </TableStateRow>
                     ) : (
                       filteredOwners.map((owner) => (
                         <tr key={owner.id}>
@@ -333,24 +339,26 @@ export function OwnersPage() {
                           <td className="px-4 py-4 text-text-secondary">
                             {owner.apartmentCount}
                           </td>
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-2">
-                              <Link
-                                aria-label="Editar proprietário"
-                                className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
-                                href={`/clientes/${owner.id}/editar`}
-                              >
-                                <Pencil aria-hidden className="h-4 w-4" />
-                              </Link>
-                              <IconButton
-                                aria-label="Remover proprietário"
-                                disabled={owner.apartmentCount > 0}
-                                icon={Trash2}
-                                onClick={() => setOwnerToDelete(owner)}
-                                variant="danger"
-                              />
-                            </div>
-                          </td>
+                          {isHostAdmin ? (
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  aria-label="Editar proprietário"
+                                  className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface text-text-secondary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
+                                  href={`/clientes/${owner.id}/editar`}
+                                >
+                                  <Pencil aria-hidden className="h-4 w-4" />
+                                </Link>
+                                <IconButton
+                                  aria-label="Remover proprietário"
+                                  disabled={owner.apartmentCount > 0}
+                                  icon={Trash2}
+                                  onClick={() => setOwnerToDelete(owner)}
+                                  variant="danger"
+                                />
+                              </div>
+                            </td>
+                          ) : null}
                         </tr>
                       ))
                     )}
@@ -360,8 +368,8 @@ export function OwnersPage() {
             </>
           ) : (
             <EmptyState
-              actionHref="/clientes/novo"
-              actionLabel="Adicionar proprietário"
+              actionHref={isHostAdmin ? "/clientes/novo" : undefined}
+              actionLabel={isHostAdmin ? "Adicionar proprietário" : undefined}
               description="Cadastre o primeiro proprietário para vincular apartamentos e acompanhar resultados."
               icon={UsersRound}
               title="Nenhum proprietário encontrado"

@@ -8,6 +8,10 @@ import { Bell, RefreshCw, UserRound, X } from "lucide-react";
 import { abortNavigationRequests, apiRequest, type AuthRole } from "../../api";
 import { clearMeCache, fetchMe } from "../../features/auth/auth-api";
 import {
+  SessionProvider,
+  type SessionContextValue,
+} from "../../features/auth/session-context";
+import {
   clearStoredSession,
   readStoredSession,
   type Session,
@@ -220,14 +224,26 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
     [pathname],
   );
 
-  function signOut() {
+  const signOut = useCallback(() => {
     clearMeCache(session?.token);
     abortNavigationRequests();
     clearStoredSession();
     setSession(null);
     setUserRole(null);
     router.replace("/login");
-  }
+  }, [router, session?.token]);
+
+  const sessionContextValue = useMemo<SessionContextValue>(
+    () => ({
+      session,
+      userRole,
+      isHostAdmin: userRole === "host_admin",
+      isCoHost: userRole === "co_host",
+      isReady,
+      signOut,
+    }),
+    [isReady, session, signOut, userRole],
+  );
 
   if (!isReady || !session) {
     return (
@@ -240,83 +256,85 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <main className="min-h-screen max-w-full overflow-x-clip bg-background text-text-primary lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-      <Sidebar currentPath={pathname} onSignOut={signOut} userRole={userRole} />
-      <section className="min-w-0 max-w-full overflow-x-clip">
-        <header className="sticky top-0 z-20 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:px-8 md:py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted md:text-xs">
-                {pageTitle.eyebrow}
-              </p>
-              <h1 className="truncate text-xl font-bold tracking-tight text-text-primary md:text-2xl">
-                {pageTitle.title}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                aria-label={
-                  unreadCount > 0
-                    ? `Notificações (${unreadCount} não lidas)`
-                    : "Notificações"
-                }
-                className="relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-border bg-surface text-text-secondary transition hover:border-primary/60 hover:text-primary active:scale-[0.98]"
-                href="/notificacoes"
-                title="Notificações"
-              >
-                <Bell className="h-4 w-4" />
-                {unreadCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-white shadow-2xs">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                ) : null}
-              </Link>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted/70 px-3 py-1 text-xs font-medium text-text-secondary">
-                <UserRound className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                <span className="max-w-[120px] sm:max-w-[220px] truncate">
-                  {session.user.email}
-                </span>
-              </div>
-            </div>
-          </div>
-        </header>
-        <div className="min-w-0 max-w-full px-4 py-5 md:px-8 lg:py-8 pb-28 lg:pb-8">
-          {showAutoSyncBanner ? (
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary-soft/60 px-3.5 py-2.5 text-xs text-text-primary">
-              <div className="flex min-w-0 items-center gap-2">
-                <RefreshCw aria-hidden className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <p className="min-w-0">
-                  <span className="font-medium">
-                    Sincronização automática concluída com novidades nas reservas.{" "}
-                  </span>
-                  <Link
-                    className="font-bold text-primary underline-offset-2 hover:underline whitespace-nowrap"
-                    href="/notificacoes"
-                    onClick={() => setShowAutoSyncBanner(false)}
-                  >
-                    Ver notificações →
-                  </Link>
+    <SessionProvider value={sessionContextValue}>
+      <main className="min-h-screen max-w-full overflow-x-clip bg-background text-text-primary lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+        <Sidebar currentPath={pathname} onSignOut={signOut} userRole={userRole} />
+        <section className="min-w-0 max-w-full overflow-x-clip">
+          <header className="sticky top-0 z-20 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:px-8 md:py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted md:text-xs">
+                  {pageTitle.eyebrow}
                 </p>
+                <h1 className="truncate text-xl font-bold tracking-tight text-text-primary md:text-2xl">
+                  {pageTitle.title}
+                </h1>
               </div>
-              <button
-                aria-label="Fechar aviso de sincronização"
-                className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-md text-text-secondary transition hover:bg-surface/70 hover:text-text-primary active:scale-[0.98]"
-                onClick={() => setShowAutoSyncBanner(false)}
-                type="button"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  aria-label={
+                    unreadCount > 0
+                      ? `Notificações (${unreadCount} não lidas)`
+                      : "Notificações"
+                  }
+                  className="relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-border bg-surface text-text-secondary transition hover:border-primary/60 hover:text-primary active:scale-[0.98]"
+                  href="/notificacoes"
+                  title="Notificações"
+                >
+                  <Bell className="h-4 w-4" />
+                  {unreadCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-white shadow-2xs">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
+                </Link>
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted/70 px-3 py-1 text-xs font-medium text-text-secondary">
+                  <UserRound className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                  <span className="max-w-[120px] sm:max-w-[220px] truncate">
+                    {session.user.email}
+                  </span>
+                </div>
+              </div>
             </div>
-          ) : null}
-          {children}
-        </div>
-      </section>
-      <MobileNavigation
-        currentPath={pathname}
-        onSignOut={signOut}
-        userEmail={session.user.email}
-        userRole={userRole}
-      />
-    </main>
+          </header>
+          <div className="min-w-0 max-w-full px-4 py-5 md:px-8 lg:py-8 pb-28 lg:pb-8">
+            {showAutoSyncBanner ? (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary-soft/60 px-3.5 py-2.5 text-xs text-text-primary">
+                <div className="flex min-w-0 items-center gap-2">
+                  <RefreshCw aria-hidden className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <p className="min-w-0">
+                    <span className="font-medium">
+                      Sincronização automática concluída com novidades nas reservas.{" "}
+                    </span>
+                    <Link
+                      className="font-bold text-primary underline-offset-2 hover:underline whitespace-nowrap"
+                      href="/notificacoes"
+                      onClick={() => setShowAutoSyncBanner(false)}
+                    >
+                      Ver notificações →
+                    </Link>
+                  </p>
+                </div>
+                <button
+                  aria-label="Fechar aviso de sincronização"
+                  className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-md text-text-secondary transition hover:bg-surface/70 hover:text-text-primary active:scale-[0.98]"
+                  onClick={() => setShowAutoSyncBanner(false)}
+                  type="button"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
+            {children}
+          </div>
+        </section>
+        <MobileNavigation
+          currentPath={pathname}
+          onSignOut={signOut}
+          userEmail={session.user.email}
+          userRole={userRole}
+        />
+      </main>
+    </SessionProvider>
   );
 }

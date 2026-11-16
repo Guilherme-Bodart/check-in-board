@@ -13,8 +13,9 @@ import {
   UserRound,
 } from "lucide-react";
 
-import { isAbortError, type Apartment, type AuthRole } from "../../api";
+import { isAbortError, type Apartment } from "../../api";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { DataTable, TableStateRow } from "../../components/ui/data-table";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -25,12 +26,13 @@ import { Panel } from "../../components/ui/panel";
 import { Toolbar } from "../../components/ui/toolbar";
 import { messages } from "../../i18n";
 import { readStoredSession } from "../../lib/session-storage";
-import { fetchMe } from "../auth/auth-api";
+import { cn } from "../../lib/utils";
+import { useAuthSession } from "../auth/session-context";
 import { deleteApartment, fetchApartments } from "../dashboard/dashboard-api";
 
 export function ApartmentsPage() {
+  const { session: authSession, isHostAdmin } = useAuthSession();
   const [apartments, setApartments] = useState<Apartment[]>([]);
-  const [userRole, setUserRole] = useState<AuthRole | null>(null);
   const [apartmentToDelete, setApartmentToDelete] = useState<Apartment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -39,14 +41,12 @@ export function ApartmentsPage() {
   const [ownerTypeFilter, setOwnerTypeFilter] = useState<"all" | "internal" | "client">("all");
   const loadAbortRef = useRef<AbortController | null>(null);
 
-  const isHostAdmin = userRole === "host_admin";
-
   async function loadData() {
     loadAbortRef.current?.abort();
     const controller = new AbortController();
     loadAbortRef.current = controller;
 
-    const session = readStoredSession();
+    const session = authSession ?? readStoredSession();
 
     if (!session) {
       setIsLoading(false);
@@ -57,25 +57,12 @@ export function ApartmentsPage() {
     setMessage("");
 
     try {
-      const [loadedApartments, me] = await Promise.all([
-        fetchApartments(session.token),
-        fetchMe(session.token).catch((error) => {
-          if (isAbortError(error)) {
-            throw error;
-          }
-          return null;
-        }),
-      ]);
+      const loadedApartments = await fetchApartments(session.token);
       if (controller.signal.aborted) {
         return;
       }
 
       setApartments(loadedApartments);
-      if (me) {
-        const activeMembership =
-          me.memberships.find((membership) => membership.isActive) ?? me.memberships[0];
-        setUserRole(activeMembership?.role ?? null);
-      }
     } catch (error) {
       if (controller.signal.aborted || isAbortError(error)) {
         return;
@@ -132,7 +119,7 @@ export function ApartmentsPage() {
   );
 
   async function removeApartment() {
-    const session = readStoredSession();
+    const session = authSession ?? readStoredSession();
 
     if (!session || !apartmentToDelete) {
       return;
@@ -186,39 +173,45 @@ export function ApartmentsPage() {
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
-            <button
-              className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+            <Button
+              className={cn(
+                "shrink-0",
                 ownerTypeFilter === "all"
-                  ? "bg-text-primary text-surface"
-                  : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
-              }`}
+                  ? "border-text-primary bg-text-primary text-surface hover:border-text-primary/90 hover:bg-text-primary/90 hover:text-surface"
+                  : "bg-surface-muted/60",
+              )}
               onClick={() => setOwnerTypeFilter("all")}
-              type="button"
+              size="xs"
+              variant="outline"
             >
               Todos ({summary.total})
-            </button>
-            <button
-              className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+            </Button>
+            <Button
+              className={cn(
+                "shrink-0",
                 ownerTypeFilter === "internal"
-                  ? "bg-text-primary text-surface"
-                  : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
-              }`}
+                  ? "border-text-primary bg-text-primary text-surface hover:border-text-primary/90 hover:bg-text-primary/90 hover:text-surface"
+                  : "bg-surface-muted/60",
+              )}
               onClick={() => setOwnerTypeFilter("internal")}
-              type="button"
+              size="xs"
+              variant="outline"
             >
               Próprios ({summary.internal})
-            </button>
-            <button
-              className={`h-8 shrink-0 rounded-lg px-3 text-xs font-semibold transition ${
+            </Button>
+            <Button
+              className={cn(
+                "shrink-0",
                 ownerTypeFilter === "client"
-                  ? "bg-text-primary text-surface"
-                  : "border border-border bg-surface-muted/60 text-text-secondary hover:text-text-primary"
-              }`}
+                  ? "border-text-primary bg-text-primary text-surface hover:border-text-primary/90 hover:bg-text-primary/90 hover:text-surface"
+                  : "bg-surface-muted/60",
+              )}
               onClick={() => setOwnerTypeFilter("client")}
-              type="button"
+              size="xs"
+              variant="outline"
             >
               Clientes ({summary.client})
-            </button>
+            </Button>
           </div>
         </div>
 
