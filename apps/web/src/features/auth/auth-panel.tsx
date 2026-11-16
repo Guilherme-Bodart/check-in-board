@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 
 import { apiBaseUrl } from "../../api";
+import { Button } from "../../components/ui/button";
 import { messages } from "../../i18n";
 import type { AuthFormValues, AuthMode } from "../dashboard/types";
 
@@ -93,21 +94,23 @@ export function AuthPanel({ message, onSubmit }: AuthPanelProps) {
               value={values.password}
             />
           </label>
-          <button
-            className="mt-2 h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
+          <Button
+            className="mt-2 h-11 w-full rounded-xl"
             type="submit"
+            variant="primary"
           >
             {mode === "sign-in" ? messages.auth.signInCta : messages.auth.signUpCta}
-          </button>
+          </Button>
         </form>
 
-        <button
-          className="mt-3 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
+        <Button
+          className="mt-3 h-11 w-full rounded-xl"
           onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
           type="button"
+          variant="outline"
         >
           {mode === "sign-in" ? messages.auth.switchToSignUp : messages.auth.switchToSignIn}
-        </button>
+        </Button>
 
         {message ? (
           <p className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger">

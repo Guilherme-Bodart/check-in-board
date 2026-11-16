@@ -1,4 +1,5 @@
 import type { Task } from "../../../api";
+import { Button } from "../../../components/ui/button";
 import { messages } from "../../../i18n";
 import { formatDateTime } from "../../../lib/date-formatters";
 
@@ -39,13 +40,14 @@ export function TaskListPanel({
                 {task.status.replace("_", " ")}
               </span>
               {task.status === "pending" ? (
-                <button
-                  className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text-secondary transition hover:bg-surface-muted hover:text-text-primary"
+                <Button
                   onClick={() => onMarkDone(task.id)}
+                  size="sm"
                   type="button"
+                  variant="outline"
                 >
                   {messages.common.done}
-                </button>
+                </Button>
               ) : null}
             </article>
           ))

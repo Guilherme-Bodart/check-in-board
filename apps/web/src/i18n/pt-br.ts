@@ -129,6 +129,104 @@ export const ptBR = {
     searchPlaceholder: "Buscar reserva",
     summary: "Resumo",
     weekDays: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+    viewModes: {
+      timeline: "Linha do tempo",
+      grid: "Grade",
+      month: "Mês",
+    },
+    filters: {
+      allApartments: "Todos os apartamentos",
+      selectedApartment: "Apartamento selecionado",
+      searchPlaceholder: "Buscar reserva por hóspede ou código...",
+    },
+    actions: {
+      previousMonth: "Mês anterior",
+      nextMonth: "Próximo mês",
+      today: "Hoje",
+      exportReports: "Relatórios operacionais",
+      openCalendar: "Abrir Calendário",
+      refresh: "Atualizar",
+    },
+    whatsappSummary: {
+      ownerStatementTitle: "Resumo Financeiro",
+      cleaningScheduleTitle: "Escala de Limpeza",
+      gatekeeperScheduleTitle: "Escala de Portaria & Acesso",
+      periodLabel: (period: string) => `Período: ${period}`,
+      ownerLabel: (owner: string) => `Proprietário: ${owner}`,
+      reservationsHeader: (count: number) => `Reservas (${count}):`,
+      noReservations: "Nenhuma reserva no período.",
+      noCleaningCheckouts: "Nenhum check-out previsto no período.",
+      noGatekeeperStays: "Nenhuma hospedagem encontrada no período.",
+      revenues: "Receitas",
+      expenses: "Despesas",
+      commission: (percent: number) => `Comissão (${percent}%):`,
+      netPayout: "Saldo líquido",
+      copyButton: "Copiar p/ WhatsApp",
+      copiedSuccess: "Copiado para a área de transferência!",
+    },
+  },
+  finance: {
+    eyebrow: "Gestão",
+    title: "Financeiro",
+    description:
+      "Controle de receitas de reservas, despesas operacionais e prestações de contas.",
+    actions: {
+      addExpense: "Nova despesa",
+      addRevenue: "Nova receita",
+      applyRecurring: "Lançar despesas fixas no mês",
+      applyingRecurring: "Lançando despesas...",
+      createRecurring: "Adicionar despesa fixa",
+      creatingRecurring: "Adicionando...",
+      deleteRecurring: "Remover despesa fixa",
+      deletingRecurring: "Removendo...",
+      generateReport: "Gerar extrato",
+      openBilling: "Prestação de contas",
+      refresh: "Atualizar",
+    },
+    filters: {
+      statement: "Extrato do mês",
+      pending: "Pendentes de conciliação",
+      allCategories: "Todas as categorias",
+    },
+    commission: {
+      label: "Comissão de gestão",
+      percent: (percent: number) => `Comissão (${percent}%)`,
+      informativeNote:
+        "Comissão retida pela administração sobre as diárias brutas das reservas.",
+      ratePlaceholder: "Ex: 20%",
+      appliedAmount: (formattedAmount: string) =>
+        `Comissão calculada: ${formattedAmount}`,
+    },
+    recurringExpenses: {
+      title: "Despesas Fixas Mensais",
+      subtitle:
+        "Cadastre contas recorrentes como condomínio, IPTU e internet para lançar mensalmente com 1 clique.",
+      addTitle: "Nova despesa fixa",
+      categoryLabel: "Categoria",
+      dayOfMonthLabel: "Dia de vencimento",
+      notesLabel: "Observações",
+      amountLabel: "Valor estimado",
+      applySuccess: (applied: number, skipped: number) =>
+        `${applied} despesa(s) fixa(s) lançada(s) no mês (${skipped} já haviam sido aplicadas).`,
+      empty: "Nenhuma despesa fixa cadastrada para este apartamento.",
+      deleteConfirmTitle: "Remover despesa fixa?",
+      deleteConfirmDescription: (title: string) =>
+        `A despesa fixa "${title}" será removida deste apartamento. Lançamentos já aplicados em meses anteriores serão mantidos.`,
+      categories: {
+        condominio: "Condomínio",
+        contas: "Contas / Energia / Internet",
+        taxas: "Taxas / IPTU",
+        limpeza: "Limpeza",
+        manutencao: "Manutenção",
+        outros: "Outros",
+      },
+    },
+    whatsappSummary: {
+      title: "Resumo Financeiro",
+      copyButton: "Copiar p/ WhatsApp",
+      copiedSuccess: "Copiado para o WhatsApp!",
+      formatCurrency: (value: string) => `R$ ${value}`,
+    },
   },
   reservations: {
     allApartments: "Todos os apartamentos",
@@ -267,3 +365,5 @@ export const ptBR = {
     },
   },
 } as const;
+
+export const messages = ptBR;

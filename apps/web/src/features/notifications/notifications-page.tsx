@@ -261,16 +261,18 @@ export function NotificationsPage() {
         {filterOptions.map((option) => {
           const isActive = filter === option.key;
           return (
-            <button
+            <Button
               className={cn(
-                "inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
+                "h-auto min-h-0 rounded-full px-3.5 py-1.5 text-xs font-semibold gap-1.5 transition-all duration-150",
                 isActive
-                  ? "border-primary bg-primary text-primary-foreground shadow-2xs"
+                  ? "border-primary bg-primary text-primary-foreground shadow-2xs hover:bg-[#0043CE] hover:border-[#0043CE]"
                   : "border-border bg-surface text-text-secondary hover:border-primary/60 hover:text-primary",
               )}
               key={option.key}
               onClick={() => setFilter(option.key)}
+              size="xs"
               type="button"
+              variant={isActive ? "primary" : "secondary"}
             >
               <span>{option.label}</span>
               <span
@@ -283,7 +285,7 @@ export function NotificationsPage() {
               >
                 {option.count}
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -328,11 +330,12 @@ export function NotificationsPage() {
                   )}
                   key={item.id}
                 >
-                  <button
+                  <Button
                     aria-expanded={isExpanded}
-                    className="flex w-full cursor-pointer items-start justify-between gap-3 p-4 text-left transition hover:bg-surface-muted/50"
+                    className="flex h-auto w-full min-h-0 items-start justify-between gap-3 rounded-none border-none bg-transparent p-4 text-left font-normal text-text-primary shadow-none transition hover:bg-surface-muted/50 active:scale-100"
                     onClick={() => handleToggleCard(item)}
                     type="button"
+                    variant="ghost"
                   >
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
@@ -368,7 +371,7 @@ export function NotificationsPage() {
                         <ChevronDown aria-hidden className="h-4 w-4" />
                       )}
                     </span>
-                  </button>
+                  </Button>
 
                   {isExpanded ? (
                     <div className="grid gap-4 border-t border-border/70 bg-surface-muted/35 p-4">
