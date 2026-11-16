@@ -7,9 +7,9 @@
     "dev": "node scripts/dev-with-port-fallback.mjs",
     "build": "next build",
     "preview": "next start -H 0.0.0.0",
-    "lint": "echo \"No lint configured for web yet\"",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"No tests configured for web yet\"",
+    "test": "vitest run",
     "format": "prettier --check \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
@@ -40,8 +40,11 @@
     "@types/node": "^24.12.2",
     "@types/react": "~19.1.0",
     "@types/react-dom": "^19.1.0",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.4.6",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
   }
 }
