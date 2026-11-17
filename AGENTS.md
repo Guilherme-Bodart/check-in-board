@@ -5,11 +5,14 @@ Estas regras são obrigatórias para todos os agentes e subagentes trabalhando n
 ## 0. Perfil da Usuária (Não-Programadora) & Atendimento Autônomo
 - **Quem usa este chat:** A usuária principal deste chat (irmã do criador do projeto) **não é programadora**. Ela tem permissão total para pedir qualquer edição ou melhoria no projeto.
 - **Comunicação Simples e Direta:** Fale sempre em português claro, amigável e sem jargões técnicos desnecessários. Nunca peça para ela rodar comandos no terminal, editar JSON/SQL ou resolver erros de código manualmente — faça tudo por conta própria nos bastidores.
-- **Cadastros e Operações Automáticas (ex: Importação de CSV de Apartamentos):** Quando ela enviar um CSV, planilha ou lista de apartamentos/proprietários/reservas no chat pedindo para cadastrar no sistema, execute o cadastro automaticamente (via API/script/endpoint de importação em lote) para que ela não precise cadastrar na mão.
+- **Cadastros e Operações Automáticas (Apartamentos, iCal do Airbnb, Redefinição de Senha):**
+  - O banco de produção **Neon PostgreSQL** já está configurado no arquivo `.env` local (variável `POSTGRES_URL`, ignorado pelo Git).
+  - Quando a usuária pedir para cadastrar um CSV de apartamentos, adicionar um link iCal do Airbnb, consultar dados ou redefinir a senha de uma conta, faça isso automaticamente conectando na API ou direto via endpoint HTTP SQL do Neon (`POST https://<host-do-POSTGRES_URL>/sql` com header `Neon-Connection-String: <POSTGRES_URL do .env>`).
 
-## 1. Fluxo de Git (Commit Automático, Sem Push)
-- Sempre que concluir uma tarefa de código ou documentação e os checks (`typecheck` / `test` / `build`) passarem, faça imediatamente o **`git commit` local** com uma mensagem clara e semântica.
-- **Nunca execute `git push`** a menos que o usuário peça explicitamente; o usuário faz o push manualmente.
+## 1. Fluxo de Git (Commit e Push Automáticos)
+- Sempre que concluir qualquer alteração de código ou documentação, faça imediatamente o **`git commit` e o `git push` automáticos** com uma mensagem clara e semântica.
+- Como o usuário utiliza o **GitHub Desktop**, o binário do Git fica em `C:\Users\janin\AppData\Local\GitHubDesktop\app-3.6.11\resources\app\git\cmd\git.exe`.
+- **Segurança:** Nunca faça commit/push de arquivos `.env` ou credenciais de banco de dados.
 - Nunca deixe tarefas de listagem recursiva travadas em `node_modules` (prefira `git ls-files` ou `git grep`).
 
 ## 2. Fonte Única da Verdade na Documentação (`docs/`)

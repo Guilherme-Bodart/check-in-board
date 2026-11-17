@@ -94,6 +94,6 @@ O Orquestrador só aceita a entrega dos agentes quando:
 - [ ] Nenhuma regra de layout do `docs/DESIGN.md` foi violada (sem overflow em 375px, sem badges quebrando linha, sem hexadecimais fora do tema);
 - [ ] Todos os endpoints novos validam permissão por organização/apartamento.
 
-### Etapa 4: Atualização da Documentação Viva e Commit Local
+### Etapa 4: Atualização da Documentação Viva, Commit e Push Automático
 - Quando uma feature do `docs/backlog.md` é concluída, ela é **removida do `docs/backlog.md`** e passa a constar na seção *"O Que Já Está Implementado"* do **`docs/project-master.md`**.
-- **Regra de Git:** Sempre que finalizar e validar o código (`typecheck` / `test` passando), fazer o **`git commit` local** com mensagem clara por contexto. **Não fazer `git push`** (o usuário faz o push manualmente).
+- **Regra de Git:** Sempre que finalizar qualquer alteração, fazer imediatamente o **`git commit` e o `git push` automáticos** (usando o Git do GitHub Desktop se necessário), sem nunca versionar `.env` ou credenciais.
