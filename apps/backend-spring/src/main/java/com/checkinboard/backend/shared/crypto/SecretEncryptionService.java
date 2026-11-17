@@ -70,6 +70,12 @@ public class SecretEncryptionService {
     }
 
     public String decrypt(String encryptedValue) {
+        if (
+            encryptedValue != null &&
+            (encryptedValue.startsWith("https://") || encryptedValue.startsWith("http://"))
+        ) {
+            return encryptedValue;
+        }
         if (encryptedValue == null || !encryptedValue.startsWith(PREFIX)) {
             throw new IllegalArgumentException("Unsupported encrypted secret format.");
         }
