@@ -134,8 +134,9 @@ Construída em **Next.js App Router + TypeScript + Tailwind CSS v4 + Radix UI / 
   - `SessionProvider` / `useAuthSession()` no layout autenticado compartilha `session`, `userRole` e `isHostAdmin` sem chamadas redundantes por tela.
   - Cancelamento automático de `GET`s pendentes ao trocar de rota (`AbortController`) e timeout de segurança.
 - **Qualidade Contínua & Testes (`apps/web`):**
-  - **ESLint Flat Config** (`eslint.config.mjs`) + **Vitest** (`vitest.config.ts`) com 93 testes unitários cobrindo dinheiro em centavos (`money.ts`), datas (`date-formatters.ts`), regras de reserva/overbooking (`reservation-view-model.ts`) e demonstrativos/WhatsApp (`reports-calculator.ts`).
+  - **ESLint Flat Config** (`eslint.config.mjs`) + **Vitest** (`vitest.config.ts`) com 97 testes unitários cobrindo dinheiro em centavos (`money.ts`, incluindo entrada decimal mobile e formato BR), datas locais (`date-formatters.ts`), regras de reserva/overbooking e filtro de canceladas (`reservation-view-model.ts`) e demonstrativos/WhatsApp (`reports-calculator.ts`).
   - Zero `<select>` nativos e zero `<button>` HTML crus em `apps/web/src/features/` (uso uniforme de `<Button>`, `<IconButton>`, `<Select>` e `<Tabs>`).
+  - Hardening completo de RBAC/IDOR (`OrganizationAccessService`, `OwnerService`, `ReservationService`, `RentalStayService`), competência financeira unificada por `checkOut` e comissão sobre aluguel entre `apps/web` e `FinanceMvpService`, e suporte a `DURATION`/chaves determinísticas no parser iCal.
 - **Internacionalização (`src/i18n/pt-br.ts`):**
   - Textos compartilhados e módulos de notificações, calendário e financeiro centralizados em português do Brasil (`pt-BR`) com acentuação UTF-8 correta.
 

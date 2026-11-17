@@ -84,7 +84,7 @@ public class FinanceMvpService {
         }
 
         List<RentalStayEntity> stays = rentalStayRepository
-            .findByFilters(
+            .findByCheckOutFilters(
                 organizationId,
                 period.start(),
                 period.end(),
@@ -623,7 +623,6 @@ public class FinanceMvpService {
 
         void addExtraRevenue(long amountCents, ApartmentEntity apartment) {
             extraRevenueCents += amountCents;
-            commissionCents += commissionFor(amountCents, apartment);
         }
 
         void addExpense(long amountCents) {

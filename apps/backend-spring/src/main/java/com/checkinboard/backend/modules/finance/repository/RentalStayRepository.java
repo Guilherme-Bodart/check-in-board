@@ -35,4 +35,27 @@ public interface RentalStayRepository extends JpaRepository<RentalStayEntity, St
         @Param("apartmentId") String apartmentId,
         @Param("ownerId") String ownerId
     );
+
+    @Query(
+        """
+        select stay
+        from RentalStayEntity stay
+        join fetch stay.apartment
+        join fetch stay.owner
+        where stay.organization.id = :organizationId
+            and stay.deletedAt is null
+            and stay.checkOut >= :dateFrom
+            and stay.checkOut <= :dateTo
+            and (:apartmentId is null or stay.apartment.id = :apartmentId)
+            and (:ownerId is null or stay.owner.id = :ownerId)
+        order by stay.checkOut desc, stay.createdAt desc
+        """
+    )
+    List<RentalStayEntity> findByCheckOutFilters(
+        @Param("organizationId") String organizationId,
+        @Param("dateFrom") LocalDate dateFrom,
+        @Param("dateTo") LocalDate dateTo,
+        @Param("apartmentId") String apartmentId,
+        @Param("ownerId") String ownerId
+    );
 }
