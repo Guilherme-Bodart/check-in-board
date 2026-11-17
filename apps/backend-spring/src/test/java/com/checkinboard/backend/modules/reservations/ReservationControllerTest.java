@@ -547,7 +547,10 @@ class ReservationControllerTest {
 
     @Test
     void autoSyncRespectsOneHourWindowSilenceRuleAndListsSyncNotifications() throws Exception {
-        when(icalFeedClient.fetch(any())).thenReturn(ICS_TEXT);
+        String futureFeed = ICS_TEXT
+            .replace("20260601", "20990601")
+            .replace("20260604", "20990604");
+        when(icalFeedClient.fetch(any())).thenReturn(futureFeed);
         String accessToken = signUpHost("host@example.com", "Host Ops");
         String apartmentId = createApartment(accessToken, "Apto 204");
         String icalSourceId = createIcalSource(accessToken, apartmentId);
@@ -596,7 +599,7 @@ class ReservationControllerTest {
             .andExpect(jsonPath("$.notableRuns", hasSize(0)));
 
         // 4. Backdate last_success_at by 2 hours and return a feed where booking-1 disappeared and booking-2 is created
-        String updatedFeed = ICS_TEXT
+        String updatedFeed = futureFeed
             .replace("UID:booking-1", "UID:booking-2")
             .replace("Guest Maria", "Guest Carlos");
         when(icalFeedClient.fetch(any())).thenReturn(updatedFeed);
@@ -629,6 +632,50 @@ class ReservationControllerTest {
             .andExpect(jsonPath("$.notifications", hasSize(2)))
             .andExpect(jsonPath("$.notifications[0].apartmentId").value(apartmentId))
             .andExpect(jsonPath("$.notifications[0].apartmentName").value("Apto 204"));
+    }
+
+    @Test
+    void pastReservationOmittedFromFeedStaysConfirmed() throws Exception {
+        String pastFeed = ICS_TEXT
+            .replace("20260601", "20200601")
+            .replace("20260604", "20200604");
+        when(icalFeedClient.fetch(any())).thenReturn(pastFeed);
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String apartmentId = createApartment(accessToken, "Apto 204");
+        String icalSourceId = createIcalSource(accessToken, apartmentId);
+
+        mockMvc
+            .perform(
+                post("/ical-sources/{icalSourceId}/sync", icalSourceId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.summary.createdCount").value(1));
+
+        // Subsequent sync omits the past reservation (as Airbnb does after checkout)
+        String emptyFeed = """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            END:VCALENDAR
+            """;
+        when(icalFeedClient.fetch(any())).thenReturn(emptyFeed);
+
+        mockMvc
+            .perform(
+                post("/ical-sources/{icalSourceId}/sync", icalSourceId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.summary.cancelledCount").value(0));
+
+        mockMvc
+            .perform(
+                get("/apartments/{apartmentId}/reservations", apartmentId)
+                    .header("Authorization", "Bearer " + accessToken)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservations", hasSize(1)))
+            .andExpect(jsonPath("$.reservations[0].status").value("confirmed"));
     }
 
     @Test

@@ -453,11 +453,14 @@ public class IcalSyncService {
             }
         }
 
+        Instant now = Instant.now();
         for (ReservationEntity existing : existingForSource) {
             if (
                 existing.getExternalEventKey() != null &&
                 !seenKeys.contains(existing.getExternalEventKey()) &&
-                existing.getStatus() == ReservationStatus.confirmed
+                existing.getStatus() == ReservationStatus.confirmed &&
+                existing.getEndsAt() != null &&
+                existing.getEndsAt().isAfter(now)
             ) {
                 existing.markCancelled();
                 ReservationEntity saved = reservationRepository.save(existing);
