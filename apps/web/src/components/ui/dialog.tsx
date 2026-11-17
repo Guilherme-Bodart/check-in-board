@@ -20,7 +20,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-all duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-all duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 print:hidden",
       className
     )}
     {...props}
@@ -46,7 +46,7 @@ const DialogContent = React.forwardRef<
     >
       {children}
       {!hideCloseButton && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-xl border border-border/60 bg-surface text-text-muted transition-all hover:border-border hover:bg-surface-muted hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:pointer-events-none">
+        <DialogPrimitive.Close className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-xl border border-border/60 bg-surface text-text-muted transition-all hover:border-border hover:bg-surface-muted hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:pointer-events-none print:hidden">
           <X className="h-4 w-4" />
           <span className="sr-only">Fechar</span>
         </DialogPrimitive.Close>

@@ -47,6 +47,7 @@ class ApartmentControllerTest {
         jdbcTemplate.update("delete from ical_sources");
         jdbcTemplate.update("delete from apartment_memberships");
         jdbcTemplate.update("delete from apartments");
+        jdbcTemplate.update("delete from owners");
         jdbcTemplate.update("delete from organization_memberships");
         jdbcTemplate.update("delete from organizations");
         jdbcTemplate.update("delete from users");
@@ -277,6 +278,127 @@ class ApartmentControllerTest {
             .perform(get("/apartments"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void batchImportsApartmentsCreatesOwnersAndSkipsDuplicates() throws Exception {
+        String accessToken = signUpHost("host@example.com", "Host Ops");
+        String existingApartmentId = createApartment(accessToken, "Apto 101");
+
+        MvcResult batchResult = mockMvc
+            .perform(
+                post("/apartments/batch-import")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "items": [
+                            {
+                              "name": "  apto 101 ",
+                              "ownerName": "Maria Silva"
+                            },
+                            {
+                              "name": "Apto 102",
+                              "ownerName": "Maria Silva",
+                              "ownerEmail": "maria@example.com",
+                              "ownerPhone": "11999990000",
+                              "managementCommissionBps": 2000
+                            },
+                            {
+                              "name": "Apto 103",
+                              "timezone": "America/Fortaleza",
+                              "ownerName": "maria silva"
+                            },
+                            {
+                              "name": "Apto 103",
+                              "ownerName": "Outro Dono"
+                            },
+                            {
+                              "name": "Apto 104",
+                              "ownerName": "Carteira Propria",
+                              "ownerType": "internal",
+                              "managementCommissionBps": 1500
+                            },
+                            {
+                              "name": "Apto 105"
+                            }
+                          ]
+                        }
+                        """
+                    )
+            )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.createdCount").value(4))
+            .andExpect(jsonPath("$.skippedCount").value(2))
+            .andExpect(jsonPath("$.ownersCreatedCount").value(2))
+            .andExpect(jsonPath("$.apartments", hasSize(6)))
+            .andExpect(jsonPath("$.apartments[0].id").value(existingApartmentId))
+            .andExpect(jsonPath("$.apartments[0].name").value("Apto 101"))
+            .andExpect(jsonPath("$.apartments[1].name").value("Apto 102"))
+            .andExpect(jsonPath("$.apartments[1].timezone").value("America/Sao_Paulo"))
+            .andExpect(jsonPath("$.apartments[1].managementCommissionBps").value(2000))
+            .andExpect(jsonPath("$.apartments[1].owner.name").value("Maria Silva"))
+            .andExpect(jsonPath("$.apartments[1].owner.type").value("client"))
+            .andExpect(jsonPath("$.apartments[2].name").value("Apto 103"))
+            .andExpect(jsonPath("$.apartments[2].timezone").value("America/Fortaleza"))
+            .andExpect(jsonPath("$.apartments[2].managementCommissionBps").value(2000))
+            .andExpect(jsonPath("$.apartments[2].owner.name").value("Maria Silva"))
+            .andExpect(jsonPath("$.apartments[3].name").value("Apto 103"))
+            .andExpect(jsonPath("$.apartments[4].name").value("Apto 104"))
+            .andExpect(jsonPath("$.apartments[4].owner.name").value("Carteira Propria"))
+            .andExpect(jsonPath("$.apartments[4].owner.type").value("internal"))
+            .andExpect(jsonPath("$.apartments[4].managementCommissionBps").value(1500))
+            .andExpect(jsonPath("$.apartments[5].name").value("Apto 105"))
+            .andExpect(jsonPath("$.apartments[5].owner.name").value("Host Ops - Imoveis proprios"))
+            .andExpect(jsonPath("$.apartments[5].owner.type").value("internal"))
+            .andExpect(jsonPath("$.apartments[5].managementCommissionBps").value(0))
+            .andReturn();
+
+        JsonNode apartments = readJson(batchResult).get("apartments");
+        org.assertj.core.api.Assertions.assertThat(
+            apartments.get(1).get("owner").get("id").asText()
+        ).isEqualTo(apartments.get(2).get("owner").get("id").asText());
+
+        mockMvc
+            .perform(get("/apartments").header("Authorization", "Bearer " + accessToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apartments", hasSize(5)));
+
+        mockMvc
+            .perform(get("/owners").header("Authorization", "Bearer " + accessToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.owners", hasSize(3)));
+    }
+
+    @Test
+    void rejectsBatchImportForNonHostAdmin() throws Exception {
+        String accessToken = signUpHost("cohost@example.com", "Host Ops");
+        String userId = userIdByEmail("cohost@example.com");
+        jdbcTemplate.update(
+            "update organization_memberships set role = 'co_host' where user_id = ?",
+            userId
+        );
+
+        mockMvc
+            .perform(
+                post("/apartments/batch-import")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "items": [
+                            {
+                              "name": "Apto 204"
+                            }
+                          ]
+                        }
+                        """
+                    )
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
 
     private String signUpHost(String email, String organizationName) throws Exception {

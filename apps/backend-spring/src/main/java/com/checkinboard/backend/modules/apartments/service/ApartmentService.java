@@ -5,6 +5,9 @@ import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentMe
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentOwnerResponse;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentResponse;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentsResponse;
+import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.BatchImportApartmentItemRequest;
+import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.BatchImportApartmentsRequest;
+import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.BatchImportApartmentsResponse;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.CreateApartmentRequest;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.UpdateApartmentRequest;
 import com.checkinboard.backend.modules.apartments.model.ApartmentEntity;
@@ -20,6 +23,11 @@ import com.checkinboard.backend.modules.owners.repository.OwnerRepository;
 import com.checkinboard.backend.shared.error.ApiException;
 import java.time.DateTimeException;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ApartmentService {
+
+    private static final String DEFAULT_TIMEZONE = "America/Sao_Paulo";
 
     private final ApartmentRepository apartmentRepository;
     private final ApartmentMembershipRepository apartmentMembershipRepository;
@@ -58,41 +68,85 @@ public class ApartmentService {
 
     @Transactional
     public ApartmentEnvelope create(String userId, CreateApartmentRequest request) {
-        OrganizationMembershipEntity organizationAccess =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
+        OrganizationMembershipEntity organizationAccess = requireHostAdminAccess(userId);
 
-        if (
-            organizationAccess == null ||
-            !organizationAccess.isActive() ||
-            organizationAccess.getRole() != AuthRole.host_admin
-        ) {
-            throw forbiddenCreate();
+        ApartmentResponse response = saveApartmentWithHostMembership(
+            organizationAccess,
+            resolveOwner(organizationAccess, request.ownerId()),
+            normalizeName(request.name()),
+            normalizeTimezone(request.timezone()),
+            normalizeCommissionBps(request.managementCommissionBps())
+        );
+
+        return new ApartmentEnvelope(response);
+    }
+
+    @Transactional
+    public BatchImportApartmentsResponse batchImport(
+        String userId,
+        BatchImportApartmentsRequest request
+    ) {
+        OrganizationMembershipEntity organizationAccess = requireHostAdminAccess(userId);
+        String organizationId = organizationAccess.getOrganization().getId();
+
+        Map<String, OwnerEntity> ownersByName = loadOwnersByName(organizationId);
+        Map<String, ApartmentResponse> existingApartmentsByName = loadExistingApartmentsByName(
+            userId,
+            organizationId
+        );
+
+        int createdCount = 0;
+        int skippedCount = 0;
+        int ownersCreatedCount = 0;
+        List<ApartmentResponse> importedResponses = new ArrayList<>(request.items().size());
+
+        for (BatchImportApartmentItemRequest item : request.items()) {
+            String normalizedName = normalizeName(item.name());
+            String nameKey = normalizeLookupKey(normalizedName);
+
+            ApartmentResponse existing = existingApartmentsByName.get(nameKey);
+            if (existing != null) {
+                skippedCount++;
+                importedResponses.add(existing);
+                continue;
+            }
+
+            OwnerResolution ownerResolution = resolveBatchOwner(
+                organizationAccess,
+                item,
+                ownersByName
+            );
+            OwnerEntity owner = ownerResolution.owner();
+            if (ownerResolution.created()) {
+                ownersCreatedCount++;
+            }
+
+            int commissionBps = item.managementCommissionBps() == null
+                ? owner.getDefaultCommissionBps()
+                : normalizeCommissionBps(item.managementCommissionBps());
+
+            String timezone = item.timezone() == null || item.timezone().isBlank()
+                ? DEFAULT_TIMEZONE
+                : normalizeTimezone(item.timezone());
+
+            ApartmentResponse response = saveApartmentWithHostMembership(
+                organizationAccess,
+                owner,
+                normalizedName,
+                timezone,
+                commissionBps
+            );
+            existingApartmentsByName.put(nameKey, response);
+            importedResponses.add(response);
+            createdCount++;
         }
 
-        ApartmentEntity apartment = apartmentRepository.save(
-            new ApartmentEntity(
-                newId(),
-                organizationAccess.getOrganization(),
-                resolveOwner(organizationAccess, request.ownerId()),
-                normalizeName(request.name()),
-                normalizeTimezone(request.timezone()),
-                normalizeCommissionBps(request.managementCommissionBps())
-            )
+        return new BatchImportApartmentsResponse(
+            createdCount,
+            skippedCount,
+            ownersCreatedCount,
+            importedResponses
         );
-
-        ApartmentMembershipEntity membership = apartmentMembershipRepository.save(
-            new ApartmentMembershipEntity(
-                newId(),
-                apartment,
-                organizationAccess.getUser(),
-                AuthRole.host_admin,
-                true,
-                true,
-                true
-            )
-        );
-
-        return new ApartmentEnvelope(toResponse(apartment, membership));
     }
 
     @Transactional(readOnly = true)
@@ -188,15 +242,25 @@ public class ApartmentService {
         ApartmentEntity apartment,
         ApartmentMembershipEntity membership
     ) {
-        return new ApartmentResponse(
-            apartment.getId(),
+        return toResponse(
+            apartment,
             new ApartmentMembershipResponse(
                 membership.getId(),
                 membership.getRole(),
                 membership.canManageIntegrations(),
                 membership.canUpdateTaskStatus(),
                 membership.canView()
-            ),
+            )
+        );
+    }
+
+    private ApartmentResponse toResponse(
+        ApartmentEntity apartment,
+        ApartmentMembershipResponse membershipResponse
+    ) {
+        return new ApartmentResponse(
+            apartment.getId(),
+            membershipResponse,
             apartment.getName(),
             apartment.getOrganization().getId(),
             new ApartmentOwnerResponse(
@@ -207,6 +271,151 @@ public class ApartmentService {
             apartment.getTimezone(),
             apartment.getManagementCommissionBps()
         );
+    }
+
+    private OrganizationMembershipEntity requireHostAdminAccess(String userId) {
+        OrganizationMembershipEntity organizationAccess =
+            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
+
+        if (
+            organizationAccess == null ||
+            !organizationAccess.isActive() ||
+            organizationAccess.getRole() != AuthRole.host_admin
+        ) {
+            throw forbiddenCreate();
+        }
+
+        return organizationAccess;
+    }
+
+    private ApartmentResponse saveApartmentWithHostMembership(
+        OrganizationMembershipEntity organizationAccess,
+        OwnerEntity owner,
+        String name,
+        String timezone,
+        int commissionBps
+    ) {
+        ApartmentEntity apartment = apartmentRepository.save(
+            new ApartmentEntity(
+                newId(),
+                organizationAccess.getOrganization(),
+                owner,
+                name,
+                timezone,
+                commissionBps
+            )
+        );
+
+        ApartmentMembershipEntity membership = apartmentMembershipRepository.save(
+            new ApartmentMembershipEntity(
+                newId(),
+                apartment,
+                organizationAccess.getUser(),
+                AuthRole.host_admin,
+                true,
+                true,
+                true
+            )
+        );
+
+        return toResponse(apartment, membership);
+    }
+
+    private Map<String, OwnerEntity> loadOwnersByName(String organizationId) {
+        Map<String, OwnerEntity> ownersByName = new HashMap<>();
+        for (OwnerEntity owner : ownerRepository.findByOrganization_IdAndDeletedAtIsNullOrderByNameAsc(
+            organizationId
+        )) {
+            ownersByName.putIfAbsent(normalizeLookupKey(owner.getName()), owner);
+        }
+        return ownersByName;
+    }
+
+    private Map<String, ApartmentResponse> loadExistingApartmentsByName(
+        String userId,
+        String organizationId
+    ) {
+        Map<String, ApartmentMembershipEntity> membershipsByApartmentId = new HashMap<>();
+        for (ApartmentMembershipEntity membership : apartmentMembershipRepository.findByUserIdAndOrganizationId(
+            userId,
+            organizationId
+        )) {
+            membershipsByApartmentId.putIfAbsent(membership.getApartment().getId(), membership);
+        }
+
+        Map<String, ApartmentResponse> existingApartmentsByName = new HashMap<>();
+        for (ApartmentEntity existing : apartmentRepository.findByOrganization_IdAndDeletedAtIsNullOrderByNameAsc(
+            organizationId
+        )) {
+            ApartmentMembershipEntity membership = membershipsByApartmentId.get(existing.getId());
+            ApartmentResponse existingResponse = membership != null
+                ? toResponse(existing, membership)
+                : toResponse(
+                    existing,
+                    new ApartmentMembershipResponse(null, AuthRole.host_admin, true, true, true)
+                );
+            existingApartmentsByName.putIfAbsent(
+                normalizeLookupKey(existing.getName()),
+                existingResponse
+            );
+        }
+        return existingApartmentsByName;
+    }
+
+    private OwnerResolution resolveBatchOwner(
+        OrganizationMembershipEntity organizationAccess,
+        BatchImportApartmentItemRequest item,
+        Map<String, OwnerEntity> ownersByName
+    ) {
+        String organizationId = organizationAccess.getOrganization().getId();
+
+        if (item.ownerId() != null && !item.ownerId().isBlank()) {
+            return new OwnerResolution(resolveOwner(organizationId, item.ownerId()), false);
+        }
+
+        if (item.ownerName() == null || item.ownerName().isBlank()) {
+            return new OwnerResolution(resolveOwner(organizationId, null), false);
+        }
+
+        String normalizedOwnerName = item.ownerName().trim();
+        String ownerNameKey = normalizeLookupKey(normalizedOwnerName);
+        OwnerEntity existing = ownersByName.get(ownerNameKey);
+        if (existing != null) {
+            return new OwnerResolution(existing, false);
+        }
+
+        OwnerType ownerType = isInternalOwnerType(item.ownerType())
+            ? OwnerType.internal
+            : OwnerType.client;
+        OwnerEntity created = ownerRepository.save(
+            new OwnerEntity(
+                newId(),
+                organizationAccess.getOrganization(),
+                normalizedOwnerName,
+                ownerType,
+                null,
+                normalizeOptional(item.ownerEmail()),
+                normalizeOptional(item.ownerPhone()),
+                null,
+                normalizeCommissionBps(item.managementCommissionBps())
+            )
+        );
+        ownersByName.put(ownerNameKey, created);
+        return new OwnerResolution(created, true);
+    }
+
+    private record OwnerResolution(OwnerEntity owner, boolean created) {}
+
+    private boolean isInternalOwnerType(String ownerType) {
+        return ownerType != null && "internal".equalsIgnoreCase(ownerType.trim());
+    }
+
+    private String normalizeLookupKey(String value) {
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeOptional(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private OwnerEntity resolveOwner(

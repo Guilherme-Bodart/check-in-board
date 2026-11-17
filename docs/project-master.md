@@ -67,7 +67,7 @@ Construído em **Java 21 + Spring Boot**, estruturado por domínio (`package-by-
    - Separação entre proprietário `internal` (imóveis próprios da administradora/anfitrião) e `client` (imóveis de terceiros administrados), incluindo taxa padrão informativa de administração (`defaultCommissionBps`).
    - Contagem de apartamentos vinculados e bloqueio de exclusão caso existam imóveis ativos ligados ao proprietário.
 3. **Apartamentos & Permissões (`modules/apartments`, `V3`):**
-   - `GET /apartments`, `POST /apartments`, `GET /apartments/{apartmentId}`, `PUT /apartments/{apartmentId}`, `DELETE /apartments/{apartmentId}` (soft delete).
+   - `GET /apartments`, `POST /apartments`, `POST /apartments/batch-import` (importação em lote via CSV com criação/resolução automática de proprietário por nome e prevenção de duplicidade), `GET /apartments/{apartmentId}`, `PUT /apartments/{apartmentId}`, `DELETE /apartments/{apartmentId}` (soft delete).
    - Vinculação obrigatória a um `Owner`, validação de `timezone` (`ZoneId`) e controle de escopo por `apartment_memberships`.
 4. **Fontes iCal & Criptografia (`modules/icalsources`, `integrations/ical`, `V4`):**
    - `GET /apartments/{apartmentId}/ical-sources`, `POST /apartments/{apartmentId}/ical-sources`, `PUT /apartments/{apartmentId}/ical-sources/{icalSourceId}`, `DELETE /apartments/{apartmentId}/ical-sources/{icalSourceId}`.
@@ -115,9 +115,9 @@ Construída em **Next.js App Router + TypeScript + Tailwind CSS v4 + Radix UI / 
     - Visão **Cronograma (Tape Chart)** mobile-first com coluna de imóvel fixa à esquerda, auto-scroll para o dia de *Hoje*, detecção visual de conflitos/overbooking e cores executivas de alto contraste por canal (Airbnb vs Direto/Manual).
     - Visão **Mês em Grade** tradicional.
     - **Modal Unificado de Reserva (`ReservationUnifiedModal`)** modularizado (`ReservationDetailsTab` + `ReservationItemsTab`) com abas Radix (`<Tabs>`), modo rápido **Hóspede** vs **Bloqueio**, detecção centralizada de conflitos e lista de itens existentes antes dos presets rápidos.
-    - **Central de Relatórios, PDF e WhatsApp (`CalendarReportsModal` + `reports-calculator.ts`):** acessível no celular e no desktop, com presets de 1 clique (**Mês Passado**, **Semana Passada** e **Mês Selecionado**), PDF (`window.print()`) e botão **"Copiar p/ WhatsApp"** com resumo pronto do proprietário/limpeza/portaria.
+    - **Central de Relatórios, PDF e WhatsApp (`CalendarReportsModal` + `reports-calculator.ts`):** acessível no celular e no desktop, com presets de 1 clique (**Mês Passado**, **Semana Passada** e **Mês Selecionado**), geração de PDF A4 isolada em `<iframe>` limpo (evitando página em branco causada por overlay/scroll-lock do Dialog) e botão **"Copiar p/ WhatsApp"** com resumo pronto do proprietário/limpeza/portaria.
   - `/apartamentos` (**Gestão de Imóveis**):
-    - Listagem e filtros (`/apartamentos`), criação (`/apartamentos/novo`, com pré-preenchimento e presets de taxa de administração herdados do proprietário), detalhes (`/apartamentos/[apartmentId]`), edição (`/editar`), gestão completa de fontes iCal e histórico de sync (`/ical`) e financeiro dedicado do imóvel com faturamento, painel **Despesas Fixas Mensais** (1 clique *"Lançar Fixas do Mês"*) e repasses (`/financeiro` + `BillingModal`).
+    - Listagem e filtros (`/apartamentos`), importação em lote via CSV (`ApartmentCsvImportModal` + CLI `pnpm import:apartments <arquivo.csv>`), criação (`/apartamentos/novo`, com pré-preenchimento e presets de taxa de administração herdados do proprietário), detalhes (`/apartamentos/[apartmentId]`), edição (`/editar`), gestão completa de fontes iCal e histórico de sync (`/ical`) e financeiro dedicado do imóvel com faturamento, painel **Despesas Fixas Mensais** (1 clique *"Lançar Fixas do Mês"*) e repasses (`/financeiro` + `BillingModal`).
   - `/reservas` (**Central de Reservas**):
     - Cards estruturados no mobile (`md:hidden`) e `DataTable` no desktop (`hidden md:block`), filtros por imóvel/canal/pendência de preço e modal de criação/edição e precificação.
   - `/clientes` (**Proprietários**):

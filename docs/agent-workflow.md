@@ -5,12 +5,12 @@
 
 ---
 
-## 1. Hierarquia Real dos Modelos: Qual IA Usar em Cada Tarefa
+## 1. Hierarquia Real dos Modelos: Política **Hydrogen-First**
 
-A escolha do modelo segue a regra de **força cognitiva vs. renovação de cota**:
-- **Argon** (`Orchestrator` e `Gemini 4 Argon`) é o modelo **topo de linha (mais pesado)**, mas possui **cota semanal compartilhada**. Deve ser reservado para orquestração, arquitetura, problemas difíceis e lógica crítica.
-- **Hydrogen** (`Gemini 4 Hydrogen`) é o **modelo ágil do dia a dia da geração Gemini 4**, com **cota que renova diariamente**. Deve puxar a maior parte da implementação de features, telas e CRUDs.
-- **Flash 3.8** (`Gemini 3.8 Flash`) é o executor leve para tarefas mecânicas, lint/testes e automação de navegador (`browser`).
+A escolha do modelo segue a regra de **Hydrogen por padrão (cota diária) e economia máxima de Argon (cota semanal)**:
+- **Hydrogen (`Gemini 4 Hydrogen` — `Medium` / `High` / `XHigh`)** é o **modelo principal padrão para praticamente tudo (~95% das demandas)**, incluindo o planejamento de tarefas simples/médias, implementação de telas, endpoints REST, importação de CSV/dados e ajustes gerais pedidos pela usuária (que não é programadora).
+- **Argon (`Orchestrator` e `Gemini 4 Argon`)** possui **cota semanal compartilhada e limitada**. Só deve ser usado quando a tarefa for realmente difícil ou crítica (arquitetura complexa, algoritmos delicados de sincronização/concorrência ou refatoração pesada).
+- **Flash 3.8 (`Gemini 3.8 Flash`)** é o executor leve para tarefas mecânicas, lint/testes e automação de navegador (`browser`).
 
 | Modelo | Perfil & Cota | Quando o Orquestrador Deve Escolher |
 | :--- | :--- | :--- |

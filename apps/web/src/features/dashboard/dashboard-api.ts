@@ -147,6 +147,35 @@ export async function deleteApartment(token: string, apartmentId: string) {
   });
 }
 
+export type BatchImportApartmentItemInput = {
+  name: string;
+  timezone?: string;
+  ownerId?: string;
+  ownerName?: string;
+  ownerType?: "internal" | "client";
+  ownerEmail?: string;
+  ownerPhone?: string;
+  managementCommissionBps?: number;
+};
+
+export type BatchImportApartmentsResponse = {
+  createdCount: number;
+  skippedCount: number;
+  ownersCreatedCount: number;
+  apartments: Apartment[];
+};
+
+export async function batchImportApartments(
+  token: string,
+  items: BatchImportApartmentItemInput[],
+) {
+  return apiRequest<BatchImportApartmentsResponse>("/apartments/batch-import", {
+    method: "POST",
+    token,
+    body: { items },
+  });
+}
+
 export async function createTask(
   token: string,
   apartmentId: string,

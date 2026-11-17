@@ -104,6 +104,7 @@ export function CalendarReportsModal({
   const [loadError, setLoadError] = useState("");
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reportPrintRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -266,7 +267,145 @@ export function CalendarReportsModal({
   );
 
   function handlePrint() {
-    window.print();
+    if (typeof document === "undefined") return;
+
+    const reportContainer = reportPrintRef.current;
+    if (!reportContainer) {
+      window.print();
+      return;
+    }
+
+    const existingIframe = document.getElementById("cib-report-print-iframe");
+    if (existingIframe) {
+      existingIframe.remove();
+    }
+
+    const iframe = document.createElement("iframe");
+    iframe.id = "cib-report-print-iframe";
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "210mm";
+    iframe.style.height = "297mm";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+    iframe.style.zIndex = "-1";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+    const iframeWin = iframe.contentWindow;
+    if (!iframeDoc || !iframeWin) {
+      iframe.remove();
+      window.print();
+      return;
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(
+      '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8" /></head><body></body></html>',
+    );
+    iframeDoc.close();
+    iframeDoc.title = document.title || "Relatório";
+
+    const stylesheetLoadPromises: Array<Promise<void>> = [];
+    const headNodes = document.head.querySelectorAll('style, link[rel="stylesheet"]');
+
+    headNodes.forEach((node) => {
+      if (node.tagName === "LINK") {
+        const sourceLink = node as HTMLLinkElement;
+        const clonedLink = iframeDoc.createElement("link");
+        clonedLink.rel = "stylesheet";
+        clonedLink.href = sourceLink.href;
+        if (sourceLink.media) clonedLink.media = sourceLink.media;
+        if (sourceLink.crossOrigin) clonedLink.crossOrigin = sourceLink.crossOrigin;
+
+        stylesheetLoadPromises.push(
+          new Promise<void>((resolve) => {
+            clonedLink.addEventListener("load", () => resolve(), { once: true });
+            clonedLink.addEventListener("error", () => resolve(), { once: true });
+          }),
+        );
+
+        iframeDoc.head.appendChild(clonedLink);
+        return;
+      }
+
+      const sourceStyle = node as HTMLStyleElement;
+      const clonedStyle = iframeDoc.createElement("style");
+      let cssText = sourceStyle.textContent ?? "";
+      if (!cssText && sourceStyle.sheet) {
+        try {
+          cssText = Array.from(sourceStyle.sheet.cssRules)
+            .map((rule) => rule.cssText)
+            .join("\n");
+        } catch {
+          // Ignore cross-origin stylesheet access errors
+        }
+      }
+      clonedStyle.textContent = cssText;
+      iframeDoc.head.appendChild(clonedStyle);
+    });
+
+    const printStyle = iframeDoc.createElement("style");
+    printStyle.textContent = `
+      @page {
+        size: A4 portrait;
+        margin: 12mm;
+      }
+      html,
+      body {
+        background: #ffffff !important;
+        color: #111827 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .print\\:hidden {
+        display: none !important;
+      }
+      .print\\:block {
+        display: block !important;
+      }
+    `;
+    iframeDoc.head.appendChild(printStyle);
+
+    iframeDoc.body.innerHTML = reportContainer.innerHTML;
+
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      iframeWin.removeEventListener("afterprint", cleanup);
+      iframe.remove();
+    };
+
+    iframeWin.addEventListener("afterprint", cleanup, { once: true });
+
+    const triggerPrint = () => {
+      setTimeout(() => {
+        if (!iframe.isConnected) return;
+        iframeWin.focus();
+        iframeWin.print();
+        setTimeout(cleanup, 2000);
+      }, 150);
+    };
+
+    if (stylesheetLoadPromises.length > 0) {
+      const timeoutPromise = new Promise<void>((resolve) => {
+        setTimeout(resolve, 500);
+      });
+      void Promise.race([Promise.all(stylesheetLoadPromises), timeoutPromise]).then(
+        triggerPrint,
+      );
+    } else {
+      triggerPrint();
+    }
   }
 
   async function handleCopyWhatsApp() {
@@ -426,6 +565,7 @@ export function CalendarReportsModal({
             </div>
           )}
 
+          <div ref={reportPrintRef}>
           {activeReport === "owner-statement" && (
             <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-200 bg-white p-4 sm:p-8 shadow-md print:max-w-none print:border-none print:p-0 print:shadow-none">
               <div className="border-b border-neutral-200 pb-4">
@@ -718,6 +858,7 @@ export function CalendarReportsModal({
               )}
             </div>
           )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

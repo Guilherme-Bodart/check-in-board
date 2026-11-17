@@ -2,6 +2,8 @@ package com.checkinboard.backend.modules.apartments;
 
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentEnvelope;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.ApartmentsResponse;
+import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.BatchImportApartmentsRequest;
+import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.BatchImportApartmentsResponse;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.CreateApartmentRequest;
 import com.checkinboard.backend.modules.apartments.dto.ApartmentDtos.UpdateApartmentRequest;
 import com.checkinboard.backend.modules.apartments.service.ApartmentService;
@@ -42,6 +44,16 @@ public class ApartmentController {
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(apartmentService.create(principal.userId(), request));
+    }
+
+    @PostMapping("/batch-import")
+    ResponseEntity<BatchImportApartmentsResponse> batchImport(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @Valid @RequestBody BatchImportApartmentsRequest request
+    ) {
+        return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(apartmentService.batchImport(principal.userId(), request));
     }
 
     @GetMapping("/{apartmentId}")

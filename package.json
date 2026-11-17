@@ -15,7 +15,8 @@
     "dev:mobile": "pnpm --filter @check-in-board/mobile dev",
     "dev:backend-spring": "cd apps/backend-spring && mvnw.cmd spring-boot:run",
     "test:backend-spring": "cd apps/backend-spring && mvnw.cmd clean test",
-    "build:backend-spring": "cd apps/backend-spring && mvnw.cmd clean package"
+    "build:backend-spring": "cd apps/backend-spring && mvnw.cmd clean package",
+    "import:apartments": "node scripts/import-apartments-csv.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

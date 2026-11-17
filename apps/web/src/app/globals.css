@@ -70,3 +70,15 @@ textarea:disabled,
 button:not(:disabled):active {
   transform: translateY(0.5px);
 }
+
+@media print {
+  html,
+  body,
+  body[data-scroll-locked] {
+    background: #ffffff !important;
+    color: #111827 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+}

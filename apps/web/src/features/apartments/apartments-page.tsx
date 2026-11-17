@@ -10,25 +10,28 @@ import {
   Plus,
   Search,
   Trash2,
-  UserRound,
+  Upload,
 } from "lucide-react";
 
 import { isAbortError, type Apartment } from "../../api";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-import { DataTable, TableStateRow } from "../../components/ui/data-table";
 import { EmptyState } from "../../components/ui/empty-state";
 import { IconButton } from "../../components/ui/icon-button";
 import { Input } from "../../components/ui/form-controls";
 import { PageHeader } from "../../components/ui/page-header";
 import { Panel } from "../../components/ui/panel";
-import { Toolbar } from "../../components/ui/toolbar";
 import { messages } from "../../i18n";
 import { readStoredSession } from "../../lib/session-storage";
 import { cn } from "../../lib/utils";
 import { useAuthSession } from "../auth/session-context";
-import { deleteApartment, fetchApartments } from "../dashboard/dashboard-api";
+import {
+  deleteApartment,
+  fetchApartments,
+  type BatchImportApartmentsResponse,
+} from "../dashboard/dashboard-api";
+import { ApartmentCsvImportModal } from "./components/apartment-csv-import-modal";
 
 export function ApartmentsPage() {
   const { session: authSession, isHostAdmin } = useAuthSession();
@@ -36,7 +39,9 @@ export function ApartmentsPage() {
   const [apartmentToDelete, setApartmentToDelete] = useState<Apartment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [query, setQuery] = useState("");
   const [ownerTypeFilter, setOwnerTypeFilter] = useState<"all" | "internal" | "client">("all");
   const loadAbortRef = useRef<AbortController | null>(null);
@@ -139,6 +144,13 @@ export function ApartmentsPage() {
     }
   }
 
+  async function handleCsvImported(result: BatchImportApartmentsResponse) {
+    await loadData();
+    setSuccessMessage(
+      `Importação concluída: ${result.createdCount} apartamento(s) criado(s), ${result.ownersCreatedCount} novo(s) proprietário(s) e ${result.skippedCount} já existente(s).`,
+    );
+  }
+
   return (
     <div className="grid gap-6">
       <PageHeader
@@ -212,8 +224,28 @@ export function ApartmentsPage() {
             >
               Clientes ({summary.client})
             </Button>
+            {isHostAdmin ? (
+              <Button
+                className="shrink-0"
+                onClick={() => {
+                  setSuccessMessage("");
+                  setIsCsvModalOpen(true);
+                }}
+                size="xs"
+                variant="secondary"
+              >
+                <Upload aria-hidden className="h-3.5 w-3.5" />
+                Importar CSV
+              </Button>
+            ) : null}
           </div>
         </div>
+
+        {successMessage ? (
+          <p className="mt-4 rounded-lg bg-success-soft px-4 py-3 text-sm font-medium text-success">
+            {successMessage}
+          </p>
+        ) : null}
 
         {message ? (
           <p className="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
@@ -339,6 +371,14 @@ export function ApartmentsPage() {
         onConfirm={() => void removeApartment()}
         title={messages.apartments.deleteTitle}
       />
+
+      {isHostAdmin ? (
+        <ApartmentCsvImportModal
+          isOpen={isCsvModalOpen}
+          onClose={() => setIsCsvModalOpen(false)}
+          onImported={handleCsvImported}
+        />
+      ) : null}
     </div>
   );
 }
