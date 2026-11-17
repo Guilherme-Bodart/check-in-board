@@ -22,7 +22,7 @@ import com.checkinboard.backend.modules.tasks.repository.TaskRepository;
 import com.checkinboard.backend.shared.error.ApiException;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
@@ -33,9 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TaskService {
 
+    private static final ZoneId DEFAULT_TIMEZONE = ZoneId.of("America/Sao_Paulo");
     private static final DateTimeFormatter BOARD_TIME_FORMATTER = DateTimeFormatter
         .ofPattern("HH:mm")
-        .withZone(ZoneOffset.UTC);
+        .withZone(DEFAULT_TIMEZONE);
 
     private final ApartmentRepository apartmentRepository;
     private final ApartmentMembershipRepository apartmentMembershipRepository;
@@ -167,13 +168,16 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public TodayTasksResponse today(String userId, LocalDate date) {
-        LocalDate targetDate = date != null ? date : LocalDate.now(ZoneOffset.UTC);
-        Instant dueAfter = targetDate.atStartOfDay().toInstant(ZoneOffset.UTC);
-        Instant dueBefore = targetDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        LocalDate targetDate = date != null ? date : LocalDate.now(DEFAULT_TIMEZONE);
+        Instant dueAfter = targetDate.atStartOfDay(DEFAULT_TIMEZONE).toInstant();
+        Instant dueBefore = targetDate.plusDays(1).atStartOfDay(DEFAULT_TIMEZONE).toInstant();
         List<String> apartmentIds = apartmentMembershipRepository
             .findByUser_IdAndCanViewTrue(userId)
             .stream()
-            .map(membership -> membership.getApartment().getId())
+            .map(ApartmentMembershipEntity::getApartment)
+            .filter(apartment -> apartment.getDeletedAt() == null)
+            .map(ApartmentEntity::getId)
+            .distinct()
             .toList();
 
         if (apartmentIds.isEmpty()) {

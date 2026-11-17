@@ -22,6 +22,19 @@ type QuickCreatePanelProps = {
   onSaved: () => void;
 };
 
+function toLocalYmd(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addLocalDaysYmd(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return toLocalYmd(date);
+}
+
 export function QuickCreatePanel({
   apartments,
   onSaved,
@@ -29,7 +42,8 @@ export function QuickCreatePanel({
   rentalStays,
   token,
 }: QuickCreatePanelProps) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toLocalYmd(new Date());
+  const tomorrow = addLocalDaysYmd(1);
   const [message, setMessage] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [apartmentName, setApartmentName] = useState("");
@@ -38,7 +52,7 @@ export function QuickCreatePanel({
   const [stayApartmentId, setStayApartmentId] = useState("");
   const [guestName, setGuestName] = useState("");
   const [checkIn, setCheckIn] = useState(today);
-  const [checkOut, setCheckOut] = useState(today);
+  const [checkOut, setCheckOut] = useState(tomorrow);
   const [rentAmount, setRentAmount] = useState("");
   const [expenseApartmentId, setExpenseApartmentId] = useState("");
   const [expenseStayId, setExpenseStayId] = useState("");
@@ -57,11 +71,15 @@ export function QuickCreatePanel({
 
   async function submitApartment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const parsedCommission = Number(commissionPercent.trim().replace(",", "."));
+    const managementCommissionBps = Number.isFinite(parsedCommission)
+      ? Math.max(0, Math.min(10000, Math.round(parsedCommission * 100)))
+      : 0;
     await save(async () => {
       await createApartment(token, {
         name: apartmentName,
         ownerId: apartmentOwnerId || owners[0]?.id || "",
-        managementCommissionBps: Math.round(Number(commissionPercent) * 100),
+        managementCommissionBps,
       });
       setApartmentName("");
     });

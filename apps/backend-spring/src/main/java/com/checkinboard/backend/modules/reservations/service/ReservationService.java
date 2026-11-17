@@ -193,10 +193,7 @@ public class ReservationService {
         String apartmentId,
         CreateManualReservationRequest request
     ) {
-        ApartmentMembershipEntity membership = getMembership(userId, apartmentId);
-        if (!membership.canView()) {
-            throw forbiddenApartmentAccess();
-        }
+        ApartmentEntity apartment = requireHostAdminForApartment(userId, apartmentId);
 
         if (request.startsAt().isAfter(request.endsAt()) || request.startsAt().equals(request.endsAt())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid date range.");
@@ -204,7 +201,7 @@ public class ReservationService {
 
         ReservationEntity reservation = new ReservationEntity(
             newId(),
-            membership.getApartment(),
+            apartment,
             request.startsAt(),
             request.endsAt(),
             request.guestName(),
@@ -222,7 +219,7 @@ public class ReservationService {
         String reservationId,
         UpdateReservationRequest request
     ) {
-        assertCanView(userId, apartmentId);
+        requireHostAdminForApartment(userId, apartmentId);
 
         ReservationEntity reservation = reservationRepository
             .findById(reservationId)
@@ -233,6 +230,30 @@ public class ReservationService {
         reservationRepository.save(reservation);
 
         return toResponse(reservation);
+    }
+
+    private ApartmentEntity requireHostAdminForApartment(String userId, String apartmentId) {
+        ApartmentEntity apartment = apartmentRepository
+            .findByIdAndDeletedAtIsNull(apartmentId)
+            .orElseThrow(() ->
+                new ApiException(
+                    HttpStatus.NOT_FOUND,
+                    "APARTMENT_NOT_FOUND",
+                    "Apartment was not found."
+                )
+            );
+
+        boolean isHostAdmin = organizationMembershipRepository.existsActiveRole(
+            userId,
+            apartment.getOrganization().getId(),
+            AuthRole.host_admin
+        );
+
+        if (!isHostAdmin) {
+            throw forbiddenApartmentAccess();
+        }
+
+        return apartment;
     }
 
     private void assertCanView(String userId, String apartmentId) {

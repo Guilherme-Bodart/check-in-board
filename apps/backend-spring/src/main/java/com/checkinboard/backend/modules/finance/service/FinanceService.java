@@ -14,6 +14,7 @@ import com.checkinboard.backend.modules.finance.model.FinancialEntryEntity;
 import com.checkinboard.backend.modules.finance.model.FinancialEntryType;
 import com.checkinboard.backend.modules.finance.model.RentalStayEntity;
 import com.checkinboard.backend.modules.finance.repository.FinancialEntryRepository;
+import com.checkinboard.backend.modules.finance.repository.RecurringExpenseApplicationRepository;
 import com.checkinboard.backend.modules.finance.repository.RentalStayRepository;
 import com.checkinboard.backend.shared.error.ApiException;
 import java.text.Normalizer;
@@ -35,6 +36,7 @@ public class FinanceService {
 
     private final FinancialEntryRepository financialEntryRepository;
     private final RentalStayRepository rentalStayRepository;
+    private final RecurringExpenseApplicationRepository recurringExpenseApplicationRepository;
     private final OrganizationAccessService organizationAccessService;
     private static final Set<String> EXPENSE_CATEGORIES = Set.of(
         "limpeza",
@@ -50,10 +52,12 @@ public class FinanceService {
     public FinanceService(
         FinancialEntryRepository financialEntryRepository,
         RentalStayRepository rentalStayRepository,
+        RecurringExpenseApplicationRepository recurringExpenseApplicationRepository,
         OrganizationAccessService organizationAccessService
     ) {
         this.financialEntryRepository = financialEntryRepository;
         this.rentalStayRepository = rentalStayRepository;
+        this.recurringExpenseApplicationRepository = recurringExpenseApplicationRepository;
         this.organizationAccessService = organizationAccessService;
     }
 
@@ -211,6 +215,7 @@ public class FinanceService {
             entryId,
             membership.getOrganization().getId()
         );
+        recurringExpenseApplicationRepository.deleteByFinancialEntry_Id(entry.getId());
         entry.markDeleted();
         financialEntryRepository.save(entry);
     }

@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
@@ -283,6 +284,15 @@ public class IcalSyncService {
                 );
             }
             return new SyncExecutionOutcome(null, failedRun);
+        } catch (RuntimeException exception) {
+            SyncRunResponse failedRun = recordSyncFailure(
+                context,
+                "Unexpected error during iCal sync."
+            );
+            if (throwOnError) {
+                throw exception;
+            }
+            return new SyncExecutionOutcome(null, failedRun);
         }
     }
 
@@ -392,6 +402,8 @@ public class IcalSyncService {
             ReservationEntity existing = existingByKey.get(parsedReservation.externalEventKey());
             boolean isNew = existing == null;
             ReservationStatus previousStatus = isNew ? null : existing.getStatus();
+            Instant previousStartsAt = isNew ? null : existing.getStartsAt();
+            Instant previousEndsAt = isNew ? null : existing.getEndsAt();
 
             ReservationEntity reservation = isNew
                 ? new ReservationEntity(
@@ -429,6 +441,15 @@ public class IcalSyncService {
                 addChangeIfUnderLimit(changes, saved, "created");
             } else {
                 updatedCount++;
+                boolean wasReactivated = previousStatus != ReservationStatus.confirmed;
+                boolean datesChanged =
+                    !Objects.equals(previousStartsAt, saved.getStartsAt()) ||
+                    !Objects.equals(previousEndsAt, saved.getEndsAt());
+                if (wasReactivated) {
+                    addChangeIfUnderLimit(changes, saved, "created");
+                } else if (datesChanged) {
+                    addChangeIfUnderLimit(changes, saved, "updated");
+                }
             }
         }
 
@@ -539,6 +560,7 @@ public class IcalSyncService {
         return (
             syncRun.getReservationsCreated() > 0 ||
             syncRun.getReservationsCancelled() > 0 ||
+            (syncRun.getDiffDetailsJson() != null && !syncRun.getDiffDetailsJson().isBlank()) ||
             syncRun.getStatus() == SyncRunStatus.failed
         );
     }

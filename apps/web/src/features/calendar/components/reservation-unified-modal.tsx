@@ -14,7 +14,11 @@ import { createFinancialEntry, fetchFinancialEntries } from "../../finance/finan
 import { formatMoney, parseMoneyToCents } from "../../finance/money";
 import { createRentalStay, updateRentalStay } from "../../finance/rental-stay-api";
 import { createManualReservation, updateReservation } from "../../reservations/reservations-api";
-import { nightsBetween, type ReservationListItem } from "../../reservations/reservation-view-model";
+import {
+  findConflictingReservation,
+  nightsBetween,
+  type ReservationListItem,
+} from "../../reservations/reservation-view-model";
 import { ReservationDetailsTab, type ReservationFormState } from "./reservation-details-tab";
 import {
   operationalCategoryLabels,
@@ -130,12 +134,11 @@ export function ReservationUnifiedModal({
 
   const conflictingReservation = useMemo(() => {
     if (!form.apartmentId || !form.startsAt || !form.endsAt) return null;
-    return allReservations.find((res) => {
-      if (reservation && res.id === reservation.id) return false;
-      if (res.apartmentId !== form.apartmentId) return false;
-      const resStart = res.startsAt.slice(0, 10);
-      const resEnd = res.endsAt.slice(0, 10);
-      return form.startsAt < resEnd && form.endsAt > resStart;
+    return findConflictingReservation(allReservations, {
+      id: reservation?.id,
+      apartmentId: form.apartmentId,
+      startsAt: form.startsAt,
+      endsAt: form.endsAt,
     });
   }, [allReservations, form.apartmentId, form.startsAt, form.endsAt, reservation]);
 

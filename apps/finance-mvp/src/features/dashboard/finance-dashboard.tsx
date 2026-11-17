@@ -69,7 +69,7 @@ export function FinanceDashboard({ onLogout, session }: FinanceDashboardProps) {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [month, ownerId, apartmentId, session.accessToken]);
 
   function reload() {
     void load();

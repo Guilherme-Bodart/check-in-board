@@ -9,6 +9,7 @@ import { PageHeader } from "../../components/ui/page-header";
 import { Panel } from "../../components/ui/panel";
 import { readStoredSession } from "../../lib/session-storage";
 import { fetchMe } from "../auth/auth-api";
+import { useAuthSession } from "../auth/session-context";
 
 const roleLabels: Record<string, string> = {
   co_host: "Co-host",
@@ -17,6 +18,7 @@ const roleLabels: Record<string, string> = {
 };
 
 export function SettingsPage() {
+  const { isHostAdmin } = useAuthSession();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -117,12 +119,14 @@ export function SettingsPage() {
           icon={KeyRound}
           title="Segurança"
         />
-        <SettingsLink
-          description="Gerencie membros, papéis e permissões por apartamento."
-          href="/configuracoes/equipe"
-          icon={UsersRound}
-          title="Equipe"
-        />
+        {isHostAdmin ? (
+          <SettingsLink
+            description="Gerencie membros, papéis e permissões por apartamento."
+            href="/configuracoes/equipe"
+            icon={UsersRound}
+            title="Equipe"
+          />
+        ) : null}
       </section>
     </div>
   );

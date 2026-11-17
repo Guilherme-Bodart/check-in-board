@@ -202,13 +202,26 @@ export function useDashboard() {
   }
 
   async function markTaskDone(taskId: string) {
-    if (!session || !selectedApartmentId || selectedApartmentId === allApartmentsValue) {
+    if (!session) {
+      return;
+    }
+
+    const targetApartmentId =
+      selectedApartmentId && selectedApartmentId !== allApartmentsValue
+        ? selectedApartmentId
+        : tasks.find((task) => task.id === taskId)?.apartmentId;
+
+    if (!targetApartmentId) {
       return;
     }
 
     try {
       await markTaskDoneRequest(session.token, taskId);
-      await loadWorkspace(session.token, selectedApartmentId, boardDate);
+      await loadWorkspace(
+        session.token,
+        selectedApartmentId || targetApartmentId,
+        boardDate,
+      );
     } catch (error) {
       if (isAbortError(error)) {
         return;

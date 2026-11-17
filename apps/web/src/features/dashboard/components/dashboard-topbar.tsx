@@ -113,7 +113,7 @@ export function DashboardTopbar({
         >
           <Link href="/financeiro/lancamentos/novo?type=expense&category=consumo">
             <ShoppingCart aria-hidden className="h-4 w-4" />
-            <span className="truncate">+ Compra / Consumo</span>
+            <span className="truncate">Compra / Consumo</span>
           </Link>
         </Button>
         <Button

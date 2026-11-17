@@ -7,6 +7,7 @@ import com.checkinboard.backend.modules.finance.dto.FinanceMvpDtos.SettlementsRe
 import com.checkinboard.backend.modules.finance.service.FinanceMvpService;
 import com.checkinboard.backend.shared.security.AuthenticatedUserPrincipal;
 import jakarta.validation.Valid;
+import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -54,7 +55,7 @@ public class FinanceMvpController {
                 HttpHeaders.CONTENT_DISPOSITION,
                 "attachment; filename=finance-mvp.csv"
             )
-            .contentType(new MediaType("text", "csv"))
+            .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
             .body(
                 financeMvpService.exportCsv(
                     principal.userId(),

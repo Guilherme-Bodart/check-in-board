@@ -312,7 +312,7 @@ export function FinancePage() {
             <Button asChild className="flex-1 sm:flex-initial" size="md" variant="primary">
               <Link href="/financeiro/lancamentos/novo?type=expense&category=consumo">
                 <ShoppingCart aria-hidden className="h-4 w-4" />
-                + Compra / Despesa
+                Compra / Despesa
               </Link>
             </Button>
             <Button asChild className="flex-1 sm:flex-initial" size="md" variant="secondary">

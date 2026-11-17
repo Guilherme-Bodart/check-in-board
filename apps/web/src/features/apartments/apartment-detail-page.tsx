@@ -8,9 +8,11 @@ import type { Apartment } from "../../api";
 import { PageHeader } from "../../components/ui/page-header";
 import { Panel } from "../../components/ui/panel";
 import { readStoredSession } from "../../lib/session-storage";
+import { useAuthSession } from "../auth/session-context";
 import { fetchApartment } from "../dashboard/dashboard-api";
 
 export function ApartmentDetailPage({ apartmentId }: { apartmentId: string }) {
+  const { isHostAdmin } = useAuthSession();
   const [apartment, setApartment] = useState<Apartment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -72,20 +74,24 @@ export function ApartmentDetailPage({ apartmentId }: { apartmentId: string }) {
             </dl>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95 focus:outline-none focus:ring-4 focus:ring-primary-soft"
-                href={`/apartamentos/${apartment.id}/editar`}
-              >
-                <Pencil aria-hidden className="h-4 w-4" />
-                Editar dados
-              </Link>
-              <Link
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-text-primary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
-                href={`/apartamentos/${apartment.id}/ical`}
-              >
-                <CalendarDays aria-hidden className="h-4 w-4" />
-                Gerenciar iCal
-              </Link>
+              {isHostAdmin ? (
+                <>
+                  <Link
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-95 focus:outline-none focus:ring-4 focus:ring-primary-soft"
+                    href={`/apartamentos/${apartment.id}/editar`}
+                  >
+                    <Pencil aria-hidden className="h-4 w-4" />
+                    Editar dados
+                  </Link>
+                  <Link
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-text-primary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
+                    href={`/apartamentos/${apartment.id}/ical`}
+                  >
+                    <CalendarDays aria-hidden className="h-4 w-4" />
+                    Gerenciar iCal
+                  </Link>
+                </>
+              ) : null}
               <Link
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-text-primary transition hover:border-primary hover:text-primary focus:outline-none focus:ring-4 focus:ring-primary-soft"
                 href={`/apartamentos/${apartment.id}/financeiro`}

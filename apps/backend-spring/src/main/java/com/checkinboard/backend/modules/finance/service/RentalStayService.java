@@ -96,13 +96,15 @@ public class RentalStayService {
     @Transactional
     public RentalStayEnvelope create(String userId, UpsertRentalStayRequest request) {
         OrganizationMembershipEntity membership = organizationAccessService.requireHostAdminMembership(userId);
+        String organizationId = membership.getOrganization().getId();
         ApartmentEntity apartment = organizationAccessService.findApartmentInOrganization(
             request.apartmentId(),
-            membership.getOrganization().getId()
+            organizationId
         );
+        String stayId = resolveCreateStayId(request.id(), organizationId);
         RentalStayEntity stay = rentalStayRepository.save(
             new RentalStayEntity(
-                normalizeOptional(request.id()) != null ? request.id().trim() : newId(),
+                stayId,
                 membership.getOrganization(),
                 apartment,
                 apartment.getOwner(),
@@ -159,6 +161,38 @@ public class RentalStayService {
         );
         stay.markDeleted();
         rentalStayRepository.save(stay);
+    }
+
+    private String resolveCreateStayId(String requestedId, String organizationId) {
+        String normalizedId = normalizeOptional(requestedId);
+
+        if (normalizedId == null) {
+            return newId();
+        }
+
+        RentalStayEntity existing = rentalStayRepository.findById(normalizedId).orElse(null);
+
+        if (existing == null) {
+            return normalizedId;
+        }
+
+        if (!existing.getOrganization().getId().equals(organizationId)) {
+            throw new ApiException(
+                HttpStatus.NOT_FOUND,
+                "RENTAL_STAY_NOT_FOUND",
+                "Rental stay was not found."
+            );
+        }
+
+        if (existing.getDeletedAt() == null) {
+            throw new ApiException(
+                HttpStatus.CONFLICT,
+                "RENTAL_STAY_ALREADY_EXISTS",
+                "Rental stay already exists."
+            );
+        }
+
+        return newId();
     }
 
     private RentalStayEntity findStayInOrganization(

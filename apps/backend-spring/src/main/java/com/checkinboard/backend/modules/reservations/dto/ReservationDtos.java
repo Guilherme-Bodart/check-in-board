@@ -2,6 +2,8 @@ package com.checkinboard.backend.modules.reservations.dto;
 
 import com.checkinboard.backend.modules.reservations.model.ReservationStatus;
 import com.checkinboard.backend.modules.reservations.model.SyncRunStatus;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,15 +31,15 @@ public final class ReservationDtos {
     public record ReservationsResponse(List<ReservationResponse> reservations) {}
 
     public record CreateManualReservationRequest(
-        String guestName,
-        Integer guestCount,
-        Instant startsAt,
-        Instant endsAt
+        @Size(max = 120) String guestName,
+        @Min(0) Integer guestCount,
+        @NotNull Instant startsAt,
+        @NotNull Instant endsAt
     ) {}
 
     public record UpdateReservationRequest(
-        String guestName,
-        Integer guestCount
+        @Size(max = 120) String guestName,
+        @Min(0) Integer guestCount
     ) {}
 
     public record ManualSyncRequest(@Size(min = 1, max = 2_000_000) String icsText) {}

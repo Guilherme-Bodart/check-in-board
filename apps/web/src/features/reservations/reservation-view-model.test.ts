@@ -319,6 +319,20 @@ describe("findConflictingReservation", () => {
     });
     expect(selfUpdate).toBeNull();
   });
+
+  it("ignores cancelled reservations when checking conflicts", () => {
+    const cancelledReservation: Reservation = {
+      ...baseReservation,
+      id: "res-cancelled",
+      status: "cancelled",
+    };
+    const conflict = findConflictingReservation([cancelledReservation], {
+      apartmentId: "apt-101",
+      startsAt: "2026-06-10",
+      endsAt: "2026-06-15",
+    });
+    expect(conflict).toBeNull();
+  });
 });
 
 describe("hasDayReservationConflict", () => {
@@ -402,6 +416,16 @@ describe("hasDayReservationConflict", () => {
     expect(
       hasDayReservationConflict([resA, resDifferentApt], "2026-06-13"),
     ).toBe(false);
+  });
+
+  it("returns false when one of the overlapping reservations is cancelled", () => {
+    const resCancelled: Reservation = {
+      ...resBOverlapping,
+      status: "cancelled",
+    };
+    expect(hasDayReservationConflict([resA, resCancelled], "2026-06-13")).toBe(
+      false,
+    );
   });
 });
 

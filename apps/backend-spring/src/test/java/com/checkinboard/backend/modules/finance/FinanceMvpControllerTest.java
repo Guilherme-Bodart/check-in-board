@@ -72,8 +72,9 @@ class FinanceMvpControllerTest {
             .andExpect(jsonPath("$.expenseCents").value(20000))
             .andExpect(jsonPath("$.netCents").value(100000))
             .andExpect(jsonPath("$.commissionCents").value(24000))
-            .andExpect(jsonPath("$.payoutCents").value(96000))
+            .andExpect(jsonPath("$.payoutCents").value(76000))
             .andExpect(jsonPath("$.stayCount").value(1))
+            .andExpect(jsonPath("$.byOwner[0].settlementStatus").value("pending"))
             .andExpect(jsonPath("$.byApartment[0].settlementStatus").value("pending"));
 
         mockMvc
@@ -102,6 +103,7 @@ class FinanceMvpControllerTest {
                     .param("month", "2026-05")
             )
             .andExpect(status().isOk())
+            .andExpect(jsonPath("$.byOwner[0].settlementStatus").value("paid"))
             .andExpect(jsonPath("$.byApartment[0].settlementStatus").value("paid"));
 
         mockMvc

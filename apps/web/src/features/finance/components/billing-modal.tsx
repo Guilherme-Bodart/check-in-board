@@ -7,6 +7,7 @@ import { Button } from "../../../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../../../components/ui/dialog";
 import { Field, Input } from "../../../components/ui/form-controls";
 import { MessageBanner } from "../../../components/ui/message-banner";
+import { formatDateBR } from "../../../lib/date-formatters";
 import { readStoredSession } from "../../../lib/session-storage";
 import { createRentalStay } from "../rental-stay-api";
 import { createFinancialEntry } from "../finance-api";
@@ -100,8 +101,7 @@ export function BillingModal({
             </DialogTitle>
             {data && (
               <p className="text-xs text-text-muted truncate">
-                {data.guestName} ({new Date(data.checkIn).toLocaleDateString("pt-BR")} a{" "}
-                {new Date(data.checkOut).toLocaleDateString("pt-BR")})
+                {data.guestName} ({formatDateBR(data.checkIn)} a {formatDateBR(data.checkOut)})
               </p>
             )}
           </div>

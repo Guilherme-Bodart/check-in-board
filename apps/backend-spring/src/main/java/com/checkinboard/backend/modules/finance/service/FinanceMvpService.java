@@ -22,8 +22,10 @@ import com.checkinboard.backend.modules.finance.repository.SettlementPeriodRepos
 import com.checkinboard.backend.modules.owners.model.OwnerEntity;
 import com.checkinboard.backend.modules.owners.repository.OwnerRepository;
 import com.checkinboard.backend.shared.error.ApiException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -132,7 +134,14 @@ public class FinanceMvpService {
             byOwner
                 .values()
                 .stream()
-                .map(bucket -> bucket.toItem(settlements.get(bucket.settlementKey())))
+                .map(bucket -> {
+                    OwnerSettlementSummary ownerSettlement = resolveOwnerSettlement(
+                        bucket.ownerId,
+                        byApartment.values(),
+                        settlements
+                    );
+                    return bucket.toItem(ownerSettlement.status(), ownerSettlement.paidAt());
+                })
                 .sorted(Comparator.comparing(FinanceMvpSummaryItem::name))
                 .toList(),
             byApartment
@@ -208,7 +217,7 @@ public class FinanceMvpService {
             : null;
         FinanceMvpSummaryResponse response = summary(userId, month, apartmentId, ownerId);
         StringBuilder csv = new StringBuilder(
-            "tipo,nome,cliente,apartamento,alugueis,receitas_extras,despesas,liquido,comissao,repasse,status\n"
+            "\uFEFFtipo,nome,cliente,apartamento,alugueis,receitas_extras,despesas,liquido,comissao,repasse,status\n"
         );
 
         for (FinanceMvpSummaryItem item : response.byOwner()) {
@@ -498,8 +507,57 @@ public class FinanceMvpService {
             return "";
         }
 
-        return "\"" + value.replace("\"", "\"\"") + "\"";
+        String sanitized = value;
+        String trimmedLeading = sanitized.stripLeading();
+        if (!trimmedLeading.isEmpty()) {
+            char first = trimmedLeading.charAt(0);
+            if (
+                first == '=' ||
+                first == '+' ||
+                first == '-' ||
+                first == '@' ||
+                first == '\t' ||
+                first == '\r'
+            ) {
+                sanitized = "'" + sanitized;
+            }
+        }
+
+        return "\"" + sanitized.replace("\"", "\"\"") + "\"";
     }
+
+    private OwnerSettlementSummary resolveOwnerSettlement(
+        String ownerId,
+        Collection<SummaryAccumulator> apartmentBuckets,
+        Map<String, SettlementPeriodEntity> settlements
+    ) {
+        List<SummaryAccumulator> ownerApartments = apartmentBuckets
+            .stream()
+            .filter(bucket -> ownerId.equals(bucket.ownerId))
+            .toList();
+
+        if (ownerApartments.isEmpty()) {
+            return new OwnerSettlementSummary(SettlementStatus.pending, null);
+        }
+
+        Instant latestPaidAt = null;
+        for (SummaryAccumulator apartmentBucket : ownerApartments) {
+            SettlementPeriodEntity settlement = settlements.get(apartmentBucket.settlementKey());
+            if (settlement == null || settlement.getStatus() != SettlementStatus.paid) {
+                return new OwnerSettlementSummary(SettlementStatus.pending, null);
+            }
+            if (
+                settlement.getPaidAt() != null &&
+                (latestPaidAt == null || settlement.getPaidAt().isAfter(latestPaidAt))
+            ) {
+                latestPaidAt = settlement.getPaidAt();
+            }
+        }
+
+        return new OwnerSettlementSummary(SettlementStatus.paid, latestPaidAt);
+    }
+
+    private record OwnerSettlementSummary(SettlementStatus status, Instant paidAt) {}
 
     private record Period(String month, LocalDate start, LocalDate end) {}
 
@@ -577,7 +635,7 @@ public class FinanceMvpService {
         }
 
         long payoutCents() {
-            return rentCents + extraRevenueCents - commissionCents();
+            return rentCents + extraRevenueCents - expenseCents - commissionCents();
         }
 
         String settlementKey() {
@@ -585,6 +643,13 @@ public class FinanceMvpService {
         }
 
         FinanceMvpSummaryItem toItem(SettlementPeriodEntity settlement) {
+            return toItem(
+                settlement == null ? SettlementStatus.pending : settlement.getStatus(),
+                settlement == null ? null : settlement.getPaidAt()
+            );
+        }
+
+        FinanceMvpSummaryItem toItem(SettlementStatus status, Instant paidAt) {
             return new FinanceMvpSummaryItem(
                 id,
                 name,
@@ -600,8 +665,8 @@ public class FinanceMvpService {
                 commissionCents(),
                 payoutCents(),
                 stayCount,
-                settlement == null ? SettlementStatus.pending : settlement.getStatus(),
-                settlement == null ? null : settlement.getPaidAt()
+                status,
+                paidAt
             );
         }
 

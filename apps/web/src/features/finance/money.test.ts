@@ -42,6 +42,18 @@ describe("parseMoneyToCents", () => {
     expect(parseMoneyToCents("12.345.678,90")).toBe(1234567890);
   });
 
+  it("parses dot-decimal values without comma", () => {
+    expect(parseMoneyToCents("100.50")).toBe(10050);
+    expect(parseMoneyToCents("100.5")).toBe(10050);
+    expect(parseMoneyToCents("0.99")).toBe(99);
+    expect(parseMoneyToCents("1,234.56")).toBe(123456);
+  });
+
+  it("parses dot-separated thousands without decimals", () => {
+    expect(parseMoneyToCents("1.500")).toBe(150000);
+    expect(parseMoneyToCents("1.000.000")).toBe(100000000);
+  });
+
   it("parses whole numbers without decimals", () => {
     expect(parseMoneyToCents("250")).toBe(25000);
   });

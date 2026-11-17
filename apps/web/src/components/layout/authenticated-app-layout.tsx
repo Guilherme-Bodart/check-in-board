@@ -12,6 +12,10 @@ import {
   type SessionContextValue,
 } from "../../features/auth/session-context";
 import {
+  NOTIFICATIONS_UPDATED_EVENT,
+  READ_SYNC_NOTIFICATIONS_KEY,
+} from "../../features/notifications/notifications-api";
+import {
   clearStoredSession,
   readStoredSession,
   type Session,
@@ -21,7 +25,6 @@ import { MobileNavigation } from "./mobile-navigation";
 import { Sidebar } from "./sidebar";
 
 const LAST_AUTO_SYNC_KEY = "cib-last-auto-sync-at";
-const READ_SYNC_NOTIFICATIONS_KEY = "cib-read-sync-notifications";
 const AUTO_SYNC_INTERVAL_MS = 3600_000;
 
 let autoSyncInFlight = false;
@@ -204,8 +207,16 @@ export function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
       }
     }
 
+    function handleNotificationsUpdated() {
+      recomputeUnreadCount(notificationIds);
+    }
+
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, handleNotificationsUpdated);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, handleNotificationsUpdated);
+    };
   }, [notificationIds, recomputeUnreadCount]);
 
   const pageTitle = useMemo(

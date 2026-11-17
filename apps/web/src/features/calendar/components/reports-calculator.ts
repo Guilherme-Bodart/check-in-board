@@ -1,10 +1,13 @@
 import type { Apartment, FinancialEntry, RentalStay } from "../../../api";
 import { formatMoney } from "../../finance/money";
 import {
+  filterActiveReservations,
   formatDateBR,
   reservationLocalDate,
   type ReservationListItem,
 } from "../../reservations/reservation-view-model";
+
+export { filterActiveReservations };
 
 export type ReportType =
   | "owner-statement"
@@ -174,14 +177,6 @@ export function buildEffectiveStaysMap(
     }
   }
   return map;
-}
-
-export function filterActiveReservations(
-  reservations: ReservationListItem[],
-): ReservationListItem[] {
-  return reservations.filter(
-    (res) => res.status?.toLowerCase() !== "cancelled",
-  );
 }
 
 export function filterPeriodReservations(

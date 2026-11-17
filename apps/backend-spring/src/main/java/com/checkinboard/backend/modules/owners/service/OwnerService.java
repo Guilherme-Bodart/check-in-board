@@ -36,7 +36,7 @@ public class OwnerService {
 
     @Transactional(readOnly = true)
     public OwnersResponse list(String userId) {
-        OrganizationMembershipEntity membership = getActiveMembership(userId);
+        OrganizationMembershipEntity membership = getHostAdminMembership(userId);
 
         return new OwnersResponse(
             ownerRepository
@@ -75,7 +75,7 @@ public class OwnerService {
     @Transactional(readOnly = true)
     public OwnerEnvelope get(String userId, String ownerId) {
         OwnerEntity owner = findOwner(ownerId);
-        assertSameOrganization(userId, owner);
+        assertCanManage(userId, owner);
 
         return new OwnerEnvelope(toResponse(owner));
     }
@@ -159,18 +159,6 @@ public class OwnerService {
         }
 
         return membership;
-    }
-
-    private void assertSameOrganization(String userId, OwnerEntity owner) {
-        OrganizationMembershipEntity membership = getActiveMembership(userId);
-
-        if (!membership.getOrganization().getId().equals(owner.getOrganization().getId())) {
-            throw new ApiException(
-                HttpStatus.FORBIDDEN,
-                "FORBIDDEN",
-                "You do not have access to this owner."
-            );
-        }
     }
 
     private void assertCanManage(String userId, OwnerEntity owner) {

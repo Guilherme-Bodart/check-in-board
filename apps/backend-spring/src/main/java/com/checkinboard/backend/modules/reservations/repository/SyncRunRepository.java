@@ -25,6 +25,7 @@ public interface SyncRunRepository extends JpaRepository<SyncRunEntity, String> 
             and (
                 run.reservationsCreated > 0
                 or run.reservationsCancelled > 0
+                or run.diffDetailsJson is not null
                 or run.status = com.checkinboard.backend.modules.reservations.model.SyncRunStatus.failed
             )
         order by run.startedAt desc

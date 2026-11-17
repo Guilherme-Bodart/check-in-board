@@ -9,7 +9,7 @@ Estas regras são obrigatórias para todos os agentes e subagentes trabalhando n
 
 ## 2. Fonte Única da Verdade na Documentação (`docs/`)
 Não crie arquivos `.md` avulsos ou duplicados de arquitetura/planejamento. Toda a documentação vive nestes 4 arquivos:
-1. `docs/project-master.md` — Estado atual real do projeto, stack (`apps/web` + `apps/backend-spring` + `apps/finance-mvp` + `apps/mobile`), banco (`V1`–`V13`) e contratos.
+1. `docs/project-master.md` — Estado atual real do projeto, stack (`apps/web` + `apps/backend-spring` + `apps/finance-mvp` + `apps/mobile`), banco (`V1`–`V16`) e contratos.
 2. `docs/backlog.md` — Backlog futuro de evoluções candidatas. Quando um item for concluído, remova-o do `backlog.md` e registre-o no `project-master.md`.
 3. `docs/agent-workflow.md` — Protocolo do Orquestrador, fronteiras de arquivos e seleção de modelos.
 4. `docs/DESIGN.md` — Especificação visual *Carbon Enterprise* e regras de componentes.

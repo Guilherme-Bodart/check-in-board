@@ -20,7 +20,7 @@ import { readStoredSession } from "../../../lib/session-storage";
 import { fetchFinancialEntries } from "../../finance/finance-api";
 import { formatMoney } from "../../finance/money";
 import { fetchRentalStays } from "../../finance/rental-stay-api";
-import { fetchReservations } from "../../reservations/reservations-api";
+import { fetchAllReservations } from "../../reservations/reservations-api";
 import {
   attachApartmentDetails,
   formatDateBR,
@@ -138,32 +138,33 @@ export function CalendarReportsModal({
   useEffect(() => {
     if (!isOpen || apartments.length === 0) return;
 
+    if (selectedApartmentId === "all" && reservations.length > 0) {
+      setFetchedReservations(reservations);
+      return;
+    }
+
     const session = readStoredSession();
     if (!session) {
       setFetchedReservations(null);
       return;
     }
 
-    if (selectedApartmentId === "all" && reservations.length > 0) {
-      setFetchedReservations(reservations);
-    }
-
-    let cancelled = false;
+    const controller = new AbortController();
     void (async () => {
       try {
-        const groups = await Promise.all(
-          apartments.map((apt) => fetchReservations(session.token, apt.id)),
-        );
-        if (!cancelled) {
-          setFetchedReservations(attachApartmentDetails(groups.flat(), apartments));
+        const all = await fetchAllReservations(session.token, {
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          setFetchedReservations(attachApartmentDetails(all, apartments));
         }
       } catch {
-        // Keep prop fallback if fetch fails
+        // Keep prop fallback if fetch fails or aborts
       }
     })();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [isOpen, apartments, selectedApartmentId, reservations]);
 

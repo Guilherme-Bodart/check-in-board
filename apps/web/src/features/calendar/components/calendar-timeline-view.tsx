@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { AlertCircle, BedDouble, UserRound } from "lucide-react";
 
 import type { Apartment, RentalStay } from "../../../api";
+import { formatDateInput } from "../../../lib/date-formatters";
 import { formatMoney } from "../../finance/money";
 import {
   findConflictingReservation,
@@ -49,7 +50,7 @@ export function CalendarTimelineView({
     if (!month || !/^\d{4}-\d{2}$/.test(month)) return [];
     const [year, m] = month.split("-").map(Number);
     const count = new Date(year, m, 0).getDate();
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = formatDateInput();
 
     const list = [];
     for (let dayNum = 1; dayNum <= count; dayNum++) {

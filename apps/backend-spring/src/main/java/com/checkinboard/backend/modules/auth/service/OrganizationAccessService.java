@@ -37,7 +37,9 @@ public class OrganizationAccessService {
      */
     public OrganizationMembershipEntity requireReadMembership(String userId) {
         OrganizationMembershipEntity membership =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
+            organizationMembershipRepository
+                .findFirstByUser_IdAndActiveTrueOrderByCreatedAtAsc(userId)
+                .orElse(null);
 
         if (
             membership == null ||
@@ -60,7 +62,9 @@ public class OrganizationAccessService {
      */
     public OrganizationMembershipEntity requireHostAdminMembership(String userId) {
         OrganizationMembershipEntity membership =
-            organizationMembershipRepository.findPrimaryByUserId(userId).orElse(null);
+            organizationMembershipRepository
+                .findFirstByUser_IdAndActiveTrueOrderByCreatedAtAsc(userId)
+                .orElse(null);
 
         if (
             membership == null ||

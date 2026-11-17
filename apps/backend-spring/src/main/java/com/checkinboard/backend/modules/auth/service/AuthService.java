@@ -163,10 +163,18 @@ public class AuthService {
             throw invalidCredentials();
         }
 
-        OrganizationMembershipEntity membership = getPrimaryMembership(user);
+        if (user.getOrganizationMemberships().isEmpty()) {
+            throw new IllegalStateException("AUTH_USER_WITHOUT_MEMBERSHIP");
+        }
+
+        OrganizationMembershipEntity membership = getActivePrimaryMembership(user);
 
         if (membership == null) {
-            throw new IllegalStateException("AUTH_USER_WITHOUT_MEMBERSHIP");
+            throw new AuthServiceException(
+                HttpStatus.FORBIDDEN,
+                "ACCOUNT_INACTIVE",
+                "Your organization membership is inactive."
+            );
         }
 
         return toAuthResponse(user, membership);
@@ -299,6 +307,15 @@ public class AuthService {
                 )
             )
             .toList();
+    }
+
+    private OrganizationMembershipEntity getActivePrimaryMembership(UserEntity user) {
+        return user
+            .getOrganizationMemberships()
+            .stream()
+            .filter(OrganizationMembershipEntity::isActive)
+            .findFirst()
+            .orElse(null);
     }
 
     private OrganizationMembershipEntity getPrimaryMembership(UserEntity user) {

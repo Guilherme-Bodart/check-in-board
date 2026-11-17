@@ -95,6 +95,18 @@ export function needsReservationAttention(
   );
 }
 
+export function isCancelledReservation(
+  reservation: Pick<Reservation, "status">,
+): boolean {
+  return reservation.status?.toLowerCase() === "cancelled";
+}
+
+export function filterActiveReservations<T extends Pick<Reservation, "status">>(
+  reservations: T[],
+): T[] {
+  return reservations.filter((reservation) => !isCancelledReservation(reservation));
+}
+
 export function findConflictingReservation<T extends Reservation>(
   reservations: T[],
   candidate: { id?: string; apartmentId: string; startsAt: string; endsAt: string },
@@ -107,6 +119,9 @@ export function findConflictingReservation<T extends Reservation>(
   }
 
   for (const reservation of reservations) {
+    if (isCancelledReservation(reservation)) {
+      continue;
+    }
     if (candidate.id && reservation.id === candidate.id) {
       continue;
     }
@@ -134,17 +149,18 @@ export function hasDayReservationConflict(
   date: string,
 ): boolean {
   const targetDate = reservationLocalDate(date);
-  if (!targetDate || reservations.length < 2) {
+  const activeReservations = filterActiveReservations(reservations);
+  if (!targetDate || activeReservations.length < 2) {
     return false;
   }
 
-  for (let i = 0; i < reservations.length; i += 1) {
-    const a = reservations[i];
+  for (let i = 0; i < activeReservations.length; i += 1) {
+    const a = activeReservations[i];
     const aStart = reservationLocalDate(a.startsAt);
     const aEnd = reservationLocalDate(a.endsAt);
 
-    for (let j = i + 1; j < reservations.length; j += 1) {
-      const b = reservations[j];
+    for (let j = i + 1; j < activeReservations.length; j += 1) {
+      const b = activeReservations[j];
       if (a.apartmentId !== b.apartmentId) {
         continue;
       }

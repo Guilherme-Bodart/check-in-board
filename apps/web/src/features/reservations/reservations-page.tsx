@@ -17,7 +17,7 @@ import { isAbortError, type Apartment, type RentalStay } from "../../api";
 import { messages } from "../../i18n";
 import { useAuthSession } from "../auth/session-context";
 import { fetchApartments } from "../dashboard/dashboard-api";
-import { formatReservationDateRange } from "../../lib/date-formatters";
+import { formatDateInput, formatReservationDateRange } from "../../lib/date-formatters";
 import { readStoredSession } from "../../lib/session-storage";
 import { cn } from "../../lib/utils";
 import { formatMoney } from "../finance/money";
@@ -25,6 +25,7 @@ import { fetchRentalStays } from "../finance/rental-stay-api";
 import { fetchAllReservations } from "./reservations-api";
 import {
   attachApartmentDetails,
+  filterActiveReservations,
   getReservationDisplayGuest,
   isGenericGuestReservation,
   nightsBetween,
@@ -38,7 +39,7 @@ import { Select } from "../../components/ui/form-controls";
 const allApartmentsValue = "all";
 
 export function ReservationsPage() {
-  const { session: authSession } = useAuthSession();
+  const { session: authSession, isHostAdmin } = useAuthSession();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [reservations, setReservations] = useState<ReservationListItem[]>([]);
   const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
@@ -90,8 +91,8 @@ export function ReservationsPage() {
           signal: controller.signal,
         }),
         fetchRentalStays(session.token, {
-          dateFrom: dateFrom.toISOString().slice(0, 10),
-          dateTo: dateTo.toISOString().slice(0, 10),
+          dateFrom: formatDateInput(dateFrom),
+          dateTo: formatDateInput(dateTo),
           apartmentId:
             nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
         }),
@@ -133,10 +134,15 @@ export function ReservationsPage() {
     return map;
   }, [rentalStays]);
 
+  const activeReservations = useMemo(
+    () => filterActiveReservations(reservations),
+    [reservations],
+  );
+
   const filteredReservations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return reservations.filter((reservation) => {
+    return activeReservations.filter((reservation) => {
       const stay = rentalStaysMap.get(reservation.id);
       const isPriced = Boolean(stay && stay.rentAmountCents > 0);
 
@@ -156,26 +162,26 @@ export function ReservationsPage() {
         .filter(Boolean)
         .some((value) => value?.toLowerCase().includes(normalizedQuery));
     });
-  }, [query, reservations, rentalStaysMap, statusFilter]);
+  }, [activeReservations, query, rentalStaysMap, statusFilter]);
 
   const summary = useMemo(() => {
     let totalRev = 0;
     for (const stay of rentalStays) {
       totalRev += stay.rentAmountCents;
     }
-    const pricedCount = reservations.filter((r) => {
+    const pricedCount = activeReservations.filter((r) => {
       const stay = rentalStaysMap.get(r.id);
       return Boolean(stay && stay.rentAmountCents > 0);
     }).length;
     return {
-      total: reservations.length,
-      confirmed: reservations.filter((r) => r.status === "confirmed").length,
+      total: activeReservations.length,
+      confirmed: activeReservations.filter((r) => r.status === "confirmed").length,
       priced: pricedCount,
-      unpriced: Math.max(0, reservations.length - pricedCount),
-      providers: new Set(reservations.map((r) => r.provider)).size,
+      unpriced: Math.max(0, activeReservations.length - pricedCount),
+      providers: new Set(activeReservations.map((r) => r.provider)).size,
       totalRevenue: totalRev,
     };
-  }, [reservations, rentalStays, rentalStaysMap]);
+  }, [activeReservations, rentalStays, rentalStaysMap]);
 
   function changeApartment(apartmentId: string) {
     setSelectedApartmentId(apartmentId);
@@ -221,18 +227,20 @@ export function ReservationsPage() {
               </h2>
             </div>
 
-            <Button
-              className="xl:hidden shrink-0"
-              onClick={() => {
-                setSelectedReservation(null);
-                setIsModalOpen(true);
-              }}
-              size="sm"
-              variant="primary"
-            >
-              <Plus className="h-4 w-4" />
-              Reserva
-            </Button>
+            {isHostAdmin ? (
+              <Button
+                className="xl:hidden shrink-0"
+                onClick={() => {
+                  setSelectedReservation(null);
+                  setIsModalOpen(true);
+                }}
+                size="sm"
+                variant="primary"
+              >
+                <Plus className="h-4 w-4" />
+                Reserva
+              </Button>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
@@ -264,18 +272,20 @@ export function ReservationsPage() {
               </Select>
             </div>
 
-            <Button
-              className="hidden xl:inline-flex shrink-0"
-              onClick={() => {
-                setSelectedReservation(null);
-                setIsModalOpen(true);
-              }}
-              size="md"
-              variant="primary"
-            >
-              <Plus className="h-4 w-4" />
-              Nova Reserva
-            </Button>
+            {isHostAdmin ? (
+              <Button
+                className="hidden xl:inline-flex shrink-0"
+                onClick={() => {
+                  setSelectedReservation(null);
+                  setIsModalOpen(true);
+                }}
+                size="md"
+                variant="primary"
+              >
+                <Plus className="h-4 w-4" />
+                Nova Reserva
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -443,17 +453,19 @@ export function ReservationsPage() {
                           )}
                         </div>
 
-                        <Button
-                          className="shrink-0"
-                          onClick={() => {
-                            setSelectedReservation(reservation);
-                            setIsModalOpen(true);
-                          }}
-                          size="sm"
-                          variant="primary"
-                        >
-                          Editar & Precificar
-                        </Button>
+                        {isHostAdmin ? (
+                          <Button
+                            className="shrink-0"
+                            onClick={() => {
+                              setSelectedReservation(reservation);
+                              setIsModalOpen(true);
+                            }}
+                            size="sm"
+                            variant="primary"
+                          >
+                            Editar & Precificar
+                          </Button>
+                        ) : null}
                       </div>
                     </article>
                   );
@@ -472,19 +484,27 @@ export function ReservationsPage() {
                       <th className="px-4 py-3.5">Período</th>
                       <th className="px-4 py-3.5">Noites</th>
                       <th className="px-4 py-3.5">Valor / Faturamento</th>
-                      <th className="px-4 py-3.5 text-right">Ação</th>
+                      {isHostAdmin ? (
+                        <th className="px-4 py-3.5 text-right">Ação</th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-surface">
                     {isLoading ? (
                       <tr>
-                        <td className="px-4 py-12 text-center text-text-muted" colSpan={6}>
+                        <td
+                          className="px-4 py-12 text-center text-text-muted"
+                          colSpan={isHostAdmin ? 6 : 5}
+                        >
                           Carregando reservas...
                         </td>
                       </tr>
                     ) : filteredReservations.length === 0 ? (
                       <tr>
-                        <td className="px-4 py-12 text-center text-text-muted" colSpan={6}>
+                        <td
+                          className="px-4 py-12 text-center text-text-muted"
+                          colSpan={isHostAdmin ? 6 : 5}
+                        >
                           Nenhuma reserva encontrada.
                         </td>
                       </tr>
@@ -493,6 +513,7 @@ export function ReservationsPage() {
                         const stay = rentalStaysMap.get(reservation.id);
                         return (
                           <ReservationRow
+                            isHostAdmin={isHostAdmin}
                             key={reservation.id}
                             onEdit={() => {
                               setSelectedReservation(reservation);
@@ -514,6 +535,7 @@ export function ReservationsPage() {
 
       {/* Unified Edit & Create Modal */}
       <ReservationUnifiedModal
+        allReservations={activeReservations}
         apartments={apartments}
         defaultApartmentId={selectedApartmentId}
         existingStay={selectedReservation ? rentalStaysMap.get(selectedReservation.id) : null}
@@ -530,10 +552,12 @@ export function ReservationsPage() {
 }
 
 function ReservationRow({
+  isHostAdmin,
   reservation,
   stay,
   onEdit,
 }: {
+  isHostAdmin: boolean;
   reservation: ReservationListItem;
   stay?: RentalStay;
   onEdit: () => void;
@@ -617,11 +641,13 @@ function ReservationRow({
       </td>
 
       {/* Col 6: Ação */}
-      <td className="px-4 py-4 text-right">
-        <Button onClick={onEdit} size="xs" variant="secondary">
-          Editar & Precificar
-        </Button>
-      </td>
+      {isHostAdmin ? (
+        <td className="px-4 py-4 text-right">
+          <Button onClick={onEdit} size="xs" variant="secondary">
+            Editar & Precificar
+          </Button>
+        </td>
+      ) : null}
     </tr>
   );
 }

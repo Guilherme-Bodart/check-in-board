@@ -3,11 +3,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { Apartment, FinancialEntryType } from "../../api";
+import type { Apartment, FinancialEntryType, RentalStay } from "../../api";
 import { Button } from "../../components/ui/button";
 import { Field, Input, Select, Textarea } from "../../components/ui/form-controls";
 import { FormPageLayout } from "../../components/ui/form-page-layout";
 import { MessageBanner } from "../../components/ui/message-banner";
+import { formatDateBR, formatDateInput } from "../../lib/date-formatters";
 import { readStoredSession } from "../../lib/session-storage";
 import { fetchApartments } from "../dashboard/dashboard-api";
 import {
@@ -82,7 +83,7 @@ const emptyForm: FinanceFormState = {
 export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
   const router = useRouter();
   const [apartments, setApartments] = useState<Apartment[]>([]);
-  const [rentalStays, setRentalStays] = useState<any[]>([]); // We will refine this later
+  const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
   const [form, setForm] = useState<FinanceFormState>(emptyForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -107,8 +108,8 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
         dateTo.setMonth(dateTo.getMonth() + 2);
         
         const stays = await fetchRentalStays(session.token, {
-          dateFrom: dateFrom.toISOString().slice(0, 10),
-          dateTo: dateTo.toISOString().slice(0, 10),
+          dateFrom: formatDateInput(dateFrom),
+          dateTo: formatDateInput(dateTo),
           apartmentId: form.apartmentId,
         });
         setRentalStays(stays);
@@ -314,7 +315,7 @@ export function FinanceEntryFormPage({ entryId }: { entryId?: string }) {
                 <option value="">Não vincular</option>
                 {rentalStays.map((stay) => (
                   <option key={stay.id} value={stay.id}>
-                    {stay.guestName || "Hóspede"} ({new Date(stay.checkIn).toLocaleDateString()} a {new Date(stay.checkOut).toLocaleDateString()})
+                    {stay.guestName || "Hóspede"} ({formatDateBR(stay.checkIn)} a {formatDateBR(stay.checkOut)})
                   </option>
                 ))}
               </Select>

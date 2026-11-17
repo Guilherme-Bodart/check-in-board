@@ -28,6 +28,7 @@ import {
 } from "./recurring-expenses-api";
 import { BillingModal, type BillingData } from "./components/billing-modal";
 import { RecurringExpensesPanel } from "./components/recurring-expenses-panel";
+import { currentMonthInput, formatDateBR, formatDateInput } from "../../lib/date-formatters";
 import { messages } from "../../i18n";
 
 export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
@@ -47,7 +48,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
   const loadAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    setMonth(new Date().toISOString().slice(0, 7));
+    setMonth(currentMonthInput());
   }, []);
 
   useEffect(() => {
@@ -86,14 +87,14 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
 
       const monthStart = `${month}-01`;
       const [yearValue, monthValue] = month.split("-").map(Number);
-      const endOfMonthDate = new Date(yearValue, monthValue, 0); // Last day of month
-      const monthEnd = endOfMonthDate.toISOString().slice(0, 10);
+      const endOfMonthDate = new Date(yearValue, monthValue, 0, 12); // Last day of month
+      const monthEnd = formatDateInput(endOfMonthDate);
 
       const [reservationGroups, stays, entries, recurringItems] = await Promise.all([
         fetchReservations(session.token, apartmentId),
         fetchRentalStays(session.token, {
-          dateFrom: dateFrom.toISOString().slice(0, 10),
-          dateTo: dateTo.toISOString().slice(0, 10),
+          dateFrom: formatDateInput(dateFrom),
+          dateTo: formatDateInput(dateTo),
           apartmentId,
         }),
         fetchFinancialEntries(session.token, {
@@ -306,7 +307,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
                       {reservation.rawSummary ?? messages.calendar.reservationFallback}
                     </strong>
                     <p className="mt-1 text-sm text-text-secondary">
-                      {new Date(reservation.startsAt).toLocaleDateString()} a {new Date(reservation.endsAt).toLocaleDateString()}
+                      {formatDateBR(reservation.startsAt)} a {formatDateBR(reservation.endsAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -380,7 +381,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
                           <br/><span className="text-xs font-normal text-text-muted">{data.stay.channel} ({data.nights} noites)</span>
                         </td>
                         <td className="px-4 py-3">
-                          {new Date(data.stay.checkIn).toLocaleDateString()} a {new Date(data.stay.checkOut).toLocaleDateString()}
+                          {formatDateBR(data.stay.checkIn)} a {formatDateBR(data.stay.checkOut)}
                         </td>
                         <td className="px-4 py-3 text-right text-success font-medium">
                           {formatMoney(data.rentRevenue)}
@@ -402,7 +403,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
                           <td className="px-4 py-2 pl-8 text-sm text-text-secondary">
                             ↳ {entry.category} {entry.description ? ` - ${entry.description}` : ""}
                           </td>
-                          <td className="px-4 py-2 text-xs">{new Date(entry.occurredOn).toLocaleDateString()}</td>
+                          <td className="px-4 py-2 text-xs">{formatDateBR(entry.occurredOn)}</td>
                           <td className="px-4 py-2 text-right text-success">
                             {entry.type === "revenue" ? formatMoney(entry.amountCents) : ""}
                           </td>
@@ -434,7 +435,7 @@ export function ApartmentFinancePage({ apartmentId }: { apartmentId: string }) {
                         <span className="font-medium text-text-primary">{entry.category}</span>
                         {entry.description && <span className="block text-xs text-text-muted">{entry.description}</span>}
                       </td>
-                      <td className="px-4 py-3">{new Date(entry.occurredOn).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">{formatDateBR(entry.occurredOn)}</td>
                       <td className="px-4 py-3 text-right text-success">
                         {entry.type === "revenue" ? formatMoney(entry.amountCents) : ""}
                       </td>

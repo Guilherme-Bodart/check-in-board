@@ -166,7 +166,7 @@ public class TeamService {
             membership.getUser(),
             organizationId,
             request.role(),
-            request.apartmentPermissions()
+            request.active() ? request.apartmentPermissions() : List.of()
         );
 
         return new TeamMemberEnvelope(toResponse(membership, organizationId));

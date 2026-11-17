@@ -23,6 +23,8 @@ import {
   addDays,
   addMonths,
   currentMonthInput,
+  formatDateBR,
+  formatDateInput,
   monthRange,
 } from "../../lib/date-formatters";
 import { readStoredSession } from "../../lib/session-storage";
@@ -35,6 +37,7 @@ import {
 import { fetchAllReservations } from "../reservations/reservations-api";
 import {
   attachApartmentDetails,
+  filterActiveReservations,
   getReservationDisplayGuest,
   isGenericGuestReservation,
   needsReservationAttention,
@@ -57,7 +60,7 @@ import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 const allApartmentsValue = "all";
 
 export function CalendarPage() {
-  const { session: authSession } = useAuthSession();
+  const { session: authSession, isHostAdmin } = useAuthSession();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [reservations, setReservations] = useState<ReservationListItem[]>([]);
   const [rentalStays, setRentalStays] = useState<RentalStay[]>([]);
@@ -123,8 +126,8 @@ export function CalendarPage() {
       dateTo.setMonth(dateTo.getMonth() + 6);
 
       const stays = await fetchRentalStays(session.token, {
-        dateFrom: dateFrom.toISOString().slice(0, 10),
-        dateTo: dateTo.toISOString().slice(0, 10),
+        dateFrom: formatDateInput(dateFrom),
+        dateTo: formatDateInput(dateTo),
         apartmentId: nextApartmentId === allApartmentsValue ? undefined : nextApartmentId,
       });
       if (controller.signal.aborted) {
@@ -176,13 +179,18 @@ export function CalendarPage() {
   // Calendar days for month grid
   const calendarDays = useMemo(() => buildCalendarDays(month), [month]);
 
+  const activeReservations = useMemo(
+    () => filterActiveReservations(reservations),
+    [reservations],
+  );
+
   // Filter reservations in month with query, channel and pending filters
   const monthReservations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const range = monthRange(month);
     if (!range) return [];
 
-    return reservations.filter((reservation) => {
+    return activeReservations.filter((reservation) => {
       const startDate = reservationLocalDate(reservation.startsAt);
       const endDate = reservationLocalDate(reservation.endsAt);
       const overlapsMonth = startDate < range.nextMonth && endDate > range.monthStart;
@@ -216,7 +224,7 @@ export function CalendarPage() {
 
       return matchesQuery;
     });
-  }, [month, query, reservations, channelFilter, isPendingFilterActive, rentalStaysMap]);
+  }, [activeReservations, month, query, channelFilter, isPendingFilterActive, rentalStaysMap]);
 
   // Group reservations by day for the grid view
   const reservationsByDay = useMemo(() => {
@@ -355,19 +363,21 @@ export function CalendarPage() {
             </Tabs>
 
             <div className="flex items-center gap-2">
-              <Button
-                className="gap-1.5 px-2.5 text-text-secondary shadow-none hover:border-primary hover:bg-surface hover:text-primary"
-                disabled={isSyncingAirbnb}
-                onClick={handleSyncAirbnb}
-                size="sm"
-                title="Sincronizar reservas iCal do Airbnb agora"
-                variant="secondary"
-              >
-                <RotateCw className={`h-3.5 w-3.5 ${isSyncingAirbnb ? "animate-spin text-primary" : ""}`} />
-                <span className="hidden sm:inline">
-                  {isSyncingAirbnb ? "Sincronizando..." : "Sincronizar iCal"}
-                </span>
-              </Button>
+              {isHostAdmin ? (
+                <Button
+                  className="gap-1.5 px-2.5 text-text-secondary shadow-none hover:border-primary hover:bg-surface hover:text-primary"
+                  disabled={isSyncingAirbnb}
+                  onClick={handleSyncAirbnb}
+                  size="sm"
+                  title="Sincronizar reservas iCal do Airbnb agora"
+                  variant="secondary"
+                >
+                  <RotateCw className={`h-3.5 w-3.5 ${isSyncingAirbnb ? "animate-spin text-primary" : ""}`} />
+                  <span className="hidden sm:inline">
+                    {isSyncingAirbnb ? "Sincronizando..." : "Sincronizar iCal"}
+                  </span>
+                </Button>
+              ) : null}
 
               <Button
                 className="gap-1.5 px-2.5 text-text-secondary shadow-none hover:border-primary hover:bg-surface hover:text-primary"
@@ -380,15 +390,17 @@ export function CalendarPage() {
                 <span>PDF / Relatórios</span>
               </Button>
 
-              <Button
-                className="gap-1.5 px-3.5 font-bold"
-                onClick={() => handleOpenCreateModal()}
-                size="sm"
-                variant="primary"
-              >
-                <Plus className="h-4 w-4" />
-                Reserva
-              </Button>
+              {isHostAdmin ? (
+                <Button
+                  className="gap-1.5 px-3.5 font-bold"
+                  onClick={() => handleOpenCreateModal()}
+                  size="sm"
+                  variant="primary"
+                >
+                  <Plus className="h-4 w-4" />
+                  Reserva
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -522,8 +534,8 @@ export function CalendarPage() {
                 apartments={apartments}
                 calendarDays={calendarDays}
                 isLoading={isLoading}
-                onDayClick={(date) => handleOpenCreateModal(date)}
-                onReservationClick={handleOpenEditModal}
+                onDayClick={isHostAdmin ? (date) => handleOpenCreateModal(date) : undefined}
+                onReservationClick={isHostAdmin ? handleOpenEditModal : () => {}}
                 onSelectApartment={changeApartment}
                 rentalStaysMap={rentalStaysMap}
                 reservationsByDay={reservationsByDay}
@@ -534,8 +546,8 @@ export function CalendarPage() {
                 apartments={apartments}
                 isLoading={isLoading}
                 month={month}
-                onCellClick={(date, aptId) => handleOpenCreateModal(date, aptId)}
-                onReservationClick={handleOpenEditModal}
+                onCellClick={isHostAdmin ? (date, aptId) => handleOpenCreateModal(date, aptId) : undefined}
+                onReservationClick={isHostAdmin ? handleOpenEditModal : () => {}}
                 rentalStaysMap={rentalStaysMap}
                 reservations={monthReservations}
                 selectedApartmentId={selectedApartmentId}
@@ -556,9 +568,11 @@ export function CalendarPage() {
               Reservas no Mês ({monthReservations.length})
             </h2>
           </div>
-          <span className="text-xs text-text-muted">
-            Toque em "Editar & Precificar" para atualizar titular, valor e tarefas
-          </span>
+          {isHostAdmin ? (
+            <span className="text-xs text-text-muted">
+              Toque em &quot;Editar &amp; Precificar&quot; para atualizar titular, valor e tarefas
+            </span>
+          ) : null}
         </div>
 
         <div className="mt-4 grid gap-3">
@@ -646,8 +660,8 @@ export function CalendarPage() {
                       <CalendarDays className="h-4 w-4 shrink-0 text-text-muted" />
                       <div>
                         <span className="font-semibold text-text-primary">
-                          {new Date(reservation.startsAt).toLocaleDateString("pt-BR")} a{" "}
-                          {new Date(reservation.endsAt).toLocaleDateString("pt-BR")}
+                          {formatDateBR(reservation.startsAt)} a{" "}
+                          {formatDateBR(reservation.endsAt)}
                         </span>
                         <span className="ml-1.5 font-bold text-primary">
                           ({nights} {nights === 1 ? "noite" : "noites"})
@@ -671,14 +685,16 @@ export function CalendarPage() {
                         )}
                       </div>
 
-                      <Button
-                        className="shrink-0 px-3.5 font-bold"
-                        onClick={() => handleOpenEditModal(reservation)}
-                        size="sm"
-                        variant="primary"
-                      >
-                        Editar & Precificar
-                      </Button>
+                      {isHostAdmin ? (
+                        <Button
+                          className="shrink-0 px-3.5 font-bold"
+                          onClick={() => handleOpenEditModal(reservation)}
+                          size="sm"
+                          variant="primary"
+                        >
+                          Editar & Precificar
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </article>
@@ -694,7 +710,7 @@ export function CalendarPage() {
 
       {/* Unified Edit & Create Modal with Overbooking and Cleaning Task */}
       <ReservationUnifiedModal
-        allReservations={reservations}
+        allReservations={activeReservations}
         apartments={apartments}
         defaultApartmentId={
           createInitialApartmentId ||
@@ -718,7 +734,7 @@ export function CalendarPage() {
         month={month}
         onClose={() => setIsReportsModalOpen(false)}
         rentalStaysMap={rentalStaysMap}
-        reservations={reservations}
+        reservations={activeReservations}
         selectedApartmentId={selectedApartmentId}
       />
     </div>
@@ -731,7 +747,7 @@ function buildCalendarDays(month: string): CalendarDay[] {
 
   const firstWeekday = new Date(`${range.monthStart}T12:00:00`).getDay();
   const start = addDays(range.monthStart, -firstWeekday);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = formatDateInput();
   const days: CalendarDay[] = [];
 
   for (let index = 0; index < 42; index += 1) {

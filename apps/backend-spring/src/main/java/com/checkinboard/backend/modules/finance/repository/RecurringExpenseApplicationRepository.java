@@ -15,4 +15,6 @@ public interface RecurringExpenseApplicationRepository
         String recurringExpenseId,
         String appliedMonth
     );
+
+    void deleteByFinancialEntry_Id(String financialEntryId);
 }

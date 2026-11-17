@@ -9,10 +9,12 @@ import {
 } from "lucide-react";
 
 import type { Apartment, RentalStay } from "../../../api";
+import { monthRange } from "../../../lib/date-formatters";
 import { formatMoney } from "../../finance/money";
 import {
   needsReservationAttention,
   nightsBetween,
+  reservationLocalDate,
   type ReservationListItem,
 } from "../../reservations/reservation-view-model";
 
@@ -48,10 +50,12 @@ export function CalendarStats({
 
   const totalPossibleNights = daysInMonth * activeApartmentsCount;
 
-  const { bookedNights, totalRevenueCents, pendingCount } = useMemo(() => {
+  const { bookedNights, totalRevenueCents, pendingCount, pricedCount } = useMemo(() => {
     let nights = 0;
     let rev = 0;
     let pending = 0;
+    let priced = 0;
+    const range = monthRange(month);
 
     const staysMap = new Map<string, RentalStay>();
     for (const stay of rentalStays) {
@@ -63,15 +67,18 @@ export function CalendarStats({
 
       if (stay && stay.rentAmountCents > 0) {
         rev += stay.rentAmountCents;
+        priced += 1;
       }
 
       if (needsReservationAttention(res, stay)) {
         pending += 1;
       }
 
-      const start = res.startsAt.slice(0, 10);
-      const end = res.endsAt.slice(0, 10);
-      const n = nightsBetween(start, end);
+      const start = reservationLocalDate(res.startsAt);
+      const end = reservationLocalDate(res.endsAt);
+      const clampedStart = range && start < range.monthStart ? range.monthStart : start;
+      const clampedEnd = range && end > range.nextMonth ? range.nextMonth : end;
+      const n = clampedEnd > clampedStart ? nightsBetween(clampedStart, clampedEnd) : 0;
       nights += n;
     }
 
@@ -79,8 +86,9 @@ export function CalendarStats({
       bookedNights: nights,
       totalRevenueCents: rev,
       pendingCount: pending,
+      pricedCount: priced,
     };
-  }, [reservations, rentalStays]);
+  }, [month, reservations, rentalStays]);
 
   const occupancyPercent = useMemo(() => {
     if (totalPossibleNights <= 0) return 0;
@@ -133,7 +141,7 @@ export function CalendarStats({
           </strong>
         </div>
         <p className="mt-1 text-[11px] font-medium text-success truncate">
-          {rentalStays.length} {rentalStays.length === 1 ? "faturada" : "faturadas"}
+          {pricedCount} {pricedCount === 1 ? "faturada" : "faturadas"}
         </p>
       </article>
 
