@@ -46,6 +46,7 @@ public class FinanceService {
         "condominio",
         "contas",
         "taxas",
+        "reembolso",
         "outros"
     );
 
@@ -389,7 +390,7 @@ public class FinanceService {
             throw new ApiException(
                 HttpStatus.BAD_REQUEST,
                 "INVALID_EXPENSE_CATEGORY",
-                "Expense category must be one of: limpeza, consumo, enxoval, manutencao, condominio, contas, taxas, outros."
+                "Expense category must be one of: limpeza, consumo, enxoval, manutencao, condominio, contas, taxas, reembolso, outros."
             );
         }
 

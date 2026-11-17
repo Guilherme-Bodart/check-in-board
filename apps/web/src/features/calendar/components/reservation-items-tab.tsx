@@ -49,6 +49,7 @@ const financialCategoryLabels: Record<string, string> = {
   condominio: "🏢 Condomínio",
   contas: "⚡ Energia / Internet / Contas",
   taxas: "📄 Taxas",
+  reembolso: "↩️ Reembolso",
 };
 
 export const operationalPresets: OperationalPreset[] = [

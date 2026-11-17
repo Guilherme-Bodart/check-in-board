@@ -42,6 +42,7 @@ const expenseCategoryOptions: CategoryOption[] = [
   { value: "condominio", label: "🏢 Condomínio" },
   { value: "contas", label: "⚡ Energia / Internet / Contas" },
   { value: "taxas", label: "📄 Taxas" },
+  { value: "reembolso", label: "↩️ Reembolso" },
   { value: "outros", label: "📌 Outros" },
 ];
 
@@ -49,6 +50,7 @@ const revenueCategoryOptions: CategoryOption[] = [
   { value: "Hospedagem Extra", label: "🏨 Hospedagem Extra" },
   { value: "Taxa de Limpeza", label: "🧹 Taxa de Limpeza" },
   { value: "Taxa Pet", label: "🐾 Taxa Pet" },
+  { value: "Reembolso", label: "↩️ Reembolso" },
   { value: "Outra Receita", label: "📌 Outra Receita" },
 ];
 

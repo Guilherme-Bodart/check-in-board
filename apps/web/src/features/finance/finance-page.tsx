@@ -59,6 +59,7 @@ const categoryLabels: Record<string, string> = {
   enxoval: "Enxoval",
   contas: "Contas / Energia",
   taxas: "Taxas",
+  reembolso: "Reembolso",
   outros: "Outros",
 };
 
